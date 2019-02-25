@@ -4,11 +4,14 @@ Simple client for passing relevant events from MTG Arena logs to a REST endpoint
 
 ## Usage
 
+You can kick this off before you start MTG Arena and have it run in the background while you play. If you have Python installed on Windows, you can simply run the script directly. If you want to run through a terminal, the command would just be as follows:
 ```
 python3 mtga_follower.py
 ```
 
 Additional options are available by passing the `-h` flag to the program.
+
+The log messages will show you what's being sent to the server. You can see more information about the data it's submitting here: https://mtg-draft-logger.herokuapp.com/ui/.
 
 ## Notes
 
