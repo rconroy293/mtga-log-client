@@ -1,6 +1,6 @@
 # mtga-log-client
 
-Simple client for passing relevant events from MTG Arena logs to a REST endpoint. Requires Python 3.6+, along with the `requests` package (`pip3 install requests`).
+Simple client for passing relevant events from MTG Arena logs to a REST endpoint. Requires [Python 3.6+](https://www.python.org/downloads/), along with the [`requests` package](http://docs.python-requests.org/en/master/).
 
 ## Usage
 
