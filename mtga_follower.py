@@ -218,7 +218,7 @@ class Follower:
         """Handle messages in the 'greToClientEvent' field."""
         if message_blob['type'] == 'GREMessageType_SubmitDeckReq':
             deck = {
-                'user': self.cur_user,
+                'player_id': self.cur_user,
                 'time': self.cur_log_time.isoformat(),
                 'maindeck_card_ids': message_blob['submitDeckReq']['deck']['deckCards'],
                 'sideboard_card_ids': message_blob['submitDeckReq']['deck']['sideboardCards'],
@@ -234,7 +234,7 @@ class Follower:
         assert blob['playerId'] == self.cur_user, f'Expected user {blob["playerId"]} to be {self.cur_user}'
 
         game = {
-            'user': self.cur_user,
+            'player_id': self.cur_user,
             'event_name': blob['eventId'],
             'match_id': blob['matchId'],
             'time': self.cur_log_time.isoformat(),
@@ -257,7 +257,7 @@ class Follower:
         """Handle 'draftStatus' messages."""
         if json_obj['draftStatus'] == 'Draft.PickNext':
             pack = {
-                'user': self.cur_user,
+                'player_id': self.cur_user,
                 'event_name': json_obj['eventName'],
                 'time': self.cur_log_time.isoformat(),
                 'pack_number': int(json_obj['packNumber']),
@@ -275,7 +275,7 @@ class Follower:
         assert user == self.cur_user, f'Expected user {user} to be {self.cur_user}'
 
         pick = {
-            'user': self.cur_user,
+            'player_id': self.cur_user,
             'event_name': event_name,
             'time': self.cur_log_time.isoformat(),
             'pack_number': int(inner_obj['packNumber']),
@@ -291,7 +291,7 @@ class Follower:
         inner_obj = json_obj['params']
         deck_info = json.loads(inner_obj['deck'])
         deck = {
-            'user': self.cur_user,
+            'player_id': self.cur_user,
             'event_name': inner_obj['eventName'],
             'time': self.cur_log_time.isoformat(),
             'maindeck_card_ids': [d['Id'] for d in deck_info['mainDeck'] for i in range(d['Quantity'])],
