@@ -83,9 +83,10 @@ def retry_post(endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLE
         tries_left -= 1
         response = requests.post(endpoint, json=blob)
         if not IS_CODE_FOR_RETRY(response.status_code):
-            return response
+            break
         logging.warning(f'Got response code {response.status_code}; retrying {tries_left} more times')
         time.sleep(sleep_time)
+    logging.info(f'{response.status_code} Response: {response.text}')
     return response
 
 def extract_time(time_str):
@@ -128,8 +129,8 @@ class Follower:
         self.buffer = []
         self.cur_log_time = None
         self.json_decoder = json.JSONDecoder()
-        self.draft_data = None
         self.cur_user = None
+        self.objects_by_owner = {}
 
     def parse_log(self, filename, follow):
         """
@@ -227,12 +228,28 @@ class Follower:
             }
             logging.info(f'Deck submission: {deck}')
             response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
-            logging.info(f'{response.status_code} Response: {response.text}')
+        elif message_blob['type'] == 'GREMessageType_GameStateMessage':
+            for game_object in message_blob['gameStateMessage'].get('gameObjects', []):
+                if game_object['type'] != 'GameObjectType_Card':
+                    continue
+                owner = game_object['ownerSeatId']
+                instance_id = game_object['instanceId']
+                card_id = game_object['overlayGrpId']
+
+                if owner not in self.objects_by_owner:
+                    self.objects_by_owner[owner] = {}
+                self.objects_by_owner[owner][instance_id] = card_id
 
     def __handle_game_end(self, json_obj):
         """Handle 'DuelScene.GameStop' messages."""
+        logging.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
+
         blob = json_obj['params']['payloadObject']
         assert blob['playerId'] == self.cur_user, f'Expected user {blob["playerId"]} to be {self.cur_user}'
+
+        opponent_id = 2 if blob['seatId'] == 1 else 1
+        opponent_card_ids = [c for c in self.objects_by_owner.get(opponent_id, {}).values()]
+        self.objects_by_owner = {}
 
         game = {
             'player_id': self.cur_user,
@@ -245,10 +262,10 @@ class Follower:
             'mulligans': [[x['grpId'] for x in hand] for hand in blob['mulliganedHands']],
             'turns': blob['turnCount'],
             'duration': blob['secondsCount'],
+            'opponent_card_ids': opponent_card_ids,
         }
         logging.info(f'Completed game: {game}')
         response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_GAME_RESULT}', blob=game)
-        logging.info(f'{response.status_code} Response: {response.text}')
 
     def __handle_login(self, json_obj):
         """Handle 'Client.Connected' messages."""
@@ -261,7 +278,6 @@ class Follower:
         }
         logging.info(f'Adding user: {user_info}')
         response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_USER}', blob=user_info)
-        logging.info(f'{response.status_code} Response: {response.text}')
 
     def __handle_draft_log(self, json_obj):
         """Handle 'draftStatus' messages."""
@@ -276,7 +292,6 @@ class Follower:
             }
             logging.info(f'Draft pack: {pack}')
             response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_DRAFT_PACK}', blob=pack)
-            logging.info(f'{response.status_code} Response: {response.text}')
 
     def __handle_draft_pick(self, json_obj):
         """Handle 'Draft.MakePick messages."""
@@ -294,7 +309,6 @@ class Follower:
         }
         logging.info(f'Draft pick: {pick}')
         response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_DRAFT_PICK}', blob=pick)
-        logging.info(f'{response.status_code} Response: {response.text}')
 
     def __handle_deck_submission(self, json_obj):
         """Handle 'Event.DeckSubmit' messages."""
@@ -310,7 +324,6 @@ class Follower:
         }
         logging.info(f'Deck submission: {deck}')
         response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
-        logging.info(f'{response.status_code} Response: {response.text}')
 
 if __name__ == '__main__':
     import argparse
