@@ -57,6 +57,7 @@ TIME_FORMATS = (
 OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
 
 API_ENDPOINT = 'https://mtg-draft-logger.herokuapp.com'
+ENDPOINT_USER = 'user'
 ENDPOINT_DECK_SUBMISSION = 'deck'
 ENDPOINT_GAME_RESULT = 'game'
 ENDPOINT_DRAFT_PACK = 'pack'
@@ -200,8 +201,8 @@ class Follower:
             logging.debug(f'Ran into error {e} when parsing at {self.cur_log_time}. Data was: {full_log}')
             return
 
-        if json_value_matches('Client.SceneChange', ['params', 'messageName'], json_obj):
-            self.__handle_scene_change(json_obj)
+        if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj):
+            self.__handle_login(json_obj)
         elif json_value_matches('DuelScene.GameStop', ['params', 'messageName'], json_obj):
             self.__handle_game_end(json_obj)
         elif 'draftStatus' in json_obj:
@@ -249,9 +250,18 @@ class Follower:
         response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_GAME_RESULT}', blob=game)
         logging.info(f'{response.status_code} Response: {response.text}')
 
-    def __handle_scene_change(self, json_obj):
-        """Handle 'Client.SceneChange' messages."""
+    def __handle_login(self, json_obj):
+        """Handle 'Client.Connected' messages."""
         self.cur_user = json_obj['params']['payloadObject']['playerId']
+        screen_name = json_obj['params']['payloadObject']['screenName']
+
+        user_info = {
+            'player_id': self.cur_user,
+            'screen_name': screen_name,
+        }
+        logging.info(f'Adding user: {user_info}')
+        response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_USER}', blob=user_info)
+        logging.info(f'{response.status_code} Response: {response.text}')
 
     def __handle_draft_log(self, json_obj):
         """Handle 'draftStatus' messages."""
