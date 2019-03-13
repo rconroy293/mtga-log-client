@@ -56,7 +56,7 @@ TIME_FORMATS = (
 )
 OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
 
-API_ENDPOINT = 'https://mtg-draft-logger.herokuapp.com'
+API_ENDPOINT = 'http://www.17lands.com'
 ENDPOINT_USER = 'user'
 ENDPOINT_DECK_SUBMISSION = 'deck'
 ENDPOINT_GAME_RESULT = 'game'
