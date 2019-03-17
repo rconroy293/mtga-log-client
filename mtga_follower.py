@@ -31,6 +31,8 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
+CLIENT_VERSION = '0.0.1'
+
 PATH_ON_DRIVE = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA','output_log.txt')
 POSSIBLE_FILEPATHS = (
     # Windows
@@ -69,7 +71,8 @@ DEFAULT_RETRY_SLEEP_TIME = 1
 
 def retry_post(endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME):
     """
-    Send data to an endpoint via post request, retrying on server errors.
+    Add client version to a JSON blob and send the data to an endpoint via post
+    request, retrying on server errors.
 
     :param endpoint:    The http endpoint to hit.
     :param blob:        The JSON data to send in the body of the post request.
@@ -78,6 +81,7 @@ def retry_post(endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLE
 
     :returns: The response object (including status_code and text fields).
     """
+    blob['client_version'] = CLIENT_VERSION
     tries_left = num_retries + 1
     while tries_left > 0:
         tries_left -= 1
