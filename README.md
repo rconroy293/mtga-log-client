@@ -1,8 +1,14 @@
 # mtga-log-client
 
-Simple client for passing relevant events from MTG Arena logs to a REST endpoint. Requires [Python 3.6+](https://www.python.org/downloads/), along with the [`requests` package](http://docs.python-requests.org/en/master/).
+Simple client for passing relevant events from MTG Arena logs to a REST endpoint.
 
-## Usage
+## Basic Usage
+
+On Windows, simply download and run mtga_follower.exe. You can kick this off before you start MTG Arena and have it run in the background while you play.
+
+## Advanced Usage
+
+Requires [Python 3.6+](https://www.python.org/downloads/), along with the [`requests` package](http://docs.python-requests.org/en/master/).
 
 You can kick this off before you start MTG Arena and have it run in the background while you play. If you have Python installed on Windows, you can simply run the script directly. If you want to run through a terminal, the command would just be as follows:
 ```
