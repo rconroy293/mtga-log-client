@@ -31,7 +31,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-CLIENT_VERSION = '0.0.1'
+CLIENT_VERSION = '0.0.2'
 
 PATH_ON_DRIVE = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA','output_log.txt')
 POSSIBLE_FILEPATHS = (
@@ -61,6 +61,7 @@ OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
 API_ENDPOINT = 'http://www.17lands.com'
 ENDPOINT_USER = 'user'
 ENDPOINT_DECK_SUBMISSION = 'deck'
+ENDPOINT_EVENT_SUBMISSION = 'event'
 ENDPOINT_GAME_RESULT = 'game'
 ENDPOINT_DRAFT_PACK = 'pack'
 ENDPOINT_DRAFT_PICK = 'pick'
@@ -216,6 +217,8 @@ class Follower:
             self.__handle_draft_pick(json_obj)
         elif json_value_matches('Event.DeckSubmit', ['method'], json_obj):
             self.__handle_deck_submission(json_obj)
+        elif json_value_matches('DoneWithMatches', ['CurrentEventState'], json_obj):
+            self.__handle_event_completion(json_obj)
         elif 'greToClientEvent' in json_obj and 'greToClientMessages' in json_obj['greToClientEvent']:
             for message in json_obj['greToClientEvent']['greToClientMessages']:
                 self.__handle_gre_to_client_message(message)
@@ -243,6 +246,19 @@ class Follower:
                 if owner not in self.objects_by_owner:
                     self.objects_by_owner[owner] = {}
                 self.objects_by_owner[owner][instance_id] = card_id
+
+    def __handle_event_completion(self, json_obj):
+        """Handle messages upon event completion."""
+        event = {
+            'player_id': self.cur_user,
+            'event_name': json_obj['InternalEventName'],
+            'time': self.cur_log_time.isoformat(),
+            'entry_fee': json_obj['ModuleInstanceData']['HasPaidEntry'],
+            'wins': json_obj['ModuleInstanceData']['WinLossGate']['CurrentWins'],
+            'losses': json_obj['ModuleInstanceData']['WinLossGate']['CurrentLosses'],
+        }
+        logging.info(f'Event submission: {event}')
+        response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_EVENT_SUBMISSION}', blob=event)
 
     def __handle_game_end(self, json_obj):
         """Handle 'DuelScene.GameStop' messages."""
