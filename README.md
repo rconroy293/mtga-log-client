@@ -21,7 +21,7 @@ python3 mtga_follower.py
 
 Additional options are available by passing the `-h` flag to the program.
 
-The log messages will show you what's being sent to the server. You can see more information about the data it's submitting here: https://17lands.com/ui/.
+The log messages will show you what's being sent to the server. You can see more information about the data it's submitting here: http://www.17lands.com/ui/.
 
 ## Notes
 
