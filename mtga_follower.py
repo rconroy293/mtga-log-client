@@ -217,6 +217,8 @@ class Follower:
             self.__handle_draft_pick(json_obj)
         elif json_value_matches('Event.DeckSubmit', ['method'], json_obj):
             self.__handle_deck_submission(json_obj)
+        elif json_value_matches('Event.DeckSubmitV3', ['method'], json_obj):
+            self.__handle_deck_submission_v3(json_obj)
         elif json_value_matches('DoneWithMatches', ['CurrentEventState'], json_obj):
             self.__handle_event_completion(json_obj)
         elif 'greToClientEvent' in json_obj and 'greToClientMessages' in json_obj['greToClientEvent']:
@@ -344,6 +346,32 @@ class Follower:
         }
         logging.info(f'Deck submission: {deck}')
         response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+
+    def __handle_deck_submission_v3(self, json_obj):
+        """Handle 'Event.DeckSubmitV3' messages."""
+        inner_obj = json_obj['params']
+        deck_info = json.loads(inner_obj['deck'])
+        deck = {
+            'player_id': self.cur_user,
+            'event_name': inner_obj['eventName'],
+            'time': self.cur_log_time.isoformat(),
+            'maindeck_card_ids': self.__get_card_ids_from_decklist_v3(deck_info['mainDeck']),
+            'sideboard_card_ids': self.__get_card_ids_from_decklist_v3(deck_info['sideboard']),
+            'is_during_match': False,
+        }
+        logging.info(f'Deck submission: {deck}')
+        response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+
+    def __get_card_ids_from_decklist_v3(self, decklist):
+        """Parse a list of [card_id_1, count_1, card_id_2, count_2, ...] elements."""
+        assert len(decklist) % 2 == 0
+        result = []
+        for i in range(len(decklist) // 2):
+            card_id = decklist[2 * i]
+            count = decklist[2 * i + 1]
+            for j in range(count):
+                result.append(card_id)
+        return result
 
 if __name__ == '__main__':
     import argparse
