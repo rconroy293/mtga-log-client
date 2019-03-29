@@ -4,7 +4,11 @@ Simple client for passing relevant events from MTG Arena logs to a REST endpoint
 
 ## Basic Usage
 
-On Windows, simply download and run mtga_follower.exe. You can kick this off before you start MTG Arena and have it run in the background while you play.
+On Windows, simply download and run `mtga_follower.exe`. This version will have a console window that shows you everything that's being uploaded. You can kick this off before you start MTG Arena and have it run while you play.
+
+If you'd prefer to have something started automatically and run in the background, you can have it start itself at startup and remain hidden (it shouldn't take up much in the way of resources). To make this happen, download the `mtga_follower_hidden.exe` file and do the following two steps:
+1. Create a shortcut to `mtga_follower_hidden.exe` (right click -> Create Shortcut)
+2. Move the shortcut to your startup folder (paste this into your file explorer addresss bar to find the startup folder: `%appdata%\Microsoft\Windows\Start Menu\Programs\Startup`)
 
 ## Advanced Usage
 
@@ -17,7 +21,7 @@ python3 mtga_follower.py
 
 Additional options are available by passing the `-h` flag to the program.
 
-The log messages will show you what's being sent to the server. You can see more information about the data it's submitting here: https://mtg-draft-logger.herokuapp.com/ui/.
+The log messages will show you what's being sent to the server. You can see more information about the data it's submitting here: https://17lands.com/ui/.
 
 ## Notes
 
