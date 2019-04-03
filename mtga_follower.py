@@ -61,8 +61,7 @@ TIME_FORMATS = (
 )
 OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
 
-API_ENDPOINT = 'http://www.17lands.com'
-ENDPOINT_USER = 'user'
+API_ENDPOINT = 'https://www.17lands.com'
 ENDPOINT_DECK_SUBMISSION = 'deck'
 ENDPOINT_EVENT_SUBMISSION = 'event'
 ENDPOINT_GAME_RESULT = 'game'
@@ -114,7 +113,6 @@ class Follower:
         self.buffer = []
         self.cur_log_time = None
         self.json_decoder = json.JSONDecoder()
-        self.cur_user = None
         self.objects_by_owner = {}
 
     def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME):
@@ -213,9 +211,7 @@ class Follower:
             logging.debug(f'Ran into error {e} when parsing at {self.cur_log_time}. Data was: {full_log}')
             return
 
-        if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj):
-            self.__handle_login(json_obj)
-        elif json_value_matches('DuelScene.GameStop', ['params', 'messageName'], json_obj):
+        if json_value_matches('DuelScene.GameStop', ['params', 'messageName'], json_obj):
             self.__handle_game_end(json_obj)
         elif 'draftStatus' in json_obj:
             self.__handle_draft_log(json_obj)
@@ -235,7 +231,6 @@ class Follower:
         """Handle messages in the 'greToClientEvent' field."""
         if message_blob['type'] == 'GREMessageType_SubmitDeckReq':
             deck = {
-                'player_id': self.cur_user,
                 'time': self.cur_log_time.isoformat(),
                 'maindeck_card_ids': message_blob['submitDeckReq']['deck']['deckCards'],
                 'sideboard_card_ids': message_blob['submitDeckReq']['deck']['sideboardCards'],
@@ -258,7 +253,6 @@ class Follower:
     def __handle_event_completion(self, json_obj):
         """Handle messages upon event completion."""
         event = {
-            'player_id': self.cur_user,
             'event_name': json_obj['InternalEventName'],
             'time': self.cur_log_time.isoformat(),
             'entry_fee': json_obj['ModuleInstanceData']['HasPaidEntry'],
@@ -273,14 +267,12 @@ class Follower:
         logging.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
 
         blob = json_obj['params']['payloadObject']
-        assert blob['playerId'] == self.cur_user, f'Expected user {blob["playerId"]} to be {self.cur_user}'
 
         opponent_id = 2 if blob['seatId'] == 1 else 1
         opponent_card_ids = [c for c in self.objects_by_owner.get(opponent_id, {}).values()]
         self.objects_by_owner = {}
 
         game = {
-            'player_id': self.cur_user,
             'event_name': blob['eventId'],
             'match_id': blob['matchId'],
             'time': self.cur_log_time.isoformat(),
@@ -295,23 +287,10 @@ class Follower:
         logging.info(f'Completed game: {game}')
         response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_GAME_RESULT}', blob=game)
 
-    def __handle_login(self, json_obj):
-        """Handle 'Client.Connected' messages."""
-        self.cur_user = json_obj['params']['payloadObject']['playerId']
-        screen_name = json_obj['params']['payloadObject']['screenName']
-
-        user_info = {
-            'player_id': self.cur_user,
-            'screen_name': screen_name,
-        }
-        logging.info(f'Adding user: {user_info}')
-        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_USER}', blob=user_info)
-
     def __handle_draft_log(self, json_obj):
         """Handle 'draftStatus' messages."""
         if json_obj['draftStatus'] == 'Draft.PickNext':
             pack = {
-                'player_id': self.cur_user,
                 'event_name': json_obj['eventName'],
                 'time': self.cur_log_time.isoformat(),
                 'pack_number': int(json_obj['packNumber']),
@@ -325,10 +304,8 @@ class Follower:
         """Handle 'Draft.MakePick messages."""
         inner_obj = json_obj['params']
         (user, event_name, other) = inner_obj['draftId'].rsplit(':', 2)
-        assert user == self.cur_user, f'Expected user {user} to be {self.cur_user}'
 
         pick = {
-            'player_id': self.cur_user,
             'event_name': event_name,
             'time': self.cur_log_time.isoformat(),
             'pack_number': int(inner_obj['packNumber']),
@@ -343,7 +320,6 @@ class Follower:
         inner_obj = json_obj['params']
         deck_info = json.loads(inner_obj['deck'])
         deck = {
-            'player_id': self.cur_user,
             'event_name': inner_obj['eventName'],
             'time': self.cur_log_time.isoformat(),
             'maindeck_card_ids': [d['Id'] for d in deck_info['mainDeck'] for i in range(d['Quantity'])],
@@ -358,7 +334,6 @@ class Follower:
         inner_obj = json_obj['params']
         deck_info = json.loads(inner_obj['deck'])
         deck = {
-            'player_id': self.cur_user,
             'event_name': inner_obj['eventName'],
             'time': self.cur_log_time.isoformat(),
             'maindeck_card_ids': self.__get_card_ids_from_decklist_v3(deck_info['mainDeck']),
