@@ -20,6 +20,7 @@ import os.path
 import re
 import time
 import traceback
+import uuid
 
 from collections import namedtuple
 
@@ -31,7 +32,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-CLIENT_VERSION = '0.0.3'
+CLIENT_VERSION = '0.1.0'
 
 PATH_ON_DRIVE = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA','output_log.txt')
 POSSIBLE_FILEPATHS = (
@@ -39,10 +40,12 @@ POSSIBLE_FILEPATHS = (
     os.path.join('C:/',PATH_ON_DRIVE),
     os.path.join('D:/',PATH_ON_DRIVE),
     # Lutris
-    os.path.join(os.path.expanduser("~"),'Games','magic-the-gathering-arena','drive_c',PATH_ON_DRIVE),
+    os.path.join(os.path.expanduser('~'),'Games','magic-the-gathering-arena','drive_c',PATH_ON_DRIVE),
     # Wine
-    os.path.join(os.path.expanduser("~"),'.wine','drive_c',PATH_ON_DRIVE),
+    os.path.join(os.path.expanduser('~'),'.wine','drive_c',PATH_ON_DRIVE),
 )
+
+CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.mtga_follower.ini')
 
 LOG_START_REGEX = re.compile(r'^\[(UnityCrossThreadLogger|Client GRE)\]([\d:/ -]+(AM|PM)?)')
 JSON_START_REGEX = re.compile(r'[[{]')
@@ -69,30 +72,6 @@ ENDPOINT_DRAFT_PICK = 'pick'
 RETRIES = 2
 IS_CODE_FOR_RETRY = lambda code: code >= 500 and code < 600
 DEFAULT_RETRY_SLEEP_TIME = 1
-
-def retry_post(endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME):
-    """
-    Add client version to a JSON blob and send the data to an endpoint via post
-    request, retrying on server errors.
-
-    :param endpoint:    The http endpoint to hit.
-    :param blob:        The JSON data to send in the body of the post request.
-    :param num_retries: The number of times to retry upon failure.
-    :param sleep_time:  In seconds, the time to sleep between tries.
-
-    :returns: The response object (including status_code and text fields).
-    """
-    blob['client_version'] = CLIENT_VERSION
-    tries_left = num_retries + 1
-    while tries_left > 0:
-        tries_left -= 1
-        response = requests.post(endpoint, json=blob)
-        if not IS_CODE_FOR_RETRY(response.status_code):
-            break
-        logging.warning(f'Got response code {response.status_code}; retrying {tries_left} more times')
-        time.sleep(sleep_time)
-    logging.info(f'{response.status_code} Response: {response.text}')
-    return response
 
 def extract_time(time_str):
     """
@@ -130,12 +109,39 @@ def json_value_matches(expectation, path, blob):
 class Follower:
     """Follows along a log, parses the messages, and passes along the parsed data to the API endpoint."""
 
-    def __init__(self):
+    def __init__(self, token):
+        self.token = token
         self.buffer = []
         self.cur_log_time = None
         self.json_decoder = json.JSONDecoder()
         self.cur_user = None
         self.objects_by_owner = {}
+
+    def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME):
+        """
+        Add client version to a JSON blob and send the data to an endpoint via post
+        request, retrying on server errors.
+
+        :param endpoint:    The http endpoint to hit.
+        :param blob:        The JSON data to send in the body of the post request.
+        :param num_retries: The number of times to retry upon failure.
+        :param sleep_time:  In seconds, the time to sleep between tries.
+
+        :returns: The response object (including status_code and text fields).
+        """
+        blob['client_version'] = CLIENT_VERSION
+        blob['token'] = self.token
+
+        tries_left = num_retries + 1
+        while tries_left > 0:
+            tries_left -= 1
+            response = requests.post(endpoint, json=blob)
+            if not IS_CODE_FOR_RETRY(response.status_code):
+                break
+            logging.warning(f'Got response code {response.status_code}; retrying {tries_left} more times')
+            time.sleep(sleep_time)
+        logging.info(f'{response.status_code} Response: {response.text}')
+        return response
 
     def parse_log(self, filename, follow):
         """
@@ -236,7 +242,7 @@ class Follower:
                 'is_during_match': True,
             }
             logging.info(f'Deck submission: {deck}')
-            response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+            response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
         elif message_blob['type'] == 'GREMessageType_GameStateMessage':
             for game_object in message_blob['gameStateMessage'].get('gameObjects', []):
                 if game_object['type'] != 'GameObjectType_Card':
@@ -260,7 +266,7 @@ class Follower:
             'losses': json_obj['ModuleInstanceData']['WinLossGate']['CurrentLosses'],
         }
         logging.info(f'Event submission: {event}')
-        response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_EVENT_SUBMISSION}', blob=event)
+        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_EVENT_SUBMISSION}', blob=event)
 
     def __handle_game_end(self, json_obj):
         """Handle 'DuelScene.GameStop' messages."""
@@ -287,7 +293,7 @@ class Follower:
             'opponent_card_ids': opponent_card_ids,
         }
         logging.info(f'Completed game: {game}')
-        response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_GAME_RESULT}', blob=game)
+        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_GAME_RESULT}', blob=game)
 
     def __handle_login(self, json_obj):
         """Handle 'Client.Connected' messages."""
@@ -299,7 +305,7 @@ class Follower:
             'screen_name': screen_name,
         }
         logging.info(f'Adding user: {user_info}')
-        response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_USER}', blob=user_info)
+        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_USER}', blob=user_info)
 
     def __handle_draft_log(self, json_obj):
         """Handle 'draftStatus' messages."""
@@ -313,7 +319,7 @@ class Follower:
                 'card_ids': [int(x) for x in json_obj['draftPack']],
             }
             logging.info(f'Draft pack: {pack}')
-            response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_DRAFT_PACK}', blob=pack)
+            response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_DRAFT_PACK}', blob=pack)
 
     def __handle_draft_pick(self, json_obj):
         """Handle 'Draft.MakePick messages."""
@@ -330,7 +336,7 @@ class Follower:
             'card_id': int(inner_obj['cardId']),
         }
         logging.info(f'Draft pick: {pick}')
-        response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_DRAFT_PICK}', blob=pick)
+        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_DRAFT_PICK}', blob=pick)
 
     def __handle_deck_submission(self, json_obj):
         """Handle 'Event.DeckSubmit' messages."""
@@ -345,7 +351,7 @@ class Follower:
             'is_during_match': False,
         }
         logging.info(f'Deck submission: {deck}')
-        response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __handle_deck_submission_v3(self, json_obj):
         """Handle 'Event.DeckSubmitV3' messages."""
@@ -360,7 +366,7 @@ class Follower:
             'is_during_match': False,
         }
         logging.info(f'Deck submission: {deck}')
-        response = retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __get_card_ids_from_decklist_v3(self, decklist):
         """Parse a list of [card_id_1, count_1, card_id_2, count_2, ...] elements."""
@@ -373,6 +379,53 @@ class Follower:
                 result.append(card_id)
         return result
 
+def validate_uuid_v4(maybe_uuid):
+    try:
+        uuid.UUID(maybe_uuid, version=4)
+        return maybe_uuid
+    except ValueError:
+        return None
+
+def get_client_token():
+    import configparser
+    token = None
+    config = configparser.ConfigParser()
+    if os.path.exists(CONFIG_FILE):
+        config.read(CONFIG_FILE)
+        if 'client' in config:
+            token = validate_uuid_v4(config['client'].get('token'))
+
+    if token is None or validate_uuid_v4(token) is None:
+        import tkinter
+        import tkinter.simpledialog
+        import tkinter.messagebox
+
+        window = tkinter.Tk()
+        window.wm_withdraw()
+
+        message = 'Please enter your client token from 17lands.com:'
+        while True:
+            token = tkinter.simpledialog.askstring('Client Token', message)
+
+            if token is None:
+                tkinter.messagebox.showerror(
+                    'Error: Client Token Needed',
+                    'The program cannot continue without specifying a client token. Exiting.'
+                )
+                exit(1)
+
+            if validate_uuid_v4(token) is None:
+                message = 'That token is invalid. Please specify a valid client token. See 17lands.com/getting_started for more details.'
+            else:
+                break
+
+        config['client'] = {'token': token}
+        with open(CONFIG_FILE, 'w') as f:
+            config.write(f)
+
+    return token
+
+
 if __name__ == '__main__':
     import argparse
 
@@ -384,13 +437,16 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    token = get_client_token()
+    logging.info(f'Using token {token}')
+
     filepaths = POSSIBLE_FILEPATHS
     if args.log_file is not None:
         filepaths = (args.log_file, )
 
     follow = not args.once
 
-    follower = Follower()
+    follower = Follower(token)
     for filename in filepaths:
         if os.path.exists(filename):
             logging.info(f'Following along {filename}')
