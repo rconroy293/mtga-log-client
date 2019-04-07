@@ -32,7 +32,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-CLIENT_VERSION = '0.1.0'
+CLIENT_VERSION = '0.1.1'
 
 PATH_ON_DRIVE = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA','output_log.txt')
 POSSIBLE_FILEPATHS = (
@@ -67,6 +67,7 @@ ENDPOINT_EVENT_SUBMISSION = 'event'
 ENDPOINT_GAME_RESULT = 'game'
 ENDPOINT_DRAFT_PACK = 'pack'
 ENDPOINT_DRAFT_PICK = 'pick'
+ENDPOINT_CLIENT_VERSION = 'min_client_version'
 
 RETRIES = 2
 IS_CODE_FOR_RETRY = lambda code: code >= 500 and code < 600
@@ -378,9 +379,9 @@ def get_client_token():
         window = tkinter.Tk()
         window.wm_withdraw()
 
-        message = 'Please enter your client token from 17lands.com:'
+        message = 'Please enter your client token from 17lands.com/account:'
         while True:
-            token = tkinter.simpledialog.askstring('Client Token', message)
+            token = tkinter.simpledialog.askstring('MTGA Log Client Token', message)
 
             if token is None:
                 tkinter.messagebox.showerror(
@@ -400,8 +401,42 @@ def get_client_token():
 
     return token
 
+def verify_valid_version():
+    for i in range(3):
+        response = requests.get(f'{API_ENDPOINT}/{ENDPOINT_CLIENT_VERSION}')
+        if not IS_CODE_FOR_RETRY(response.status_code):
+            break
+        logging.warning(f'Got response code {response.status_code}; retrying')
+        time.sleep(DEFAULT_RETRY_SLEEP_TIME)
+    else:
+        logging.warning('Could not get response from server for minimum client version. Assuming version is valid.')
+        return
+
+    logging.info(f'Got minimum client version response: {response.text}')
+    blob = json.loads(response.text)
+    this_version = [int(i) for i in CLIENT_VERSION.split('.')]
+    min_supported_version = [int(i) for i in blob['min_version'].split('.')]
+    logging.info(f'Minimum supported version: {min_supported_version}; this version: {this_version}')
+    
+    if this_version >= min_supported_version:
+        return
+
+    import tkinter
+    import tkinter.messagebox
+    window = tkinter.Tk()
+    window.wm_withdraw()
+    tkinter.messagebox.showerror(
+        'MTGA Log Client Error: Client Update Needed',
+        (f'The minimum supported version for the client is {blob["min_version"]}. '
+            + f'Your current version is {CLIENT_VERSION}. Please download the latest '
+            + 'version of the client from https://github.com/rconroy293/mtga-log-client')
+    )
+    exit(1)
+
 
 if __name__ == '__main__':
+    verify_valid_version()
+
     import argparse
 
     parser = argparse.ArgumentParser(description='MTGA log follower')
