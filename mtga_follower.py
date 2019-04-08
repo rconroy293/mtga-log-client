@@ -342,6 +342,7 @@ class Follower:
         inner_obj = json_obj['params']
         deck_info = json.loads(inner_obj['deck'])
         deck = {
+            'player_id': self.cur_user,
             'event_name': inner_obj['eventName'],
             'time': self.cur_log_time.isoformat(),
             'maindeck_card_ids': [d['Id'] for d in deck_info['mainDeck'] for i in range(d['Quantity'])],
