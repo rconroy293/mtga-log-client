@@ -23,12 +23,79 @@ namespace mtga_log_client
             var minimumVersion = client.GetMinimumApiVersion();
             Console.WriteLine(minimumVersion);
 
+            /*
             MTGAAccount account = new MTGAAccount();
             account.client_version = "0.0.1-test";
             account.player_id = "12345";
             account.screen_name = "test-user";
             account.token = "1a2b3c";
-            // client.PostMTGAAccount(account);
+            client.PostMTGAAccount(account);
+            */
+
+            LogParser parser = new LogParser("C:\\Users\\Rob\\AppData\\LocalLow\\Wizards Of The Coast\\MTGA\\output_log.txt");
+            parser.ParseLog();
+        }
+    }
+
+    class LogParser
+    {
+
+        private const int BUFFER_SIZE = 65536;
+
+        private bool first = true;
+        private long farthestReadPosition = 0;
+
+        private string filePath;
+
+        public LogParser(string filePath)
+        {
+            this.filePath = filePath;
+        }
+
+        public void ParseLog() {
+            try
+            {
+                using (FileStream filestream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, BUFFER_SIZE))
+                {
+                    if (first || filestream.Length < farthestReadPosition)
+                    {
+                        filestream.Position = 0;
+                        farthestReadPosition = filestream.Length;
+                    }
+                    else if (filestream.Length >= farthestReadPosition)
+                    {
+                        filestream.Position = farthestReadPosition;
+                        farthestReadPosition = filestream.Length;
+                    }
+                    first = false;
+
+                    using (StreamReader reader = new StreamReader(filestream))
+                    {
+                        while (true)
+                        {
+                            string line = line = reader.ReadLine();
+                            if (line == null)
+                            {
+                                break;
+                            }
+                            ProcessLine(line);
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error parsing log: {0}", e);
+            }
+        }
+
+        private long linesProcessed = 0;
+        private void ProcessLine(string line)
+        {
+            if (linesProcessed++ % 10000 == 0)
+            {
+                Console.WriteLine("Processed {0} lines so far", linesProcessed);
+            }
         }
     }
 
