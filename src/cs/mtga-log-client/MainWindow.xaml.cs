@@ -186,6 +186,7 @@ namespace mtga_log_client
 
             if (maybeHandleLogin(blob)) return;
             if (maybeHandleGameEnd(blob)) return;
+            if (maybeHandleDraftLog(blob)) return;
         }
 
         private bool maybeHandleLogin(JObject blob)
@@ -206,6 +207,7 @@ namespace mtga_log_client
                 account.token = apiToken;
                 account.client_version = CLIENT_VERSION;
                 account.player_id = currentUser;
+
                 account.screen_name = screenName;
                 apiClient.PostMTGAAccount(account);
 
@@ -253,10 +255,10 @@ namespace mtga_log_client
                 game.token = apiToken;
                 game.client_version = CLIENT_VERSION;
                 game.player_id = currentUser;
+                game.time = getDatetimeString(currentLogTime.Value);
 
                 game.event_name = payload["eventId"].Value<string>();
                 game.match_id = payload["matchId"].Value<string>();
-                game.time = getDatetimeString(currentLogTime.Value);
                 game.on_play = payload["teamId"].Value<int>() == payload["startingTeamId"].Value<int>();
                 game.won = payload["teamId"].Value<int>() == payload["winningTeamId"].Value<int>();
                 game.game_end_reason = payload["winningReason"].Value<string>();
@@ -267,6 +269,39 @@ namespace mtga_log_client
 
                 apiClient.PostGame(game);
 
+                return true;
+            }
+            catch (Exception e)
+            {
+                return false;
+            }
+        }
+
+        private bool maybeHandleDraftLog(JObject blob)
+        {
+            try
+            {
+                if (!blob.ContainsKey("draftStatus")) return false;
+                if (!"Draft.PickNext".Equals(blob["draftStatus"].Value<String>())) return false;
+
+                Pack pack = new Pack();
+                pack.token = apiToken;
+                pack.client_version = CLIENT_VERSION;
+                pack.player_id = currentUser;
+                pack.time = getDatetimeString(currentLogTime.Value);
+
+                var cardIds = new List<int>();
+                foreach (JToken cardString in blob["draftPack"].Value<JArray>())
+                {
+                    cardIds.Add(int.Parse(cardString.Value<String>()));
+                }
+
+                pack.event_name = blob["eventName"].Value<String>();
+                pack.pack_number = blob["packNumber"].Value<int>();
+                pack.pick_number = blob["pickNumber"].Value<int>();
+                pack.card_ids = cardIds;
+
+                apiClient.PostPack(pack);
                 return true;
             }
             catch (Exception e)
