@@ -36,7 +36,8 @@ namespace mtga_log_client
 
             LogParser parser = new LogParser(client,
                 "d1c297f8ff8d4b75a9ce60691458486b",
-                "C:\\Users\\Rob\\AppData\\LocalLow\\Wizards Of The Coast\\MTGA\\output_log.txt");
+                // "C:\\Users\\Rob\\AppData\\LocalLow\\Wizards Of The Coast\\MTGA\\output_log.txt");
+                "E:\\output_log_simple.txt");
             parser.ParseLog();
         }
     }
@@ -48,6 +49,10 @@ namespace mtga_log_client
         private const int BUFFER_SIZE = 65536;
         private static readonly Regex LOG_START_REGEX = new Regex(
             "^\\[(UnityCrossThreadLogger|Client GRE)\\]([\\d:/ -]+(AM|PM)?)");
+        private static readonly Regex LOG_START_REGEX_UNTIMED = new Regex(
+            "^\\[(UnityCrossThreadLogger|Client GRE)\\]");
+        private static readonly Regex LOG_START_REGEX_UNTIMED_2 = new Regex(
+            "^\\(Filename:");
         private static readonly Regex JSON_DICT_REGEX = new Regex("\\{.+\\}");
         private static readonly Regex JSON_LIST_REGEX = new Regex("\\[.+\\]");
 
@@ -108,11 +113,16 @@ namespace mtga_log_client
 
         private void ProcessLine(string line)
         {
-            var match = LOG_START_REGEX.Match(line);
-            if (match.Success)
+            var match = LOG_START_REGEX_UNTIMED.Match(line);
+            var match2 = LOG_START_REGEX_UNTIMED_2.Match(line);
+            if (match.Success || match2.Success)
             {
                 handleCompleteLogEntry();
-                currentLogTime = DateTime.Parse(match.Groups[2].Value);
+                var timedMatch = LOG_START_REGEX.Match(line);
+                if (timedMatch.Success)
+                {
+                    currentLogTime = DateTime.Parse(timedMatch.Groups[2].Value);
+                }
             }
             else
             {
@@ -169,6 +179,7 @@ namespace mtga_log_client
             }
 
             if (maybeHandleLogin(blob)) return;
+            if (maybeHandleGameEnd(blob)) return;
         }
 
         private bool maybeHandleLogin(JObject blob)
@@ -191,6 +202,64 @@ namespace mtga_log_client
                 account.player_id = currentUser;
                 account.screen_name = screenName;
                 apiClient.PostMTGAAccount(account);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                return false;
+            }
+        }
+
+        private bool maybeHandleGameEnd(JObject blob)
+        {
+            try
+            {
+                JToken token;
+                if (!blob.TryGetValue("params", out token)) return false;
+                if (!token.Value<JObject>().TryGetValue("messageName", out token)) return false;
+                if (!token.Value<String>().Equals("DuelScene.GameStop")) return false;
+
+                var payload = blob["params"]["payloadObject"];
+
+                var opponentId = payload["seatId"].Value<int>() == 1 ? 2 : 1;
+                var opponentCardIds = new List<int>();
+                if (objectsByOwner.ContainsKey(opponentId))
+                {
+                    foreach(KeyValuePair<int, int> entry in objectsByOwner[opponentId])
+                    {
+                        opponentCardIds.Add(entry.Value);
+                    }
+                }
+
+                var mulligans = new List<List<int>>();
+                foreach (JArray hand in payload["mulliganedHands"].Value<JArray>())
+                {
+                    var mulliganHand = new List<int>();
+                    foreach (JObject card in hand)
+                    {
+                        mulliganHand.Add(card["grpId"].Value<int>());
+                    }
+                    mulligans.Add(mulliganHand);
+                }
+
+                Game game = new Game();
+                game.token = apiToken;
+                game.client_version = CLIENT_VERSION;
+                game.player_id = currentUser;
+
+                game.event_name = payload["eventId"].Value<string>();
+                game.match_id = payload["matchId"].Value<string>();
+                game.time = currentLogTime.ToString();
+                game.on_play = payload["teamId"].Value<int>() == payload["startingTeamId"].Value<int>();
+                game.won = payload["teamId"].Value<int>() == payload["winningTeamId"].Value<int>();
+                game.game_end_reason = payload["winningReason"].Value<string>();
+                game.mulligans = mulligans;
+                game.turns = payload["turnCount"].Value<int>();
+                game.duration = payload["secondsCount"].Value<int>();
+                game.opponent_card_ids = opponentCardIds;
+
+                apiClient.PostGame(game);
 
                 return true;
             }
@@ -262,6 +331,7 @@ namespace mtga_log_client
 
         private void PostJson(string endpoint, String blob)
         {
+            Console.WriteLine("Sending post to {0} of {1}", endpoint, blob);
             var content = new StringContent(blob, Encoding.UTF8, "application/json");
             var response = client.PostAsync(endpoint, content).Result;
             if (!response.IsSuccessStatusCode)
