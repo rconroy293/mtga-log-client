@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
+using System.Globalization;
 
 namespace mtga_log_client
 {
@@ -128,6 +129,11 @@ namespace mtga_log_client
             {
                 buffer.Add(line);
             }
+        }
+
+        private string getDatetimeString(DateTime value)
+        {
+            return value.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
         }
 
         private void handleCompleteLogEntry()
@@ -250,7 +256,7 @@ namespace mtga_log_client
 
                 game.event_name = payload["eventId"].Value<string>();
                 game.match_id = payload["matchId"].Value<string>();
-                game.time = currentLogTime.ToString();
+                game.time = getDatetimeString(currentLogTime.Value);
                 game.on_play = payload["teamId"].Value<int>() == payload["startingTeamId"].Value<int>();
                 game.won = payload["teamId"].Value<int>() == payload["winningTeamId"].Value<int>();
                 game.game_end_reason = payload["winningReason"].Value<string>();
