@@ -187,6 +187,7 @@ namespace mtga_log_client
             if (maybeHandleLogin(blob)) return;
             if (maybeHandleGameEnd(blob)) return;
             if (maybeHandleDraftLog(blob)) return;
+            if (maybeHandleDraftPick(blob)) return;
         }
 
         private bool maybeHandleLogin(JObject blob)
@@ -302,6 +303,37 @@ namespace mtga_log_client
                 pack.card_ids = cardIds;
 
                 apiClient.PostPack(pack);
+                return true;
+            }
+            catch (Exception e)
+            {
+                return false;
+            }
+        }
+
+        private bool maybeHandleDraftPick(JObject blob)
+        {
+            try
+            {
+                if (!blob.ContainsKey("method")) return false;
+                if (!"Draft.MakePick".Equals(blob["method"].Value<String>())) return false;
+
+                var parameters = blob["params"].Value<JObject>();
+                var draftIdComponents = parameters["draftId"].Value<String>().Split(':');
+
+                Pick pick = new Pick();
+                pick.token = apiToken;
+                pick.client_version = CLIENT_VERSION;
+                pick.player_id = currentUser;
+                pick.time = getDatetimeString(currentLogTime.Value);
+
+                pick.event_name = draftIdComponents[1];
+                pick.pack_number = parameters["packNumber"].Value<int>();
+                pick.pick_number = parameters["pickNumber"].Value<int>();
+                pick.card_id = parameters["cardId"].Value<int>();
+
+                apiClient.PostPick(pick);
+
                 return true;
             }
             catch (Exception e)
