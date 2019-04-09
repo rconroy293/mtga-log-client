@@ -7,6 +7,8 @@ using System.Runtime.Serialization.Json;
 using System.IO;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
+using Newtonsoft.Json.Linq;
 
 namespace mtga_log_client
 {
@@ -32,23 +34,38 @@ namespace mtga_log_client
             client.PostMTGAAccount(account);
             */
 
-            LogParser parser = new LogParser("C:\\Users\\Rob\\AppData\\LocalLow\\Wizards Of The Coast\\MTGA\\output_log.txt");
+            LogParser parser = new LogParser(client,
+                "d1c297f8ff8d4b75a9ce60691458486b",
+                "C:\\Users\\Rob\\AppData\\LocalLow\\Wizards Of The Coast\\MTGA\\output_log.txt");
             parser.ParseLog();
         }
     }
 
     class LogParser
     {
+        private const string CLIENT_VERSION = "0.1.2";
 
         private const int BUFFER_SIZE = 65536;
+        private static readonly Regex LOG_START_REGEX = new Regex(
+            "^\\[(UnityCrossThreadLogger|Client GRE)\\]([\\d:/ -]+(AM|PM)?)");
+        private static readonly Regex JSON_DICT_REGEX = new Regex("\\{.+\\}");
+        private static readonly Regex JSON_LIST_REGEX = new Regex("\\[.+\\]");
 
         private bool first = true;
         private long farthestReadPosition = 0;
+        private List<string> buffer = new List<string>();
+        private Nullable<DateTime> currentLogTime = null;
+        private string currentUser = null;
+        private Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
 
+        private ApiClient apiClient;
+        private string apiToken;
         private string filePath;
 
-        public LogParser(string filePath)
+        public LogParser(ApiClient apiClient, string apiToken, string filePath)
         {
+            this.apiClient = apiClient;
+            this.apiToken = apiToken;
             this.filePath = filePath;
         }
 
@@ -89,12 +106,97 @@ namespace mtga_log_client
             }
         }
 
-        private long linesProcessed = 0;
         private void ProcessLine(string line)
         {
-            if (linesProcessed++ % 10000 == 0)
+            var match = LOG_START_REGEX.Match(line);
+            if (match.Success)
             {
-                Console.WriteLine("Processed {0} lines so far", linesProcessed);
+                handleCompleteLogEntry();
+                currentLogTime = DateTime.Parse(match.Groups[2].Value);
+            }
+            else
+            {
+                buffer.Add(line);
+            }
+        }
+
+        private void handleCompleteLogEntry()
+        {
+            if (buffer.Count == 0)
+            {
+                return;
+            }
+            if (!currentLogTime.HasValue)
+            {
+                buffer.Clear();
+                return;
+            }
+
+            var fullLog = String.Join("", buffer);
+            try
+            {
+                handleBlob(fullLog);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error {0} while processing {1}", e, fullLog);
+            }
+
+            buffer.Clear();
+            currentLogTime = null;
+        }
+
+        private long blobsProcessed = 0;
+        private void handleBlob(string fullLog)
+        {
+            var dictMatch = JSON_DICT_REGEX.Match(fullLog);
+            if (!dictMatch.Success)
+            {
+                return;
+            }
+
+            var listMatch = JSON_LIST_REGEX.Match(fullLog);
+            if (listMatch.Success && listMatch.Value.Length > dictMatch.Value.Length)
+            {
+                return;
+            }
+
+            var blob = JObject.Parse(dictMatch.Value);
+
+            if (++blobsProcessed % 100 == 0)
+            {
+                Console.WriteLine("Processed {0} blobs so far", blobsProcessed);
+            }
+
+            if (maybeHandleLogin(blob)) return;
+        }
+
+        private bool maybeHandleLogin(JObject blob)
+        {
+            try
+            {
+                JToken token;
+                if (!blob.TryGetValue("params", out token)) return false;
+                if (!token.Value<JObject>().TryGetValue("messageName", out token)) return false;
+                if (!token.Value<String>().Equals("Client.Connected")) return false;
+
+                var payload = blob["params"]["payloadObject"];
+
+                currentUser = payload["playerId"].Value<String>();
+                var screenName = payload["screenName"].Value<String>();
+
+                MTGAAccount account = new MTGAAccount();
+                account.token = apiToken;
+                account.client_version = CLIENT_VERSION;
+                account.player_id = currentUser;
+                account.screen_name = screenName;
+                apiClient.PostMTGAAccount(account);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                return false;
             }
         }
     }
@@ -110,12 +212,12 @@ namespace mtga_log_client
         private const string ENDPOINT_PICK = "pick";
         private const string ENDPOINT_MIN_CLIENT_VERSION = "min_client_version";
 
-        private DataContractJsonSerializer SERIALIZER_MTGA_ACCOUNT = new DataContractJsonSerializer(typeof(MTGAAccount));
-        private DataContractJsonSerializer SERIALIZER_PACK = new DataContractJsonSerializer(typeof(Pack));
-        private DataContractJsonSerializer SERIALIZER_PICK = new DataContractJsonSerializer(typeof(Pick));
-        private DataContractJsonSerializer SERIALIZER_DECK = new DataContractJsonSerializer(typeof(Deck));
-        private DataContractJsonSerializer SERIALIZER_GAME = new DataContractJsonSerializer(typeof(Game));
-        private DataContractJsonSerializer SERIALIZER_EVENT = new DataContractJsonSerializer(typeof(Event));
+        private static readonly DataContractJsonSerializer SERIALIZER_MTGA_ACCOUNT = new DataContractJsonSerializer(typeof(MTGAAccount));
+        private static readonly DataContractJsonSerializer SERIALIZER_PACK = new DataContractJsonSerializer(typeof(Pack));
+        private static readonly DataContractJsonSerializer SERIALIZER_PICK = new DataContractJsonSerializer(typeof(Pick));
+        private static readonly DataContractJsonSerializer SERIALIZER_DECK = new DataContractJsonSerializer(typeof(Deck));
+        private static readonly DataContractJsonSerializer SERIALIZER_GAME = new DataContractJsonSerializer(typeof(Game));
+        private static readonly DataContractJsonSerializer SERIALIZER_EVENT = new DataContractJsonSerializer(typeof(Event));
 
         private HttpClient client;
 
