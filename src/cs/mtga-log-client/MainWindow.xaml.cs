@@ -190,6 +190,7 @@ namespace mtga_log_client
             if (maybeHandleDraftPick(blob)) return;
             if (maybeHandleDeckSubmission(blob)) return;
             if (maybeHandleDeckSubmissionV3(blob)) return;
+            if (maybeHandleEventCompletion(blob)) return;
         }
 
         private bool maybeHandleLogin(JObject blob)
@@ -444,6 +445,34 @@ namespace mtga_log_client
             catch (Exception e)
             {
                 Console.WriteLine("Error {0} parsing v3 deck submission from {1}", e, blob);
+                return false;
+            }
+        }
+
+        private bool maybeHandleEventCompletion(JObject blob)
+        {
+            if (!blob.ContainsKey("CurrentEventState")) return false;
+            if (!"DoneWithMatches".Equals(blob["CurrentEventState"].Value<String>())) return false;
+
+            try
+            {
+                Event event_ = new Event();
+                event_.token = apiToken;
+                event_.client_version = CLIENT_VERSION;
+                event_.player_id = currentUser;
+                event_.time = getDatetimeString(currentLogTime.Value);
+
+                event_.event_name = blob["InternalEventName"].Value<String>();
+                event_.entry_fee = blob["ModuleInstanceData"]["HasPaidEntry"].Value<String>();
+                event_.wins = blob["ModuleInstanceData"]["WinLossGate"]["CurrentWins"].Value<int>();
+                event_.losses = blob["ModuleInstanceData"]["WinLossGate"]["CurrentLosses"].Value<int>();
+
+                apiClient.PostEvent(event_);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error {0} parsing event completion from {1}", e, blob);
                 return false;
             }
         }
