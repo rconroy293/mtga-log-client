@@ -62,11 +62,11 @@ namespace mtga_log_client
         private List<string> buffer = new List<string>();
         private Nullable<DateTime> currentLogTime = null;
         private string currentUser = null;
-        private Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
+        private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
 
-        private ApiClient apiClient;
-        private string apiToken;
-        private string filePath;
+        private readonly ApiClient apiClient;
+        private readonly string apiToken;
+        private readonly string filePath;
 
         public LogParser(ApiClient apiClient, string apiToken, string filePath)
         {
@@ -118,7 +118,7 @@ namespace mtga_log_client
             var match2 = LOG_START_REGEX_UNTIMED_2.Match(line);
             if (match.Success || match2.Success)
             {
-                handleCompleteLogEntry();
+                HandleCompleteLogEntry();
                 var timedMatch = LOG_START_REGEX.Match(line);
                 if (timedMatch.Success)
                 {
@@ -131,12 +131,7 @@ namespace mtga_log_client
             }
         }
 
-        private string getDatetimeString(DateTime value)
-        {
-            return value.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
-        }
-
-        private void handleCompleteLogEntry()
+        private void HandleCompleteLogEntry()
         {
             if (buffer.Count == 0)
             {
@@ -151,7 +146,7 @@ namespace mtga_log_client
             var fullLog = String.Join("", buffer);
             try
             {
-                handleBlob(fullLog);
+                HandleBlob(fullLog);
             }
             catch (Exception e)
             {
@@ -162,8 +157,7 @@ namespace mtga_log_client
             currentLogTime = null;
         }
 
-        private long blobsProcessed = 0;
-        private void handleBlob(string fullLog)
+        private void HandleBlob(string fullLog)
         {
             var dictMatch = JSON_DICT_REGEX.Match(fullLog);
             if (!dictMatch.Success)
@@ -179,22 +173,17 @@ namespace mtga_log_client
 
             var blob = JObject.Parse(dictMatch.Value);
 
-            if (++blobsProcessed % 100 == 0)
-            {
-                Console.WriteLine("Processed {0} blobs so far", blobsProcessed);
-            }
-
-            if (maybeHandleLogin(blob)) return;
-            if (maybeHandleGameEnd(blob)) return;
-            if (maybeHandleDraftLog(blob)) return;
-            if (maybeHandleDraftPick(blob)) return;
-            if (maybeHandleDeckSubmission(blob)) return;
-            if (maybeHandleDeckSubmissionV3(blob)) return;
-            if (maybeHandleEventCompletion(blob)) return;
-            if (maybeHandleGreToClientMessages(blob)) return;
+            if (MaybeHandleLogin(blob)) return;
+            if (MaybeHandleGameEnd(blob)) return;
+            if (MaybeHandleDraftLog(blob)) return;
+            if (MaybeHandleDraftPick(blob)) return;
+            if (MaybeHandleDeckSubmission(blob)) return;
+            if (MaybeHandleDeckSubmissionV3(blob)) return;
+            if (MaybeHandleEventCompletion(blob)) return;
+            if (MaybeHandleGreToClientMessages(blob)) return;
         }
 
-        private bool maybeHandleLogin(JObject blob)
+        private bool MaybeHandleLogin(JObject blob)
         {
             JToken token;
             if (!blob.TryGetValue("params", out token)) return false;
@@ -225,7 +214,7 @@ namespace mtga_log_client
             }
         }
 
-        private bool maybeHandleGameEnd(JObject blob)
+        private bool MaybeHandleGameEnd(JObject blob)
         {
             JToken token;
             if (!blob.TryGetValue("params", out token)) return false;
@@ -245,6 +234,7 @@ namespace mtga_log_client
                         opponentCardIds.Add(entry.Value);
                     }
                 }
+                objectsByOwner.Clear();
 
                 var mulligans = new List<List<int>>();
                 foreach (JArray hand in payload["mulliganedHands"].Value<JArray>())
@@ -261,7 +251,7 @@ namespace mtga_log_client
                 game.token = apiToken;
                 game.client_version = CLIENT_VERSION;
                 game.player_id = currentUser;
-                game.time = getDatetimeString(currentLogTime.Value);
+                game.time = GetDatetimeString(currentLogTime.Value);
 
                 game.event_name = payload["eventId"].Value<string>();
                 game.match_id = payload["matchId"].Value<string>();
@@ -284,7 +274,7 @@ namespace mtga_log_client
             }
         }
 
-        private bool maybeHandleDraftLog(JObject blob)
+        private bool MaybeHandleDraftLog(JObject blob)
         {
             if (!blob.ContainsKey("draftStatus")) return false;
             if (!"Draft.PickNext".Equals(blob["draftStatus"].Value<String>())) return false;
@@ -295,7 +285,7 @@ namespace mtga_log_client
                 pack.token = apiToken;
                 pack.client_version = CLIENT_VERSION;
                 pack.player_id = currentUser;
-                pack.time = getDatetimeString(currentLogTime.Value);
+                pack.time = GetDatetimeString(currentLogTime.Value);
 
                 var cardIds = new List<int>();
                 foreach (JToken cardString in blob["draftPack"].Value<JArray>())
@@ -318,7 +308,7 @@ namespace mtga_log_client
             }
         }
 
-        private bool maybeHandleDraftPick(JObject blob)
+        private bool MaybeHandleDraftPick(JObject blob)
         {
             if (!blob.ContainsKey("method")) return false;
             if (!"Draft.MakePick".Equals(blob["method"].Value<String>())) return false;
@@ -332,7 +322,7 @@ namespace mtga_log_client
                 pick.token = apiToken;
                 pick.client_version = CLIENT_VERSION;
                 pick.player_id = currentUser;
-                pick.time = getDatetimeString(currentLogTime.Value);
+                pick.time = GetDatetimeString(currentLogTime.Value);
 
                 pick.event_name = draftIdComponents[1];
                 pick.pack_number = parameters["packNumber"].Value<int>();
@@ -350,41 +340,26 @@ namespace mtga_log_client
             }
         }
 
-        private List<int> getCardIdsFromDeck(JArray decklist)
-        {
-            var cardIds = new List<int>();
-            foreach (JObject cardInfo in decklist)
-            {
-                if (cardInfo.ContainsKey("id"))
-                {
-                    cardIds.Add(cardInfo["id"].Value<int>());
-                }
-                else
-                {
-                    cardIds.Add(cardInfo["Id"].Value<int>());
-                }
-            }
-            return cardIds;
-        }
-
-        private bool maybeHandleDeckSubmission(JObject blob)
+        private bool MaybeHandleDeckSubmission(JObject blob)
         {
             if (!blob.ContainsKey("method")) return false;
             if (!"Event.DeckSubmit".Equals(blob["method"].Value<String>())) return false;
 
             try
             {
+                objectsByOwner.Clear();
+
                 Deck deck = new Deck();
                 deck.token = apiToken;
                 deck.client_version = CLIENT_VERSION;
                 deck.player_id = currentUser;
-                deck.time = getDatetimeString(currentLogTime.Value);
+                deck.time = GetDatetimeString(currentLogTime.Value);
 
                 var parameters = blob["params"].Value<JObject>();
                 var deckInfo = JObject.Parse(parameters["deck"].Value<String>());
 
-                var maindeckCardIds = getCardIdsFromDeck(deckInfo["mainDeck"].Value<JArray>());
-                var sideboardCardIds = getCardIdsFromDeck(deckInfo["sideboard"].Value<JArray>());
+                var maindeckCardIds = GetCardIdsFromDeck(deckInfo["mainDeck"].Value<JArray>());
+                var sideboardCardIds = GetCardIdsFromDeck(deckInfo["sideboard"].Value<JArray>());
 
                 deck.event_name = parameters["eventName"].Value<String>();
                 deck.maindeck_card_ids = maindeckCardIds;
@@ -401,39 +376,26 @@ namespace mtga_log_client
             }
         }
 
-        private List<int> getCardIdsFromDecklistV3(JArray decklist)
-        {
-            var cardIds = new List<int>();
-            for (int i = 0; i < decklist.Count / 2; i++)
-            {
-                var cardId = decklist[2 * i].Value<int>();
-                var count = decklist[2 * i + 1].Value<int>();
-                for (int j = 0; j < count; j++)
-                {
-                    cardIds.Add(cardId);
-                }
-            }
-            return cardIds;
-        }
-
-        private bool maybeHandleDeckSubmissionV3(JObject blob)
+        private bool MaybeHandleDeckSubmissionV3(JObject blob)
         {
             if (!blob.ContainsKey("method")) return false;
             if (!"Event.DeckSubmitV3".Equals(blob["method"].Value<String>())) return false;
 
             try
             {
+                objectsByOwner.Clear();
+
                 Deck deck = new Deck();
                 deck.token = apiToken;
                 deck.client_version = CLIENT_VERSION;
                 deck.player_id = currentUser;
-                deck.time = getDatetimeString(currentLogTime.Value);
+                deck.time = GetDatetimeString(currentLogTime.Value);
 
                 var parameters = blob["params"].Value<JObject>();
                 var deckInfo = JObject.Parse(parameters["deck"].Value<String>());
 
-                var maindeckCardIds = getCardIdsFromDecklistV3(deckInfo["mainDeck"].Value<JArray>());
-                var sideboardCardIds = getCardIdsFromDecklistV3(deckInfo["sideboard"].Value<JArray>());
+                var maindeckCardIds = GetCardIdsFromDecklistV3(deckInfo["mainDeck"].Value<JArray>());
+                var sideboardCardIds = GetCardIdsFromDecklistV3(deckInfo["sideboard"].Value<JArray>());
 
                 deck.event_name = parameters["eventName"].Value<String>();
                 deck.maindeck_card_ids = maindeckCardIds;
@@ -450,7 +412,7 @@ namespace mtga_log_client
             }
         }
 
-        private bool maybeHandleEventCompletion(JObject blob)
+        private bool MaybeHandleEventCompletion(JObject blob)
         {
             if (!blob.ContainsKey("CurrentEventState")) return false;
             if (!"DoneWithMatches".Equals(blob["CurrentEventState"].Value<String>())) return false;
@@ -461,7 +423,7 @@ namespace mtga_log_client
                 event_.token = apiToken;
                 event_.client_version = CLIENT_VERSION;
                 event_.player_id = currentUser;
-                event_.time = getDatetimeString(currentLogTime.Value);
+                event_.time = GetDatetimeString(currentLogTime.Value);
 
                 event_.event_name = blob["InternalEventName"].Value<String>();
                 event_.entry_fee = blob["ModuleInstanceData"]["HasPaidEntry"].Value<String>();
@@ -478,27 +440,19 @@ namespace mtga_log_client
             }
         }
 
-        private List<int> JArrayToIntList(JArray arr)
-        {
-            var output = new List<int>();
-            foreach (JToken token in arr)
-            {
-                output.Add(token.Value<int>());
-            }
-            return output;
-        }
-
-        private bool maybeHandleGreMessage_DeckSubmission(JToken blob)
+        private bool MaybeHandleGreMessage_DeckSubmission(JToken blob)
         {
             if (!"GREMessageType_SubmitDeckReq".Equals(blob["type"].Value<string>())) return false;
 
             try
             {
+                objectsByOwner.Clear();
+
                 Deck deck = new Deck();
                 deck.token = apiToken;
                 deck.client_version = CLIENT_VERSION;
                 deck.player_id = currentUser;
-                deck.time = getDatetimeString(currentLogTime.Value);
+                deck.time = GetDatetimeString(currentLogTime.Value);
 
                 deck.event_name = null;
                 deck.maindeck_card_ids = JArrayToIntList(blob["submitDeckReq"]["deck"]["deckCards"].Value<JArray>());
@@ -515,7 +469,7 @@ namespace mtga_log_client
             }
         }
 
-        private bool maybeHandleGreToClientMessages(JObject blob)
+        private bool MaybeHandleGreToClientMessages(JObject blob)
         {
             if (!blob.ContainsKey("greToClientEvent")) return false;
             if (!blob["greToClientEvent"].Value<JObject>().ContainsKey("greToClientMessages")) return false;
@@ -524,7 +478,7 @@ namespace mtga_log_client
             {
                 foreach (JToken message in blob["greToClientEvent"]["greToClientMessages"])
                 {
-                    if (maybeHandleGreMessage_DeckSubmission(message)) continue;
+                    if (MaybeHandleGreMessage_DeckSubmission(message)) continue;
                 }
                 return true;
             }
@@ -533,6 +487,53 @@ namespace mtga_log_client
                 Console.WriteLine("Error {0} parsing event completion from {1}", e, blob);
                 return false;
             }
+        }
+
+        private string GetDatetimeString(DateTime value)
+        {
+            return value.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
+        }
+
+        private List<int> JArrayToIntList(JArray arr)
+        {
+            var output = new List<int>();
+            foreach (JToken token in arr)
+            {
+                output.Add(token.Value<int>());
+            }
+            return output;
+        }
+
+        private List<int> GetCardIdsFromDeck(JArray decklist)
+        {
+            var cardIds = new List<int>();
+            foreach (JObject cardInfo in decklist)
+            {
+                if (cardInfo.ContainsKey("id"))
+                {
+                    cardIds.Add(cardInfo["id"].Value<int>());
+                }
+                else
+                {
+                    cardIds.Add(cardInfo["Id"].Value<int>());
+                }
+            }
+            return cardIds;
+        }
+
+        private List<int> GetCardIdsFromDecklistV3(JArray decklist)
+        {
+            var cardIds = new List<int>();
+            for (int i = 0; i < decklist.Count / 2; i++)
+            {
+                var cardId = decklist[2 * i].Value<int>();
+                var count = decklist[2 * i + 1].Value<int>();
+                for (int j = 0; j < count; j++)
+                {
+                    cardIds.Add(cardId);
+                }
+            }
+            return cardIds;
         }
 
     }
