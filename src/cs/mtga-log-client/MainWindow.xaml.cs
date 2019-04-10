@@ -108,7 +108,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error parsing log: {0}", e);
+                LogMessage(String.Format("Error parsing log: {0}", e));
             }
         }
 
@@ -150,7 +150,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error {0} while processing {1}", e, fullLog);
+                LogMessage(String.Format("Error {0} while processing {1}", e, fullLog));
             }
 
             buffer.Clear();
@@ -209,7 +209,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error {0} parsing login from {1}", e, blob);
+                LogMessage(String.Format("Error {0} parsing login from {1}", e, blob));
                 return false;
             }
         }
@@ -269,7 +269,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error {0} parsing game result from {1}", e, blob);
+                LogMessage(String.Format("Error {0} parsing game result from {1}", e, blob));
                 return false;
             }
         }
@@ -303,7 +303,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error {0} parsing draft pack from {1}", e, blob);
+                LogMessage(String.Format("Error {0} parsing draft pack from {1}", e, blob));
                 return false;
             }
         }
@@ -335,7 +335,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error {0} parsing draft pick from {1}", e, blob);
+                LogMessage(String.Format("Error {0} parsing draft pick from {1}", e, blob));
                 return false;
             }
         }
@@ -371,7 +371,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error {0} parsing deck submission from {1}", e, blob);
+                LogMessage(String.Format("Error {0} parsing deck submission from {1}", e, blob));
                 return false;
             }
         }
@@ -407,7 +407,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error {0} parsing v3 deck submission from {1}", e, blob);
+                LogMessage(String.Format("Error {0} parsing v3 deck submission from {1}", e, blob));
                 return false;
             }
         }
@@ -435,7 +435,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error {0} parsing event completion from {1}", e, blob);
+                LogMessage(String.Format("Error {0} parsing event completion from {1}", e, blob));
                 return false;
             }
         }
@@ -464,7 +464,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error {0} parsing GRE deck submission from {1}", e, blob);
+                LogMessage(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob));
                 return false;
             }
         }
@@ -484,9 +484,14 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error {0} parsing event completion from {1}", e, blob);
+                LogMessage(String.Format("Error {0} parsing event completion from {1}", e, blob));
                 return false;
             }
+        }
+
+        private void LogMessage(string message)
+        {
+            Console.WriteLine(message);
         }
 
         private string GetDatetimeString(DateTime value)
@@ -592,19 +597,19 @@ namespace mtga_log_client
             }
             else
             {
-                Console.WriteLine("Got error response {0} ({1})", (int) response.StatusCode, response.ReasonPhrase);
+                LogMessage(String.Format("Got error response {0} ({1})", (int) response.StatusCode, response.ReasonPhrase));
                 return null;
             }
         }
 
         private void PostJson(string endpoint, String blob)
         {
-            Console.WriteLine("Sending post to {0} of {1}", endpoint, blob);
+            LogMessage(String.Format("Sending post to {0} of {1}", endpoint, blob));
             var content = new StringContent(blob, Encoding.UTF8, "application/json");
             var response = client.PostAsync(endpoint, content).Result;
             if (!response.IsSuccessStatusCode)
             {
-                Console.WriteLine("Got error response {0} ({1})", (int)response.StatusCode, response.ReasonPhrase);
+                LogMessage(String.Format("Got error response {0} ({1})", (int)response.StatusCode, response.ReasonPhrase));
             }
         }
 
@@ -665,6 +670,11 @@ namespace mtga_log_client
             SERIALIZER_EVENT.WriteObject(stream, event_);
             string jsonString = Encoding.UTF8.GetString(stream.ToArray());
             PostJson(ENDPOINT_EVENT, jsonString);
+        }
+
+        private void LogMessage(string message)
+        {
+            Console.WriteLine(message);
         }
     }
 
