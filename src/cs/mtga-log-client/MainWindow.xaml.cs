@@ -189,17 +189,18 @@ namespace mtga_log_client
             if (maybeHandleDraftLog(blob)) return;
             if (maybeHandleDraftPick(blob)) return;
             if (maybeHandleDeckSubmission(blob)) return;
+            if (maybeHandleDeckSubmissionV3(blob)) return;
         }
 
         private bool maybeHandleLogin(JObject blob)
         {
+            JToken token;
+            if (!blob.TryGetValue("params", out token)) return false;
+            if (!token.Value<JObject>().TryGetValue("messageName", out token)) return false;
+            if (!token.Value<String>().Equals("Client.Connected")) return false;
+
             try
             {
-                JToken token;
-                if (!blob.TryGetValue("params", out token)) return false;
-                if (!token.Value<JObject>().TryGetValue("messageName", out token)) return false;
-                if (!token.Value<String>().Equals("Client.Connected")) return false;
-
                 var payload = blob["params"]["payloadObject"];
 
                 currentUser = payload["playerId"].Value<String>();
@@ -217,19 +218,20 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
+                Console.WriteLine("Error {0} parsing login from {1}", e, blob);
                 return false;
             }
         }
 
         private bool maybeHandleGameEnd(JObject blob)
         {
+            JToken token;
+            if (!blob.TryGetValue("params", out token)) return false;
+            if (!token.Value<JObject>().TryGetValue("messageName", out token)) return false;
+            if (!token.Value<String>().Equals("DuelScene.GameStop")) return false;
+
             try
             {
-                JToken token;
-                if (!blob.TryGetValue("params", out token)) return false;
-                if (!token.Value<JObject>().TryGetValue("messageName", out token)) return false;
-                if (!token.Value<String>().Equals("DuelScene.GameStop")) return false;
-
                 var payload = blob["params"]["payloadObject"];
 
                 var opponentId = payload["seatId"].Value<int>() == 1 ? 2 : 1;
@@ -275,17 +277,18 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
+                Console.WriteLine("Error {0} parsing game result from {1}", e, blob);
                 return false;
             }
         }
 
         private bool maybeHandleDraftLog(JObject blob)
         {
+            if (!blob.ContainsKey("draftStatus")) return false;
+            if (!"Draft.PickNext".Equals(blob["draftStatus"].Value<String>())) return false;
+
             try
             {
-                if (!blob.ContainsKey("draftStatus")) return false;
-                if (!"Draft.PickNext".Equals(blob["draftStatus"].Value<String>())) return false;
-
                 Pack pack = new Pack();
                 pack.token = apiToken;
                 pack.client_version = CLIENT_VERSION;
@@ -308,17 +311,18 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
+                Console.WriteLine("Error {0} parsing draft pack from {1}", e, blob);
                 return false;
             }
         }
 
         private bool maybeHandleDraftPick(JObject blob)
         {
+            if (!blob.ContainsKey("method")) return false;
+            if (!"Draft.MakePick".Equals(blob["method"].Value<String>())) return false;
+
             try
             {
-                if (!blob.ContainsKey("method")) return false;
-                if (!"Draft.MakePick".Equals(blob["method"].Value<String>())) return false;
-
                 var parameters = blob["params"].Value<JObject>();
                 var draftIdComponents = parameters["draftId"].Value<String>().Split(':');
 
@@ -339,17 +343,35 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
+                Console.WriteLine("Error {0} parsing draft pick from {1}", e, blob);
                 return false;
             }
         }
 
+        private List<int> getCardIdsFromDeck(JArray decklist)
+        {
+            var cardIds = new List<int>();
+            foreach (JObject cardInfo in decklist)
+            {
+                if (cardInfo.ContainsKey("id"))
+                {
+                    cardIds.Add(cardInfo["id"].Value<int>());
+                }
+                else
+                {
+                    cardIds.Add(cardInfo["Id"].Value<int>());
+                }
+            }
+            return cardIds;
+        }
+
         private bool maybeHandleDeckSubmission(JObject blob)
         {
+            if (!blob.ContainsKey("method")) return false;
+            if (!"Event.DeckSubmit".Equals(blob["method"].Value<String>())) return false;
+
             try
             {
-                if (!blob.ContainsKey("method")) return false;
-                if (!"Event.DeckSubmit".Equals(blob["method"].Value<String>())) return false;
-
                 Deck deck = new Deck();
                 deck.token = apiToken;
                 deck.client_version = CLIENT_VERSION;
@@ -359,17 +381,8 @@ namespace mtga_log_client
                 var parameters = blob["params"].Value<JObject>();
                 var deckInfo = JObject.Parse(parameters["deck"].Value<String>());
 
-                var maindeckCardIds = new List<int>();
-                foreach (JObject cardInfo in deckInfo["mainDeck"].Value<JArray>())
-                {
-                    maindeckCardIds.Add(cardInfo["id"].Value<int>());
-                }
-
-                var sideboardCardIds = new List<int>();
-                foreach (JObject cardInfo in deckInfo["sideboard"].Value<JArray>())
-                {
-                    sideboardCardIds.Add(cardInfo["id"].Value<int>());
-                }
+                var maindeckCardIds = getCardIdsFromDeck(deckInfo["mainDeck"].Value<JArray>());
+                var sideboardCardIds = getCardIdsFromDeck(deckInfo["sideboard"].Value<JArray>());
 
                 deck.event_name = parameters["eventName"].Value<String>();
                 deck.maindeck_card_ids = maindeckCardIds;
@@ -381,6 +394,56 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
+                Console.WriteLine("Error {0} parsing deck submission from {1}", e, blob);
+                return false;
+            }
+        }
+
+        private List<int> getCardIdsFromDecklistV3(JArray decklist)
+        {
+            var cardIds = new List<int>();
+            for (int i = 0; i < decklist.Count / 2; i++)
+            {
+                var cardId = decklist[2 * i].Value<int>();
+                var count = decklist[2 * i + 1].Value<int>();
+                for (int j = 0; j < count; j++)
+                {
+                    cardIds.Add(cardId);
+                }
+            }
+            return cardIds;
+        }
+
+        private bool maybeHandleDeckSubmissionV3(JObject blob)
+        {
+            if (!blob.ContainsKey("method")) return false;
+            if (!"Event.DeckSubmitV3".Equals(blob["method"].Value<String>())) return false;
+
+            try
+            {
+                Deck deck = new Deck();
+                deck.token = apiToken;
+                deck.client_version = CLIENT_VERSION;
+                deck.player_id = currentUser;
+                deck.time = getDatetimeString(currentLogTime.Value);
+
+                var parameters = blob["params"].Value<JObject>();
+                var deckInfo = JObject.Parse(parameters["deck"].Value<String>());
+
+                var maindeckCardIds = getCardIdsFromDecklistV3(deckInfo["mainDeck"].Value<JArray>());
+                var sideboardCardIds = getCardIdsFromDecklistV3(deckInfo["sideboard"].Value<JArray>());
+
+                deck.event_name = parameters["eventName"].Value<String>();
+                deck.maindeck_card_ids = maindeckCardIds;
+                deck.sideboard_card_ids = sideboardCardIds;
+                deck.is_during_match = false;
+
+                apiClient.PostDeck(deck);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error {0} parsing v3 deck submission from {1}", e, blob);
                 return false;
             }
         }
