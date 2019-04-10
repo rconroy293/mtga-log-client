@@ -191,6 +191,7 @@ namespace mtga_log_client
             if (maybeHandleDeckSubmission(blob)) return;
             if (maybeHandleDeckSubmissionV3(blob)) return;
             if (maybeHandleEventCompletion(blob)) return;
+            if (maybeHandleGreToClientMessages(blob)) return;
         }
 
         private bool maybeHandleLogin(JObject blob)
@@ -468,6 +469,63 @@ namespace mtga_log_client
                 event_.losses = blob["ModuleInstanceData"]["WinLossGate"]["CurrentLosses"].Value<int>();
 
                 apiClient.PostEvent(event_);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error {0} parsing event completion from {1}", e, blob);
+                return false;
+            }
+        }
+
+        private List<int> JArrayToIntList(JArray arr)
+        {
+            var output = new List<int>();
+            foreach (JToken token in arr)
+            {
+                output.Add(token.Value<int>());
+            }
+            return output;
+        }
+
+        private bool maybeHandleGreMessage_DeckSubmission(JToken blob)
+        {
+            if (!"GREMessageType_SubmitDeckReq".Equals(blob["type"].Value<string>())) return false;
+
+            try
+            {
+                Deck deck = new Deck();
+                deck.token = apiToken;
+                deck.client_version = CLIENT_VERSION;
+                deck.player_id = currentUser;
+                deck.time = getDatetimeString(currentLogTime.Value);
+
+                deck.event_name = null;
+                deck.maindeck_card_ids = JArrayToIntList(blob["submitDeckReq"]["deck"]["deckCards"].Value<JArray>());
+                deck.sideboard_card_ids = JArrayToIntList(blob["submitDeckReq"]["deck"]["sideboardCards"].Value<JArray>());
+                deck.is_during_match = true;
+
+                apiClient.PostDeck(deck);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error {0} parsing GRE deck submission from {1}", e, blob);
+                return false;
+            }
+        }
+
+        private bool maybeHandleGreToClientMessages(JObject blob)
+        {
+            if (!blob.ContainsKey("greToClientEvent")) return false;
+            if (!blob["greToClientEvent"].Value<JObject>().ContainsKey("greToClientMessages")) return false;
+
+            try
+            {
+                foreach (JToken message in blob["greToClientEvent"]["greToClientMessages"])
+                {
+                    if (maybeHandleGreMessage_DeckSubmission(message)) continue;
+                }
                 return true;
             }
             catch (Exception e)
