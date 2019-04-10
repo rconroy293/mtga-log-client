@@ -188,6 +188,7 @@ namespace mtga_log_client
             if (maybeHandleGameEnd(blob)) return;
             if (maybeHandleDraftLog(blob)) return;
             if (maybeHandleDraftPick(blob)) return;
+            if (maybeHandleDeckSubmission(blob)) return;
         }
 
         private bool maybeHandleLogin(JObject blob)
@@ -341,6 +342,49 @@ namespace mtga_log_client
                 return false;
             }
         }
+
+        private bool maybeHandleDeckSubmission(JObject blob)
+        {
+            try
+            {
+                if (!blob.ContainsKey("method")) return false;
+                if (!"Event.DeckSubmit".Equals(blob["method"].Value<String>())) return false;
+
+                Deck deck = new Deck();
+                deck.token = apiToken;
+                deck.client_version = CLIENT_VERSION;
+                deck.player_id = currentUser;
+                deck.time = getDatetimeString(currentLogTime.Value);
+
+                var parameters = blob["params"].Value<JObject>();
+                var deckInfo = JObject.Parse(parameters["deck"].Value<String>());
+
+                var maindeckCardIds = new List<int>();
+                foreach (JObject cardInfo in deckInfo["mainDeck"].Value<JArray>())
+                {
+                    maindeckCardIds.Add(cardInfo["id"].Value<int>());
+                }
+
+                var sideboardCardIds = new List<int>();
+                foreach (JObject cardInfo in deckInfo["sideboard"].Value<JArray>())
+                {
+                    sideboardCardIds.Add(cardInfo["id"].Value<int>());
+                }
+
+                deck.event_name = parameters["eventName"].Value<String>();
+                deck.maindeck_card_ids = maindeckCardIds;
+                deck.sideboard_card_ids = sideboardCardIds;
+                deck.is_during_match = false;
+
+                apiClient.PostDeck(deck);
+                return true;
+            }
+            catch (Exception e)
+            {
+                return false;
+            }
+        }
+
     }
 
     class ApiClient
@@ -536,6 +580,8 @@ namespace mtga_log_client
         internal string player_id;
         [DataMember]
         internal string time;
+        [DataMember]
+        internal string event_name;
         [DataMember]
         internal List<int> maindeck_card_ids;
         [DataMember]
