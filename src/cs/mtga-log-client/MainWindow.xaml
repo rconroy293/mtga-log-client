@@ -11,6 +11,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -25,17 +26,19 @@
         <Button Grid.Row="0" Grid.Column="2" Margin="3" Content="Update"/>
 
         <Label Grid.Row="1" Grid.Column="0" Content="Client Token:"/>
-        <TextBox Grid.Row="1" Grid.Column="1" Margin="3" />
-        <Button Grid.Row="1" Grid.Column="2" Margin="3" Content=" Find my token "/>
+        <TextBox Name="ClientTokenTextBox" Grid.Row="1" Grid.Column="1" Margin="3" TextChanged="EnableApply"/>
+        <Button Grid.Row="1" Grid.Column="2" Margin="3" Content=" Find my token " Click="OpenAccountPageInBrowser"/>
 
         <Label Grid.Row="2" Grid.Column="0" Content="Log File:"/>
-        <TextBox Grid.Row="2" Grid.Column="1" Margin="3" />
-        <Button Grid.Row="2" Grid.Column="2" Margin="3" Content="Choose File..."/>
+        <TextBox Name="LogFileTextBox" Grid.Row="2" Grid.Column="1" Margin="3" IsEnabled="False"/>
+        <Button Grid.Row="2" Grid.Column="2" Margin="3" Content="Choose File..." Click="ChooseFile"/>
 
-        <Label Grid.Row="3" Grid.Column="0" Content="Recent Messages:"/>
-        <TextBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="3" />
+        <Button Name="ApplyButton" Grid.Row="3" Grid.Column="2" Margin="3" Content=" Apply Changes " Click="ApplyChanges" IsEnabled="False"/>
+        
+        <Label Grid.Row="4" Grid.Column="0" Content="Recent Messages:"/>
+        <ListBox Name="MessageListBox" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Margin="3" />
 
-        <Button Grid.Row="4" Grid.Column="1" HorizontalAlignment="Right" Margin="3" Content=" View My Data " />
-        <Button Grid.Row="4" Grid.Column="2" Margin="3" Content="Pause Tracking"/>
+        <Button Grid.Row="5" Grid.Column="1" HorizontalAlignment="Right" Margin="3" Content=" View My Data " Click="OpenUserPageInBrowser"/>
+        <Button Grid.Row="5" Grid.Column="2" Margin="3" Content="Pause" Click="OnPauseResumeClick"/>
     </Grid>
 </Window>

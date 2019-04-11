@@ -10,6 +10,10 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using System.Globalization;
+using System.Threading;
+using System.ComponentModel;
+using System.Windows.Controls;
+using Microsoft.Win32;
 
 namespace mtga_log_client
 {
@@ -18,35 +22,149 @@ namespace mtga_log_client
     /// </summary>
     public partial class MainWindow : Window
     {
+        private static readonly string REQUIRED_FILENAME = "output_log.txt";
+        private static readonly int REQUIRED_TOKEN_LENGTH = 32;
+        private static readonly int MESSAGE_HISTORY = 500;
+
+        private LogParser parser;
+        private ApiClient client;
+        BackgroundWorker worker;
+
+        private bool isPaused = false;
+        private string filePath = Path.Combine(@"E:\", "output_log_simple.txt");
+        private string userToken = "d1c297f8ff8d4b75a9ce60691458486b";
+
         public MainWindow()
         {
             InitializeComponent();
+            LogFileTextBox.Text = filePath;
+            ClientTokenTextBox.Text = userToken;
 
-            ApiClient client = new ApiClient();
+            client = new ApiClient(LogMessage);
             var minimumVersion = client.GetMinimumApiVersion();
             Console.WriteLine(minimumVersion);
 
-            /*
-            MTGAAccount account = new MTGAAccount();
-            account.client_version = "0.0.1-test";
-            account.player_id = "12345";
-            account.screen_name = "test-user";
-            account.token = "1a2b3c";
-            client.PostMTGAAccount(account);
-            */
-
-            LogParser parser = new LogParser(client,
-                "d1c297f8ff8d4b75a9ce60691458486b",
-                // "C:\\Users\\Rob\\AppData\\LocalLow\\Wizards Of The Coast\\MTGA\\output_log.txt");
-                "E:\\output_log_simple.txt");
-            parser.ParseLog();
+            RestartParser();
         }
+
+        private void RestartParser()
+        {
+            parser = new LogParser(client, userToken, filePath, LogMessage);
+
+            worker = new BackgroundWorker();
+            worker.DoWork += parser.ResumeParsing;
+            worker.WorkerSupportsCancellation = true;
+            worker.RunWorkerAsync();
+        }
+
+        private void OnPauseResumeClick(object sender, EventArgs e)
+        {
+            (sender as Button).Content = isPaused ? "Pause" : "Resume";
+            if (isPaused)
+            {
+                ResumeParsing();
+            }
+            else
+            {
+                PauseParsing();
+            }
+            isPaused = !isPaused;
+        }
+
+        private void EnableApply(object sender, EventArgs e)
+        {
+            ApplyButton.IsEnabled = true;
+        }
+
+        private void ChooseFile(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Text files (*.txt)|*.txt";
+            openFileDialog.InitialDirectory = filePath;
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                Console.WriteLine("Filename was " + openFileDialog.FileName);
+                if (!openFileDialog.FileName.EndsWith("\\" + REQUIRED_FILENAME))
+                {
+                    MessageBox.Show(
+                        "You must choose a file named " + REQUIRED_FILENAME,
+                        "Bad Filename",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                    return;
+                }
+
+                LogFileTextBox.Text = openFileDialog.FileName;
+
+                ApplyButton.IsEnabled = true;
+            }
+        }
+
+        private void ApplyChanges(object sender, EventArgs e)
+        {
+            filePath = LogFileTextBox.Text;
+            
+            if (ClientTokenTextBox.Text.Length != REQUIRED_TOKEN_LENGTH)
+            {
+                MessageBox.Show(
+                    "Token is invalid. Please enter your correct token.",
+                    "Bad Token",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            else
+            {
+                userToken = ClientTokenTextBox.Text;
+            }
+
+            RestartParser();
+            ApplyButton.IsEnabled = false;
+        }
+
+        private void OpenUserPageInBrowser(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("http://www.17lands.com/user");
+        }
+
+        private void OpenAccountPageInBrowser(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("http://www.17lands.com/account");
+        }
+
+        private void PauseParsing()
+        {
+            worker.CancelAsync();
+        }
+
+        private void ResumeParsing()
+        {
+            worker.RunWorkerAsync();
+        }
+
+        private void LogMessage(string message)
+        {
+            Application.Current.Dispatcher.Invoke((Action)delegate {
+                var item = new ListBoxItem();
+                item.Content = message;
+                MessageListBox.Items.Insert(0, item);
+
+                while (MessageListBox.Items.Count > MESSAGE_HISTORY)
+                {
+                    MessageListBox.Items.RemoveAt(MESSAGE_HISTORY);
+                }
+            });
+        }
+
     }
+
+    delegate void LogMessageFunction(string message);
 
     class LogParser
     {
         private const string CLIENT_VERSION = "0.1.2";
 
+        private const int SLEEP_TIME = 5000;
         private const int BUFFER_SIZE = 65536;
         private static readonly Regex LOG_START_REGEX = new Regex(
             "^\\[(UnityCrossThreadLogger|Client GRE)\\]([\\d:/ -]+(AM|PM)?)");
@@ -67,15 +185,30 @@ namespace mtga_log_client
         private readonly ApiClient apiClient;
         private readonly string apiToken;
         private readonly string filePath;
+        private readonly LogMessageFunction messageFunction;
 
-        public LogParser(ApiClient apiClient, string apiToken, string filePath)
+        public LogParser(ApiClient apiClient, string apiToken, string filePath, LogMessageFunction messageFunction)
         {
             this.apiClient = apiClient;
             this.apiToken = apiToken;
             this.filePath = filePath;
+            this.messageFunction = messageFunction;
         }
 
-        public void ParseLog() {
+        public void ResumeParsing(object sender, DoWorkEventArgs e)
+        {
+            LogMessage("Starting parsing");
+            BackgroundWorker worker = sender as BackgroundWorker;
+
+            while (!worker.CancellationPending)
+            {
+                ParseRemainderOfLog();
+                Thread.Sleep(SLEEP_TIME);
+            }
+            LogMessage("Stopped parsing");
+        }
+
+        public void ParseRemainderOfLog() {
             try
             {
                 using (FileStream filestream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, BUFFER_SIZE))
@@ -491,7 +624,7 @@ namespace mtga_log_client
 
         private void LogMessage(string message)
         {
-            Console.WriteLine(message);
+            messageFunction(message);
         }
 
         private string GetDatetimeString(DateTime value)
@@ -514,13 +647,19 @@ namespace mtga_log_client
             var cardIds = new List<int>();
             foreach (JObject cardInfo in decklist)
             {
+                int cardId;
                 if (cardInfo.ContainsKey("id"))
                 {
-                    cardIds.Add(cardInfo["id"].Value<int>());
+                    cardId = cardInfo["id"].Value<int>();
                 }
                 else
                 {
-                    cardIds.Add(cardInfo["Id"].Value<int>());
+                    cardId = cardInfo["Id"].Value<int>();
+                }
+
+                for (int i = 0; i < cardInfo["Quantity"].Value<int>(); i++)
+                {
+                    cardIds.Add(cardId);
                 }
             }
             return cardIds;
@@ -562,6 +701,7 @@ namespace mtga_log_client
         private static readonly DataContractJsonSerializer SERIALIZER_EVENT = new DataContractJsonSerializer(typeof(Event));
 
         private HttpClient client;
+        private readonly LogMessageFunction messageFunction;
 
         [DataContract]
         internal class MinVersionResponse
@@ -570,8 +710,9 @@ namespace mtga_log_client
             internal string min_version;
         }
 
-        public ApiClient()
+        public ApiClient(LogMessageFunction messageFunction)
         {
+            this.messageFunction = messageFunction;
             initializeClient();
         }
 
@@ -604,7 +745,7 @@ namespace mtga_log_client
 
         private void PostJson(string endpoint, String blob)
         {
-            LogMessage(String.Format("Sending post to {0} of {1}", endpoint, blob));
+            LogMessage(String.Format("Posting {0} of {1}", endpoint, blob));
             var content = new StringContent(blob, Encoding.UTF8, "application/json");
             var response = client.PostAsync(endpoint, content).Result;
             if (!response.IsSuccessStatusCode)
@@ -674,7 +815,7 @@ namespace mtga_log_client
 
         private void LogMessage(string message)
         {
-            Console.WriteLine(message);
+            messageFunction(message);
         }
     }
 
