@@ -30,13 +30,14 @@ namespace mtga_log_client
         private ApiClient client;
         BackgroundWorker worker;
 
-        private bool isPaused = false;
-        private string filePath = Path.Combine(@"E:\", "output_log_simple.txt");
+        private bool isStarted = false;
+        private string filePath = Path.Combine(@"E:\", "output_asdflog_simple.txt");
         private string userToken = "d1c297f8ff8d4b75a9ce60691458486b";
 
         public MainWindow()
         {
             InitializeComponent();
+
             LogFileTextBox.Text = filePath;
             ClientTokenTextBox.Text = userToken;
 
@@ -44,39 +45,98 @@ namespace mtga_log_client
             var minimumVersion = client.GetMinimumApiVersion();
             Console.WriteLine(minimumVersion);
 
-            RestartParser();
+            if (!ValidateUserInputs()) return;
+            StartParser();
         }
 
-        private void RestartParser()
+        private void StartParser()
         {
+            if (worker != null && !worker.CancellationPending)
+            {
+                worker.CancelAsync();
+            }
+
             parser = new LogParser(client, userToken, filePath, LogMessage);
+            StartButton.IsEnabled = false;
 
             worker = new BackgroundWorker();
             worker.DoWork += parser.ResumeParsing;
             worker.WorkerSupportsCancellation = true;
             worker.RunWorkerAsync();
+
+            isStarted = true;
         }
 
-        private void OnPauseResumeClick(object sender, EventArgs e)
+        private bool ValidateUserInputs()
         {
-            (sender as Button).Content = isPaused ? "Pause" : "Resume";
-            if (isPaused)
+            if (!File.Exists(LogFileTextBox.Text) || !IsValidLogFile(LogFileTextBox.Text))
             {
-                ResumeParsing();
+                MessageBox.Show(
+                    "You must choose a valid log file named " + REQUIRED_FILENAME,
+                    "Choose Filename",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                filePath = ChooseLogFile();
+
+                if (filePath == null)
+                {
+                    MessageBox.Show(
+                        "You must enter a log file.",
+                        "Choose Valid Log File",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return false;
+                }
             }
             else
             {
-                PauseParsing();
+                filePath = LogFileTextBox.Text;
             }
-            isPaused = !isPaused;
+
+            if (!IsValidToken(ClientTokenTextBox.Text))
+            {
+                MessageBox.Show(
+                    "You must enter a valid token from 17lands.com",
+                    "Enter Valid Token",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return false;
+            }
+            else
+            {
+                userToken = ClientTokenTextBox.Text;
+            }
+
+            return true;
         }
 
-        private void EnableApply(object sender, EventArgs e)
+        private void ClientTokenTextBox_onTextChanged(object sender, EventArgs e)
+        {
+            EnableApply();
+        }
+
+        private void EnableApply()
         {
             ApplyButton.IsEnabled = true;
         }
 
-        private void ChooseFile(object sender, RoutedEventArgs e)
+        private bool IsValidToken(string clientToken)
+        {
+            return clientToken.Length == REQUIRED_TOKEN_LENGTH;
+        }
+
+        private void ChooseFile_onClick(object sender, RoutedEventArgs e)
+        {
+            string newFilename = ChooseLogFile();
+            if (newFilename != null)
+            {
+                LogFileTextBox.Text = newFilename;
+                ApplyButton.IsEnabled = true;
+            }
+        }
+
+        private string ChooseLogFile()
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Filter = "Text files (*.txt)|*.txt";
@@ -84,41 +144,43 @@ namespace mtga_log_client
 
             if (openFileDialog.ShowDialog() == true)
             {
-                Console.WriteLine("Filename was " + openFileDialog.FileName);
-                if (!openFileDialog.FileName.EndsWith("\\" + REQUIRED_FILENAME))
+                if (IsValidLogFile(openFileDialog.FileName))
+                {
+                    LogFileTextBox.Text = openFileDialog.FileName;
+                    return openFileDialog.FileName;
+                }
+                else
                 {
                     MessageBox.Show(
                         "You must choose a file named " + REQUIRED_FILENAME,
                         "Bad Filename",
                         MessageBoxButton.OK,
                         MessageBoxImage.Error);
-                    return;
                 }
-
-                LogFileTextBox.Text = openFileDialog.FileName;
-
-                ApplyButton.IsEnabled = true;
             }
+
+            return null;
         }
 
-        private void ApplyChanges(object sender, EventArgs e)
+        private bool IsValidLogFile(string filename)
         {
-            filePath = LogFileTextBox.Text;
-            
-            if (ClientTokenTextBox.Text.Length != REQUIRED_TOKEN_LENGTH)
-            {
-                MessageBox.Show(
-                    "Token is invalid. Please enter your correct token.",
-                    "Bad Token",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-            }
-            else
-            {
-                userToken = ClientTokenTextBox.Text;
-            }
+            return filename.EndsWith("\\" + REQUIRED_FILENAME);
+        }
 
-            RestartParser();
+        private void ApplyChanges_onClick(object sender, EventArgs e)
+        {
+            ApplyChangedSettings();
+        }
+
+        private void ApplyChangedSettings()
+        {
+            if (!ValidateUserInputs()) return;
+            StartButton.IsEnabled = false;
+
+            filePath = LogFileTextBox.Text;
+            userToken = ClientTokenTextBox.Text;
+
+            StartParser();
             ApplyButton.IsEnabled = false;
         }
 
@@ -132,14 +194,13 @@ namespace mtga_log_client
             System.Diagnostics.Process.Start("http://www.17lands.com/account");
         }
 
-        private void PauseParsing()
+        private void StartButton_onClick(object sender, EventArgs e)
         {
-            worker.CancelAsync();
-        }
-
-        private void ResumeParsing()
-        {
-            worker.RunWorkerAsync();
+            if (!isStarted)
+            {
+                ApplyChangedSettings();
+                return;
+            }
         }
 
         private void LogMessage(string message)
@@ -164,7 +225,7 @@ namespace mtga_log_client
     {
         private const string CLIENT_VERSION = "0.1.2";
 
-        private const int SLEEP_TIME = 5000;
+        private const int SLEEP_TIME = 1000;
         private const int BUFFER_SIZE = 65536;
         private static readonly Regex LOG_START_REGEX = new Regex(
             "^\\[(UnityCrossThreadLogger|Client GRE)\\]([\\d:/ -]+(AM|PM)?)");
@@ -197,18 +258,17 @@ namespace mtga_log_client
 
         public void ResumeParsing(object sender, DoWorkEventArgs e)
         {
-            LogMessage("Starting parsing");
+            LogMessage("Starting parsing of " + filePath);
             BackgroundWorker worker = sender as BackgroundWorker;
 
             while (!worker.CancellationPending)
             {
-                ParseRemainderOfLog();
+                ParseRemainderOfLog(worker);
                 Thread.Sleep(SLEEP_TIME);
             }
-            LogMessage("Stopped parsing");
         }
 
-        public void ParseRemainderOfLog() {
+        public void ParseRemainderOfLog(BackgroundWorker worker) {
             try
             {
                 using (FileStream filestream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, BUFFER_SIZE))
@@ -227,7 +287,7 @@ namespace mtga_log_client
 
                     using (StreamReader reader = new StreamReader(filestream))
                     {
-                        while (true)
+                        while (!worker.CancellationPending)
                         {
                             string line = line = reader.ReadLine();
                             if (line == null)
