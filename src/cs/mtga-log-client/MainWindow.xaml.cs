@@ -14,6 +14,8 @@ using System.Threading;
 using System.ComponentModel;
 using System.Windows.Controls;
 using Microsoft.Win32;
+using System.Drawing;
+using System.Reflection;
 
 namespace mtga_log_client
 {
@@ -38,6 +40,7 @@ namespace mtga_log_client
         {
             InitializeComponent();
             LoadSettings();
+            SetupTrayMinimization();
 
             LogFileTextBox.Text = filePath;
             ClientTokenTextBox.Text = userToken;
@@ -48,6 +51,27 @@ namespace mtga_log_client
 
             if (!ValidateUserInputs()) return;
             StartParser();
+        }
+
+        public void SetupTrayMinimization()
+        {
+            InitializeComponent();
+
+            System.Windows.Forms.NotifyIcon ni = new System.Windows.Forms.NotifyIcon();
+
+            ni.Icon = Properties.Resources.logo;
+            ni.Visible = true;
+            ni.DoubleClick += delegate (object sender, EventArgs args)
+                {
+                    this.Show();
+                    this.WindowState = WindowState.Normal;
+                };
+        }
+
+        protected override void OnStateChanged(EventArgs e)
+        {
+            if (WindowState == WindowState.Minimized) this.Hide();
+            base.OnStateChanged(e);
         }
 
         private void LoadSettings()
