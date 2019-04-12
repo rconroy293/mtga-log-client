@@ -66,7 +66,17 @@ namespace mtga_log_client
         private bool ValidateClientVersion()
         {
             var versionValidation = client.GetVersionValidation();
-            if (versionValidation.is_supported) return true;
+            if (versionValidation.is_supported)
+            {
+                if (LogParser.CLIENT_VERSION.Equals(versionValidation.latest_version))
+                {
+                    UpdateButton.IsEnabled = false;
+                }
+
+                UpdateTextBox.Text = "Client version: " + LogParser.CLIENT_VERSION + " Latest version: " + versionValidation.latest_version;
+
+                return true;
+            }
 
             MessageBox.Show(
                 "This version of the client is no longer supported. Please update.",
@@ -74,9 +84,14 @@ namespace mtga_log_client
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
 
-            System.Diagnostics.Process.Start(DOWNLOAD_URL);
+            VisitSiteForUpdate();
             Application.Current.Shutdown();
             return false;
+        }
+
+        private void VisitSiteForUpdate()
+        {
+            System.Diagnostics.Process.Start(DOWNLOAD_URL);
         }
 
         private void StartParser()
@@ -141,6 +156,11 @@ namespace mtga_log_client
             SaveSettings();
 
             return true;
+        }
+
+        private void UpdateButton_onClick(object sender, EventArgs e)
+        {
+            VisitSiteForUpdate();
         }
 
         private void ClientTokenTextBox_onTextChanged(object sender, EventArgs e)

@@ -22,8 +22,8 @@
         </Grid.ColumnDefinitions>
 
         <Label Grid.Row="0" Grid.Column="0" Content="Client Version:"/>
-        <TextBox Grid.Row="0" Grid.Column="1" Margin="3" IsEnabled="False" />
-        <Button Grid.Row="0" Grid.Column="2" Margin="3" Content="Update"/>
+        <TextBox Name="UpdateTextBox" Grid.Row="0" Grid.Column="1" Margin="3" IsEnabled="False" />
+        <Button Name="UpdateButton" Grid.Row="0" Grid.Column="2" Margin="3" Content="Update" Click="UpdateButton_onClick"/>
 
         <Label Grid.Row="1" Grid.Column="0" Content="Client Token:"/>
         <TextBox Name="ClientTokenTextBox" Grid.Row="1" Grid.Column="1" Margin="3" TextChanged="ClientTokenTextBox_onTextChanged"/>
