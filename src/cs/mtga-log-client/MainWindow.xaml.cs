@@ -23,7 +23,7 @@ namespace mtga_log_client
     public partial class MainWindow : Window
     {
         private static readonly string REQUIRED_FILENAME = "output_log.txt";
-        private static readonly int REQUIRED_TOKEN_LENGTH = 32;
+        private static readonly string DOWNLOAD_URL = "https://github.com/rconroy293/mtga-log-client";
         private static readonly int MESSAGE_HISTORY = 500;
 
         private LogParser parser;
@@ -31,13 +31,13 @@ namespace mtga_log_client
         BackgroundWorker worker;
 
         private bool isStarted = false;
-        private string filePath = Path.Combine(@"E:\", "output_asdflog_simple.txt");
-        private string userToken = "d1c297f8ff8d4b75a9ce60691458486b";
-        private string downloadUrl = "https://github.com/rconroy293/mtga-log-client";
+        private string filePath;
+        private string userToken;
 
         public MainWindow()
         {
             InitializeComponent();
+            LoadSettings();
 
             LogFileTextBox.Text = filePath;
             ClientTokenTextBox.Text = userToken;
@@ -48,6 +48,19 @@ namespace mtga_log_client
 
             if (!ValidateUserInputs()) return;
             StartParser();
+        }
+
+        private void LoadSettings()
+        {
+            userToken = Properties.Settings.Default.client_token;
+            filePath = Properties.Settings.Default.mtga_log_filename;
+        }
+
+        private void SaveSettings()
+        {
+            Properties.Settings.Default.client_token = userToken;
+            Properties.Settings.Default.mtga_log_filename = filePath;
+            Properties.Settings.Default.Save();
         }
 
         private bool ValidateClientVersion()
@@ -61,7 +74,7 @@ namespace mtga_log_client
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
 
-            System.Diagnostics.Process.Start(downloadUrl);
+            System.Diagnostics.Process.Start(DOWNLOAD_URL);
             Application.Current.Shutdown();
             return false;
         }
@@ -124,6 +137,8 @@ namespace mtga_log_client
             {
                 userToken = ClientTokenTextBox.Text;
             }
+
+            SaveSettings();
 
             return true;
         }
