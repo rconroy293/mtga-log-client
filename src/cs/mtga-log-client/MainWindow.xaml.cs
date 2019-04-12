@@ -33,6 +33,7 @@ namespace mtga_log_client
         private bool isStarted = false;
         private string filePath = Path.Combine(@"E:\", "output_asdflog_simple.txt");
         private string userToken = "d1c297f8ff8d4b75a9ce60691458486b";
+        private string downloadUrl = "https://github.com/rconroy293/mtga-log-client";
 
         public MainWindow()
         {
@@ -42,11 +43,27 @@ namespace mtga_log_client
             ClientTokenTextBox.Text = userToken;
 
             client = new ApiClient(LogMessage);
-            var minimumVersion = client.GetMinimumApiVersion();
-            Console.WriteLine(minimumVersion);
+
+            if (!ValidateClientVersion()) return;
 
             if (!ValidateUserInputs()) return;
             StartParser();
+        }
+
+        private bool ValidateClientVersion()
+        {
+            var versionValidation = client.GetVersionValidation();
+            if (versionValidation.is_supported) return true;
+
+            MessageBox.Show(
+                "This version of the client is no longer supported. Please update.",
+                "Outdated Client",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            System.Diagnostics.Process.Start(downloadUrl);
+            Application.Current.Shutdown();
+            return false;
         }
 
         private void StartParser()
@@ -223,7 +240,8 @@ namespace mtga_log_client
 
     class LogParser
     {
-        private const string CLIENT_VERSION = "0.1.2";
+        public const string CLIENT_VERSION = "0.1.0";
+        public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 1000;
         private const int BUFFER_SIZE = 65536;
@@ -751,7 +769,7 @@ namespace mtga_log_client
         private const string ENDPOINT_GAME = "game";
         private const string ENDPOINT_PACK = "pack";
         private const string ENDPOINT_PICK = "pick";
-        private const string ENDPOINT_MIN_CLIENT_VERSION = "min_client_version";
+        private const string ENDPOINT_CLIENT_VERSION_VALIDATION = "api/version_validation";
 
         private static readonly DataContractJsonSerializer SERIALIZER_MTGA_ACCOUNT = new DataContractJsonSerializer(typeof(MTGAAccount));
         private static readonly DataContractJsonSerializer SERIALIZER_PACK = new DataContractJsonSerializer(typeof(Pack));
@@ -764,19 +782,21 @@ namespace mtga_log_client
         private readonly LogMessageFunction messageFunction;
 
         [DataContract]
-        internal class MinVersionResponse
+        public class VersionValidationResponse
         {
             [DataMember]
-            internal string min_version;
+            internal bool is_supported;
+            [DataMember]
+            internal string latest_version;
         }
 
         public ApiClient(LogMessageFunction messageFunction)
         {
             this.messageFunction = messageFunction;
-            initializeClient();
+            InitializeClient();
         }
 
-        public void initializeClient()
+        public void InitializeClient()
         {
             client = new HttpClient();
             client.BaseAddress = new Uri(API_BASE_URL);
@@ -784,7 +804,7 @@ namespace mtga_log_client
                 new MediaTypeWithQualityHeaderValue("application/json"));
         }
 
-        public void stopClient()
+        public void StopClient()
         {
             client.Dispose();
         }
@@ -814,15 +834,15 @@ namespace mtga_log_client
             }
         }
 
-        public string GetMinimumApiVersion()
+        public VersionValidationResponse GetVersionValidation()
         {
-            var jsonResponse = GetJson(ENDPOINT_MIN_CLIENT_VERSION);
+            var jsonResponse = GetJson(ENDPOINT_CLIENT_VERSION_VALIDATION + "?client=" + LogParser.CLIENT_TYPE + "&version=" + LogParser.CLIENT_VERSION);
             if (jsonResponse == null)
             {
                 return null;
             }
-            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(MinVersionResponse));
-            return ((MinVersionResponse)serializer.ReadObject(jsonResponse)).min_version;
+            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(VersionValidationResponse));
+            return ((VersionValidationResponse)serializer.ReadObject(jsonResponse));
         }
 
         public void PostMTGAAccount(MTGAAccount account)
