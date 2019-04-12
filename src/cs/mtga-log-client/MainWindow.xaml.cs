@@ -140,7 +140,8 @@ namespace mtga_log_client
 
         private bool IsValidToken(string clientToken)
         {
-            return clientToken.Length == REQUIRED_TOKEN_LENGTH;
+            var validationResponse = client.GetTokenValidation(clientToken);
+            return validationResponse.is_valid;
         }
 
         private void ChooseFile_onClick(object sender, RoutedEventArgs e)
@@ -770,6 +771,7 @@ namespace mtga_log_client
         private const string ENDPOINT_PACK = "pack";
         private const string ENDPOINT_PICK = "pick";
         private const string ENDPOINT_CLIENT_VERSION_VALIDATION = "api/version_validation";
+        private const string ENDPOINT_TOKEN_VERSION_VALIDATION = "api/token_validation";
 
         private static readonly DataContractJsonSerializer SERIALIZER_MTGA_ACCOUNT = new DataContractJsonSerializer(typeof(MTGAAccount));
         private static readonly DataContractJsonSerializer SERIALIZER_PACK = new DataContractJsonSerializer(typeof(Pack));
@@ -788,6 +790,13 @@ namespace mtga_log_client
             internal bool is_supported;
             [DataMember]
             internal string latest_version;
+        }
+
+        [DataContract]
+        public class TokenValidationResponse
+        {
+            [DataMember]
+            internal bool is_valid;
         }
 
         public ApiClient(LogMessageFunction messageFunction)
@@ -843,6 +852,17 @@ namespace mtga_log_client
             }
             DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(VersionValidationResponse));
             return ((VersionValidationResponse)serializer.ReadObject(jsonResponse));
+        }
+
+        public TokenValidationResponse GetTokenValidation(string token)
+        {
+            var jsonResponse = GetJson(ENDPOINT_TOKEN_VERSION_VALIDATION + "?token=" + token);
+            if (jsonResponse == null)
+            {
+                return null;
+            }
+            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(TokenValidationResponse));
+            return ((TokenValidationResponse)serializer.ReadObject(jsonResponse));
         }
 
         public void PostMTGAAccount(MTGAAccount account)
