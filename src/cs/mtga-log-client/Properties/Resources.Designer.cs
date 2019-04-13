@@ -63,9 +63,9 @@ namespace mtga_log_client.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Icon similar to (Icon).
         /// </summary>
-        internal static System.Drawing.Icon logo {
+        internal static System.Drawing.Icon icon_white {
             get {
-                object obj = ResourceManager.GetObject("logo", resourceCulture);
+                object obj = ResourceManager.GetObject("icon_white", resourceCulture);
                 return ((System.Drawing.Icon)(obj));
             }
         }
