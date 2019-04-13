@@ -51,7 +51,7 @@
         <Label Grid.Row="4" Grid.Column="0" Content="Recent Messages:"/>
         <ListBox Name="MessageListBox" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Margin="3" />
 
-        <Button Grid.Row="5" Grid.Column="4" HorizontalAlignment="Right" Margin="0,3,3,3" Content=" View My Data " Click="OpenUserPageInBrowser"/>
+        <Button Grid.Row="5" Grid.Column="1" HorizontalAlignment="Right" Margin="3" Content=" View My Data " Click="OpenUserPageInBrowser"/>
         <Button Name="StartButton" Grid.Row="5" Grid.Column="2" Margin="3" Content="Start" Click="StartButton_onClick"/>
     </Grid>
 </Window>
