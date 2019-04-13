@@ -110,7 +110,8 @@ def json_value_matches(expectation, path, blob):
 class Follower:
     """Follows along a log, parses the messages, and passes along the parsed data to the API endpoint."""
 
-    def __init__(self, token):
+    def __init__(self, token, host):
+        self.host = host
         self.token = token
         self.buffer = []
         self.cur_log_time = None
@@ -243,7 +244,7 @@ class Follower:
                 'is_during_match': True,
             }
             logging.info(f'Deck submission: {deck}')
-            response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+            response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
         elif message_blob['type'] == 'GREMessageType_GameStateMessage':
             for game_object in message_blob['gameStateMessage'].get('gameObjects', []):
                 if game_object['type'] != 'GameObjectType_Card':
@@ -267,7 +268,7 @@ class Follower:
             'losses': json_obj['ModuleInstanceData']['WinLossGate']['CurrentLosses'],
         }
         logging.info(f'Event submission: {event}')
-        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_EVENT_SUBMISSION}', blob=event)
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_SUBMISSION}', blob=event)
 
     def __handle_game_end(self, json_obj):
         """Handle 'DuelScene.GameStop' messages."""
@@ -293,7 +294,7 @@ class Follower:
             'opponent_card_ids': opponent_card_ids,
         }
         logging.info(f'Completed game: {game}')
-        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_GAME_RESULT}', blob=game)
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=game)
 
     def __handle_login(self, json_obj):
         """Handle 'Client.Connected' messages."""
@@ -305,7 +306,7 @@ class Follower:
             'screen_name': screen_name,
         }
         logging.info(f'Adding user: {user_info}')
-        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_USER}', blob=user_info)
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
 
     def __handle_draft_log(self, json_obj):
         """Handle 'draftStatus' messages."""
@@ -319,7 +320,7 @@ class Follower:
                 'card_ids': [int(x) for x in json_obj['draftPack']],
             }
             logging.info(f'Draft pack: {pack}')
-            response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_DRAFT_PACK}', blob=pack)
+            response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PACK}', blob=pack)
 
     def __handle_draft_pick(self, json_obj):
         """Handle 'Draft.MakePick messages."""
@@ -335,13 +336,14 @@ class Follower:
             'card_id': int(inner_obj['cardId']),
         }
         logging.info(f'Draft pick: {pick}')
-        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_DRAFT_PICK}', blob=pick)
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PICK}', blob=pick)
 
     def __handle_deck_submission(self, json_obj):
         """Handle 'Event.DeckSubmit' messages."""
         inner_obj = json_obj['params']
         deck_info = json.loads(inner_obj['deck'])
         deck = {
+            'player_id': self.cur_user,
             'event_name': inner_obj['eventName'],
             'time': self.cur_log_time.isoformat(),
             'maindeck_card_ids': [d['Id'] for d in deck_info['mainDeck'] for i in range(d['Quantity'])],
@@ -349,7 +351,7 @@ class Follower:
             'is_during_match': False,
         }
         logging.info(f'Deck submission: {deck}')
-        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __handle_deck_submission_v3(self, json_obj):
         """Handle 'Event.DeckSubmitV3' messages."""
@@ -364,7 +366,7 @@ class Follower:
             'is_during_match': False,
         }
         logging.info(f'Deck submission: {deck}')
-        response = self.__retry_post(f'{API_ENDPOINT}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __get_card_ids_from_decklist_v3(self, decklist):
         """Parse a list of [card_id_1, count_1, card_id_2, count_2, ...] elements."""
@@ -423,9 +425,9 @@ def get_client_token():
 
     return token
 
-def verify_valid_version():
+def verify_valid_version(host):
     for i in range(3):
-        response = requests.get(f'{API_ENDPOINT}/{ENDPOINT_CLIENT_VERSION}')
+        response = requests.get(f'{host}/{ENDPOINT_CLIENT_VERSION}')
         if not IS_CODE_FOR_RETRY(response.status_code):
             break
         logging.warning(f'Got response code {response.status_code}; retrying')
@@ -457,17 +459,19 @@ def verify_valid_version():
 
 
 if __name__ == '__main__':
-    verify_valid_version()
-
     import argparse
 
     parser = argparse.ArgumentParser(description='MTGA log follower')
     parser.add_argument('-l', '--log_file',
         help=f'Log filename to process. If not specified, will try one of {POSSIBLE_FILEPATHS}')
+    parser.add_argument('--host', default=API_ENDPOINT,
+        help=f'Host to submit requsts to. If not specified, will use {API_ENDPOINT}')
     parser.add_argument('--once', action='store_true',
         help='Whether to stop after parsing the file once (default is to continue waiting for updates to the file)')
 
     args = parser.parse_args()
+
+    verify_valid_version(args.host)
 
     token = get_client_token()
     logging.info(f'Using token {token}')
@@ -478,7 +482,7 @@ if __name__ == '__main__':
 
     follow = not args.once
 
-    follower = Follower(token)
+    follower = Follower(token, host=args.host)
     for filename in filepaths:
         if os.path.exists(filename):
             logging.info(f'Following along {filename}')
