@@ -14,10 +14,8 @@ using System.Threading;
 using System.ComponentModel;
 using System.Windows.Controls;
 using Microsoft.Win32;
-using System.Drawing;
 using System.Reflection;
-using System.Windows.Media.Imaging;
-using System.Windows.Media;
+using log4net;
 
 namespace mtga_log_client
 {
@@ -30,7 +28,9 @@ namespace mtga_log_client
         private static readonly string STARTUP_REGISTRY_CUSTOM_KEY = "17LandsMTGAClient";
         private static readonly string STARTUP_REGISTRY_LOCATION = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
         private static readonly string DOWNLOAD_URL = "https://github.com/rconroy293/mtga-log-client";
-        private static readonly int MESSAGE_HISTORY = 500;
+        private static readonly int MESSAGE_HISTORY = 150;
+
+        private static readonly ILog log =LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private LogParser parser;
         private ApiClient client;
@@ -44,6 +44,9 @@ namespace mtga_log_client
         public MainWindow()
         {
             InitializeComponent();
+
+            log4net.Config.XmlConfigurator.Configure();
+            log.Info("        =============  Started Logging  =============        ");
 
             LoadSettings();
             RunAtStartupCheckbox.IsChecked = runAtStartup;
@@ -342,6 +345,7 @@ namespace mtga_log_client
 
         private void LogMessage(string message)
         {
+            log.Info(message);
             Application.Current.Dispatcher.Invoke((Action)delegate {
                 var item = new ListBoxItem();
                 item.Content = message;
