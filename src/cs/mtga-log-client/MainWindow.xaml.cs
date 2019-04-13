@@ -16,6 +16,8 @@ using System.Windows.Controls;
 using Microsoft.Win32;
 using System.Drawing;
 using System.Reflection;
+using System.Windows.Media.Imaging;
+using System.Windows.Media;
 
 namespace mtga_log_client
 {
@@ -39,6 +41,7 @@ namespace mtga_log_client
         public MainWindow()
         {
             InitializeComponent();
+
             LoadSettings();
             SetupTrayMinimization();
 
@@ -53,13 +56,42 @@ namespace mtga_log_client
             StartParser();
         }
 
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            if (Properties.Settings.Default.do_not_ask_on_close)
+            {
+                base.OnClosing(e);
+                return;
+            }
+
+            // show the message box here and collect the result
+            ExitConfirmation dialog = new ExitConfirmation();
+            dialog.ShowDialog();
+
+            switch (dialog.GetExitState())
+            {
+                case ExitConfirmation.ExitState.EXIT:
+                    Properties.Settings.Default.do_not_ask_on_close = dialog.GetRemember();
+                    Properties.Settings.Default.Save();
+                    base.OnClosing(e);
+                    break;
+                case ExitConfirmation.ExitState.MINIMIZE:
+                    e.Cancel = true;
+                    this.Hide();
+                    break;
+                case ExitConfirmation.ExitState.CANCEL:
+                    e.Cancel = true;
+                    break;
+            }
+        }
+
         public void SetupTrayMinimization()
         {
             InitializeComponent();
 
             System.Windows.Forms.NotifyIcon ni = new System.Windows.Forms.NotifyIcon();
 
-            ni.Icon = Properties.Resources.logo;
+            ni.Icon = Properties.Resources.icon_white;
             ni.Visible = true;
             ni.DoubleClick += delegate (object sender, EventArgs args)
                 {

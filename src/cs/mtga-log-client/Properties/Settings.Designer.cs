@@ -46,5 +46,17 @@ namespace mtga_log_client.Properties {
                 this["client_token"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool do_not_ask_on_close {
+            get {
+                return ((bool)(this["do_not_ask_on_close"]));
+            }
+            set {
+                this["do_not_ask_on_close"] = value;
+            }
+        }
     }
 }
