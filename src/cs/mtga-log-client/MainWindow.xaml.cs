@@ -27,6 +27,8 @@ namespace mtga_log_client
     public partial class MainWindow : Window
     {
         private static readonly string REQUIRED_FILENAME = "output_log.txt";
+        private static readonly string STARTUP_REGISTRY_CUSTOM_KEY = "17LandsMTGAClient";
+        private static readonly string STARTUP_REGISTRY_LOCATION = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
         private static readonly string DOWNLOAD_URL = "https://github.com/rconroy293/mtga-log-client";
         private static readonly int MESSAGE_HISTORY = 500;
 
@@ -37,12 +39,15 @@ namespace mtga_log_client
         private bool isStarted = false;
         private string filePath;
         private string userToken;
+        private bool runAtStartup;
 
         public MainWindow()
         {
             InitializeComponent();
 
             LoadSettings();
+            RunAtStartupCheckbox.IsChecked = runAtStartup;
+            UpdateStartupRegistryKey();
             SetupTrayMinimization();
 
             LogFileTextBox.Text = filePath;
@@ -64,7 +69,6 @@ namespace mtga_log_client
                 return;
             }
 
-            // show the message box here and collect the result
             ExitConfirmation dialog = new ExitConfirmation();
             dialog.ShowDialog();
 
@@ -110,12 +114,14 @@ namespace mtga_log_client
         {
             userToken = Properties.Settings.Default.client_token;
             filePath = Properties.Settings.Default.mtga_log_filename;
+            runAtStartup = Properties.Settings.Default.run_at_startup;
         }
 
         private void SaveSettings()
         {
             Properties.Settings.Default.client_token = userToken;
             Properties.Settings.Default.mtga_log_filename = filePath;
+            Properties.Settings.Default.run_at_startup = runAtStartup;
             Properties.Settings.Default.Save();
         }
 
@@ -212,6 +218,28 @@ namespace mtga_log_client
             SaveSettings();
 
             return true;
+        }
+
+        private void RunAtStartupCheckbox_onClick(object sender, EventArgs e)
+        {
+            runAtStartup = RunAtStartupCheckbox.IsChecked.GetValueOrDefault(false);
+            SaveSettings();
+            UpdateStartupRegistryKey();
+        }
+
+        private void UpdateStartupRegistryKey()
+        {
+            var executorPath = Assembly.GetExecutingAssembly().Location;
+            if (runAtStartup)
+            {
+                RegistryKey key = Registry.CurrentUser.OpenSubKey(STARTUP_REGISTRY_LOCATION, true);
+                key.SetValue(STARTUP_REGISTRY_CUSTOM_KEY, executorPath);
+            }
+            else
+            {
+                RegistryKey key = Registry.CurrentUser.OpenSubKey(STARTUP_REGISTRY_LOCATION, true);
+                key.DeleteValue(STARTUP_REGISTRY_CUSTOM_KEY, false);
+            }
         }
 
         private void UpdateButton_onClick(object sender, EventArgs e)

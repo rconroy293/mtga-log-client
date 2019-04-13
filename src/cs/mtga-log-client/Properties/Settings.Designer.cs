@@ -58,5 +58,17 @@ namespace mtga_log_client.Properties {
                 this["do_not_ask_on_close"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool run_at_startup {
+            get {
+                return ((bool)(this["run_at_startup"]));
+            }
+            set {
+                this["run_at_startup"] = value;
+            }
+        }
     }
 }
