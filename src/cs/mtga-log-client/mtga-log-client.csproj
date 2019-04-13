@@ -7,7 +7,7 @@
     <ProjectGuid>{1851AFCA-9742-4E39-AF62-CEF05CEE3C16}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <RootNamespace>mtga_log_client</RootNamespace>
-    <AssemblyName>mtga-log-client</AssemblyName>
+    <AssemblyName>17Lands MTGA Client</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -23,12 +23,17 @@
     <UpdateInterval>7</UpdateInterval>
     <UpdateIntervalUnits>Days</UpdateIntervalUnits>
     <UpdatePeriodically>false</UpdatePeriodically>
-    <UpdateRequired>false</UpdateRequired>
+    <UpdateRequired>true</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
     <InstallUrl>https://raw.githubusercontent.com/rconroy293/mtga-log-client/master/clickonce/</InstallUrl>
+    <SupportUrl>https://www.17lands.com</SupportUrl>
+    <ErrorReportUrl>https://www.17lands.com</ErrorReportUrl>
+    <ProductName>17Lands MTGA Client</ProductName>
+    <PublisherName>17Lands.com</PublisherName>
+    <MinimumRequiredVersion>1.0.0.3</MinimumRequiredVersion>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>2</ApplicationRevision>
+    <ApplicationRevision>3</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
