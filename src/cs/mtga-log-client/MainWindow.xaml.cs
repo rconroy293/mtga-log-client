@@ -363,7 +363,7 @@ namespace mtga_log_client
         public const string CLIENT_VERSION = "0.1.0";
         public const string CLIENT_TYPE = "windows";
 
-        private const int SLEEP_TIME = 1000;
+        private const int SLEEP_TIME = 750;
         private const int BUFFER_SIZE = 65536;
         private static readonly Regex LOG_START_REGEX = new Regex(
             "^\\[(UnityCrossThreadLogger|Client GRE)\\]([\\d:/ -]+(AM|PM)?)");
@@ -373,6 +373,17 @@ namespace mtga_log_client
             "^\\(Filename:");
         private static readonly Regex JSON_DICT_REGEX = new Regex("\\{.+\\}");
         private static readonly Regex JSON_LIST_REGEX = new Regex("\\[.+\\]");
+
+        private static readonly List<string> TIME_FORMATS = new List<string>() {
+            "yyyy-MM-dd h:mm:ss tt",
+            "yyyy-MM-dd HH:mm:ss",
+            "M/d/yyyy h:mm:ss tt",
+            "M/d/yyyy HH:mm:ss",
+            "yyyy/MM/dd h:mm:ss tt",
+            "yyyy/MM/dd HH:mm:ss",
+            "dd/MM/yyyy HH:mm:ss",
+            "dd.MM.yyyy HH:mm:ss"
+        };
 
         private bool first = true;
         private long farthestReadPosition = 0;
@@ -443,6 +454,19 @@ namespace mtga_log_client
             }
         }
 
+        private DateTime ParseDateTime(string dateString)
+        {
+            DateTime readDate = new DateTime();
+            foreach (string format in TIME_FORMATS)
+            {
+                if (DateTime.TryParseExact(dateString, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out readDate))
+                {
+                    return readDate;
+                }
+            }
+            return DateTime.Parse(dateString);
+        }
+
         private void ProcessLine(string line)
         {
             var match = LOG_START_REGEX_UNTIMED.Match(line);
@@ -453,7 +477,7 @@ namespace mtga_log_client
                 var timedMatch = LOG_START_REGEX.Match(line);
                 if (timedMatch.Success)
                 {
-                    currentLogTime = DateTime.Parse(timedMatch.Groups[2].Value);
+                    currentLogTime = ParseDateTime(timedMatch.Groups[2].Value);
                 }
             }
             else
