@@ -61,6 +61,19 @@ namespace mtga_log_client
                 StartParser();
             }
         }
+        protected override void OnContentRendered(EventArgs e)
+        {
+            base.OnContentRendered(e);
+
+            if (!isStarted)
+            {
+                MessageBox.Show(
+                    "Welcome to the 17Lands MTGA client. Please locate your log file and user token, then click 'Start Parsing' to begin.",
+                    "Welcome",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+        }
 
         protected override void OnClosing(CancelEventArgs e)
         {
