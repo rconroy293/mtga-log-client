@@ -62,6 +62,7 @@ namespace mtga_log_client
                 StartParser();
             }
         }
+
         protected override void OnContentRendered(EventArgs e)
         {
             base.OnContentRendered(e);
