@@ -828,6 +828,39 @@ namespace mtga_log_client
             }
         }
 
+        private bool MaybeHandleGreMessage_GameState(JToken blob)
+        {
+            if (!"GREMessageType_GameStateMessage".Equals(blob["type"].Value<string>())) return false;
+
+            try
+            {
+                var gameStateMessage = blob["gameStateMessage"].Value<JObject>();
+                if (!gameStateMessage.ContainsKey("gameObjects")) return true;
+                var gameObjects = gameStateMessage["gameObjects"].Value<JArray>();
+
+                foreach (JToken gameObject in gameObjects)
+                {
+                    if (!"GameObjectType_Card".Equals(gameObject["type"].Value<string>())) continue;
+
+                    var owner = gameObject["ownerSeatId"].Value<int>();
+                    var instanceId = gameObject["instanceId"].Value<int>();
+                    var cardId = gameObject["overlayGrpId"].Value<int>();
+
+                    if (!objectsByOwner.ContainsKey(owner))
+                    {
+                        objectsByOwner.Add(owner, new Dictionary<int, int>());
+                    }
+                    objectsByOwner[owner][instanceId] = cardId;
+                }
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogMessage(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob));
+                return false;
+            }
+        }
+
         private bool MaybeHandleGreToClientMessages(JObject blob)
         {
             if (!blob.ContainsKey("greToClientEvent")) return false;
@@ -838,6 +871,7 @@ namespace mtga_log_client
                 foreach (JToken message in blob["greToClientEvent"]["greToClientMessages"])
                 {
                     if (MaybeHandleGreMessage_DeckSubmission(message)) continue;
+                    if (MaybeHandleGreMessage_GameState(message)) continue;
                 }
                 return true;
             }
