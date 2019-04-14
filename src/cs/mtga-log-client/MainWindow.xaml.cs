@@ -16,6 +16,7 @@ using System.Windows.Controls;
 using Microsoft.Win32;
 using System.Reflection;
 using log4net;
+using log4net.Core;
 
 namespace mtga_log_client
 {
@@ -49,19 +50,31 @@ namespace mtga_log_client
             log.Info("        =============  Started Logging  =============        ");
 
             LoadSettings();
-            RunAtStartupCheckbox.IsChecked = runAtStartup;
             UpdateStartupRegistryKey();
             SetupTrayMinimization();
-
-            LogFileTextBox.Text = filePath;
-            ClientTokenTextBox.Text = userToken;
 
             client = new ApiClient(LogMessage);
 
             if (!ValidateClientVersion()) return;
 
-            if (!ValidateUserInputs()) return;
-            StartParser();
+            if (ValidateUserInputs(false))
+            {
+                StartParser();
+            }
+        }
+
+        protected override void OnContentRendered(EventArgs e)
+        {
+            base.OnContentRendered(e);
+
+            if (!isStarted)
+            {
+                MessageBox.Show(
+                    "Welcome to the 17Lands MTGA client. Please locate your log file and user token, then click 'Start Parsing' to begin.",
+                    "Welcome",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
         }
 
         protected override void OnClosing(CancelEventArgs e)
@@ -118,6 +131,10 @@ namespace mtga_log_client
             userToken = Properties.Settings.Default.client_token;
             filePath = Properties.Settings.Default.mtga_log_filename;
             runAtStartup = Properties.Settings.Default.run_at_startup;
+
+            RunAtStartupCheckbox.IsChecked = runAtStartup;
+            LogFileTextBox.Text = filePath;
+            ClientTokenTextBox.Text = userToken;
         }
 
         private void SaveSettings()
@@ -133,13 +150,6 @@ namespace mtga_log_client
             var versionValidation = client.GetVersionValidation();
             if (versionValidation.is_supported)
             {
-                if (LogParser.CLIENT_VERSION.Equals(versionValidation.latest_version))
-                {
-                    UpdateButton.IsEnabled = false;
-                }
-
-                UpdateTextBox.Text = "Client version: " + LogParser.CLIENT_VERSION + " Latest version: " + versionValidation.latest_version;
-
                 return true;
             }
 
@@ -149,14 +159,9 @@ namespace mtga_log_client
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
 
-            VisitSiteForUpdate();
+            System.Diagnostics.Process.Start(DOWNLOAD_URL);
             Application.Current.Shutdown();
             return false;
-        }
-
-        private void VisitSiteForUpdate()
-        {
-            System.Diagnostics.Process.Start(DOWNLOAD_URL);
         }
 
         private void StartParser()
@@ -165,21 +170,37 @@ namespace mtga_log_client
             {
                 worker.CancelAsync();
             }
+            isStarted = true;
+            StartButton.IsEnabled = false;
+            StartButton.Content = "Parsing";
 
             parser = new LogParser(client, userToken, filePath, LogMessage);
-            StartButton.IsEnabled = false;
 
             worker = new BackgroundWorker();
             worker.DoWork += parser.ResumeParsing;
             worker.WorkerSupportsCancellation = true;
             worker.RunWorkerAsync();
-
-            isStarted = true;
         }
 
-        private bool ValidateUserInputs()
+        private void StopParser()
         {
-            if (!File.Exists(LogFileTextBox.Text) || !IsValidLogFile(LogFileTextBox.Text))
+            if (!isStarted) return;
+            LogMessage("Stopped parsing.", Level.Info);
+
+            if (worker != null && !worker.CancellationPending)
+            {
+                worker.CancelAsync();
+            }
+            StartButton.IsEnabled = true;
+            StartButton.Content = "Start Parsing";
+            isStarted = false;
+        }
+
+        private bool ValidateLogFileInput(bool promptForUpdate)
+        {
+            if (File.Exists(LogFileTextBox.Text) && IsValidLogFile(LogFileTextBox.Text)) return true;
+
+            if (promptForUpdate)
             {
                 MessageBox.Show(
                     "You must choose a valid log file named " + REQUIRED_FILENAME,
@@ -188,37 +209,44 @@ namespace mtga_log_client
                     MessageBoxImage.Information);
 
                 filePath = ChooseLogFile();
-
-                if (filePath == null)
+                if (filePath != null)
                 {
-                    MessageBox.Show(
-                        "You must enter a log file.",
-                        "Choose Valid Log File",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
-                    return false;
+                    return true;
                 }
-            }
-            else
-            {
-                filePath = LogFileTextBox.Text;
+
+                MessageBox.Show(
+                    "You must enter a log file.",
+                    "Choose Valid Log File",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
             }
 
-            if (!IsValidToken(ClientTokenTextBox.Text))
+            return false;
+        }
+
+        private bool ValidateTokenInput(bool promptForUpdate)
+        {
+            if (IsValidToken(ClientTokenTextBox.Text)) return true;
+
+            if (promptForUpdate)
             {
                 MessageBox.Show(
                     "You must enter a valid token from 17lands.com",
                     "Enter Valid Token",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
-                return false;
-            }
-            else
-            {
-                userToken = ClientTokenTextBox.Text;
             }
 
-            SaveSettings();
+            return false;
+        }
+
+        private bool ValidateUserInputs(bool promptForUpdate)
+        {
+            if (!ValidateLogFileInput(promptForUpdate)) return false;
+            filePath = LogFileTextBox.Text;
+
+            if (!ValidateTokenInput(promptForUpdate)) return false;
+            userToken = ClientTokenTextBox.Text;
 
             return true;
         }
@@ -245,19 +273,9 @@ namespace mtga_log_client
             }
         }
 
-        private void UpdateButton_onClick(object sender, EventArgs e)
-        {
-            VisitSiteForUpdate();
-        }
-
         private void ClientTokenTextBox_onTextChanged(object sender, EventArgs e)
         {
-            EnableApply();
-        }
-
-        private void EnableApply()
-        {
-            ApplyButton.IsEnabled = true;
+            StopParser();
         }
 
         private bool IsValidToken(string clientToken)
@@ -272,7 +290,7 @@ namespace mtga_log_client
             if (newFilename != null)
             {
                 LogFileTextBox.Text = newFilename;
-                ApplyButton.IsEnabled = true;
+                StopParser();
             }
         }
 
@@ -307,21 +325,11 @@ namespace mtga_log_client
             return filename.EndsWith("\\" + REQUIRED_FILENAME);
         }
 
-        private void ApplyChanges_onClick(object sender, EventArgs e)
+        private void ValidateInputsApplyAndStart()
         {
-            ApplyChangedSettings();
-        }
-
-        private void ApplyChangedSettings()
-        {
-            if (!ValidateUserInputs()) return;
-            StartButton.IsEnabled = false;
-
-            filePath = LogFileTextBox.Text;
-            userToken = ClientTokenTextBox.Text;
-
+            if (!ValidateUserInputs(true)) return;
+            SaveSettings();
             StartParser();
-            ApplyButton.IsEnabled = false;
         }
 
         private void OpenUserPageInBrowser(object sender, EventArgs e)
@@ -338,33 +346,36 @@ namespace mtga_log_client
         {
             if (!isStarted)
             {
-                ApplyChangedSettings();
-                return;
+                ValidateInputsApplyAndStart();
             }
         }
 
-        private void LogMessage(string message)
+        private void LogMessage(string message, Level logLevel)
         {
-            log.Info(message);
-            Application.Current.Dispatcher.Invoke((Action)delegate {
-                var item = new ListBoxItem();
-                item.Content = message;
-                MessageListBox.Items.Insert(0, item);
+            log.Logger.Log(null, logLevel, message, null);
 
-                while (MessageListBox.Items.Count > MESSAGE_HISTORY)
-                {
-                    MessageListBox.Items.RemoveAt(MESSAGE_HISTORY);
-                }
-            });
+            if (logLevel >= Level.Info)
+            {
+                Application.Current.Dispatcher.Invoke((Action)delegate {
+                    var item = new ListBoxItem();
+                    item.Content = message;
+                    MessageListBox.Items.Insert(0, item);
+
+                    while (MessageListBox.Items.Count > MESSAGE_HISTORY)
+                    {
+                        MessageListBox.Items.RemoveAt(MESSAGE_HISTORY);
+                    }
+                });
+            }
         }
 
     }
 
-    delegate void LogMessageFunction(string message);
+    delegate void LogMessageFunction(string message, log4net.Core.Level logLevel);
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.0";
+        public const string CLIENT_VERSION = "0.1.1";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -396,6 +407,11 @@ namespace mtga_log_client
         private string currentUser = null;
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
 
+        private const int ERROR_LINES_RECENCY = 10;
+        private LinkedList<string> recentLines = new LinkedList<string>();
+        private string lastBlob = "";
+        private string currentDebugBlob = "";
+
         private readonly ApiClient apiClient;
         private readonly string apiToken;
         private readonly string filePath;
@@ -411,7 +427,7 @@ namespace mtga_log_client
 
         public void ResumeParsing(object sender, DoWorkEventArgs e)
         {
-            LogMessage("Starting parsing of " + filePath);
+            LogMessage("Starting parsing of " + filePath, Level.Info);
             BackgroundWorker worker = sender as BackgroundWorker;
 
             while (!worker.CancellationPending)
@@ -454,13 +470,13 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error parsing log: {0}", e));
+                LogMessage(String.Format("Error parsing log: {0}", e), Level.Error);
             }
         }
 
         private DateTime ParseDateTime(string dateString)
         {
-            DateTime readDate = new DateTime();
+            DateTime readDate;
             foreach (string format in TIME_FORMATS)
             {
                 if (DateTime.TryParseExact(dateString, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out readDate))
@@ -473,6 +489,9 @@ namespace mtga_log_client
 
         private void ProcessLine(string line)
         {
+            if (recentLines.Count >= ERROR_LINES_RECENCY) recentLines.RemoveFirst();
+            recentLines.AddLast(line);
+
             var match = LOG_START_REGEX_UNTIMED.Match(line);
             var match2 = LOG_START_REGEX_UNTIMED_2.Match(line);
             if (match.Success || match2.Success)
@@ -503,14 +522,16 @@ namespace mtga_log_client
             }
 
             var fullLog = String.Join("", buffer);
+            currentDebugBlob = fullLog;
             try
             {
                 HandleBlob(fullLog);
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} while processing {1}", e, fullLog));
+                LogMessage(String.Format("Error {0} while processing {1}", e, fullLog), Level.Error);
             }
+            lastBlob = fullLog;
 
             buffer.Clear();
             currentLogTime = null;
@@ -568,7 +589,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing login from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing login from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -628,7 +649,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing game result from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing game result from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -662,7 +683,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing draft pack from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing draft pack from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -694,7 +715,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing draft pick from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing draft pick from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -730,7 +751,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing deck submission from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing deck submission from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -766,7 +787,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing v3 deck submission from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing v3 deck submission from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -794,7 +815,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing event completion from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing event completion from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -823,7 +844,40 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob), Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandleGreMessage_GameState(JToken blob)
+        {
+            if (!"GREMessageType_GameStateMessage".Equals(blob["type"].Value<string>())) return false;
+
+            try
+            {
+                var gameStateMessage = blob["gameStateMessage"].Value<JObject>();
+                if (!gameStateMessage.ContainsKey("gameObjects")) return true;
+                var gameObjects = gameStateMessage["gameObjects"].Value<JArray>();
+
+                foreach (JToken gameObject in gameObjects)
+                {
+                    if (!"GameObjectType_Card".Equals(gameObject["type"].Value<string>())) continue;
+
+                    var owner = gameObject["ownerSeatId"].Value<int>();
+                    var instanceId = gameObject["instanceId"].Value<int>();
+                    var cardId = gameObject["overlayGrpId"].Value<int>();
+
+                    if (!objectsByOwner.ContainsKey(owner))
+                    {
+                        objectsByOwner.Add(owner, new Dictionary<int, int>());
+                    }
+                    objectsByOwner[owner][instanceId] = cardId;
+                }
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogMessage(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -838,19 +892,30 @@ namespace mtga_log_client
                 foreach (JToken message in blob["greToClientEvent"]["greToClientMessages"])
                 {
                     if (MaybeHandleGreMessage_DeckSubmission(message)) continue;
+                    if (MaybeHandleGreMessage_GameState(message)) continue;
                 }
                 return true;
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing event completion from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing event completion from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
 
-        private void LogMessage(string message)
+        private void LogMessage(string message, Level logLevel)
         {
-            messageFunction(message);
+            messageFunction(message, logLevel);
+            if (logLevel != Level.Info)
+            {
+                messageFunction(String.Format("Current blob: {0}", currentDebugBlob), Level.Debug);
+                messageFunction(String.Format("Previous blob: {0}", lastBlob), Level.Debug);
+                messageFunction("Recent lines:", Level.Debug);
+                foreach (string line in recentLines)
+                {
+                    messageFunction(line, Level.Debug);
+                }
+            }
         }
 
         private string GetDatetimeString(DateTime value)
@@ -974,19 +1039,19 @@ namespace mtga_log_client
             }
             else
             {
-                LogMessage(String.Format("Got error response {0} ({1})", (int) response.StatusCode, response.ReasonPhrase));
+                LogMessage(String.Format("Got error response {0} ({1})", (int) response.StatusCode, response.ReasonPhrase), Level.Warn);
                 return null;
             }
         }
 
         private void PostJson(string endpoint, String blob)
         {
-            LogMessage(String.Format("Posting {0} of {1}", endpoint, blob));
+            LogMessage(String.Format("Posting {0} of {1}", endpoint, blob), Level.Info);
             var content = new StringContent(blob, Encoding.UTF8, "application/json");
             var response = client.PostAsync(endpoint, content).Result;
             if (!response.IsSuccessStatusCode)
             {
-                LogMessage(String.Format("Got error response {0} ({1})", (int)response.StatusCode, response.ReasonPhrase));
+                LogMessage(String.Format("Got error response {0} ({1})", (int)response.StatusCode, response.ReasonPhrase), Level.Warn);
             }
         }
 
@@ -1060,9 +1125,9 @@ namespace mtga_log_client
             PostJson(ENDPOINT_EVENT, jsonString);
         }
 
-        private void LogMessage(string message)
+        private void LogMessage(string message, Level logLevel)
         {
-            messageFunction(message);
+            messageFunction(message, logLevel);
         }
     }
 

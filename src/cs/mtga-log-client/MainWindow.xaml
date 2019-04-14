@@ -26,8 +26,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -37,25 +35,21 @@
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
-        <Label Grid.Row="0" Grid.Column="0" Content="Client Version:"/>
-        <TextBox Name="UpdateTextBox" Grid.Row="0" Grid.Column="1" Margin="3" IsEnabled="False" />
-        <Button Name="UpdateButton" Grid.Row="0" Grid.Column="2" Margin="3" Content="Update" Click="UpdateButton_onClick"/>
+        <Label Grid.Row="0" Grid.Column="0" Content="MTGA Log File:"/>
+        <TextBox Grid.Row="0" Grid.Column="1" Name="LogFileTextBox" Margin="3" IsEnabled="False"/>
+        <Button Grid.Row="0" Grid.Column="2" Margin="3" Content="Choose File..." Click="ChooseFile_onClick"/>
 
-        <Label Grid.Row="1" Grid.Column="0" Content="MTGA Log File:"/>
-        <TextBox Name="LogFileTextBox" Grid.Row="1" Grid.Column="1" Margin="3" IsEnabled="False"/>
-        <Button Grid.Row="1" Grid.Column="2" Margin="3" Content="Choose File..." Click="ChooseFile_onClick"/>
+        <Label Grid.Row="1" Grid.Column="0" Content="Client Token:"/>
+        <TextBox Grid.Row="1" Grid.Column="1" Name="ClientTokenTextBox" Margin="3" TextChanged="ClientTokenTextBox_onTextChanged"/>
+        <Button Grid.Row="1" Grid.Column="2" Margin="3" Content=" Find my token " Click="OpenAccountPageInBrowser"/>
 
-        <Label Grid.Row="2" Grid.Column="0" Content="Client Token:"/>
-        <TextBox Name="ClientTokenTextBox" Grid.Row="2" Grid.Column="1" Margin="3" TextChanged="ClientTokenTextBox_onTextChanged"/>
-        <Button Grid.Row="2" Grid.Column="2" Margin="3" Content=" Find my token " Click="OpenAccountPageInBrowser"/>
+        <!--<Button Grid.Row="2" Grid.Column="2" Name="ApplyButton" Margin="3" Content=" Apply Changes " Click="ApplyChanges_onClick" IsEnabled="False"/>-->
 
-        <Button Name="ApplyButton" Grid.Row="3" Grid.Column="2" Margin="3" Content=" Apply Changes " Click="ApplyChanges_onClick" IsEnabled="False"/>
+        <Label Grid.Row="2" Grid.Column="0" Content="Recent Messages:"/>
+        <ListBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Name="MessageListBox" Margin="3" />
 
-        <Label Grid.Row="4" Grid.Column="0" Content="Recent Messages:"/>
-        <ListBox Name="MessageListBox" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Margin="3" />
-
-        <CheckBox Name="RunAtStartupCheckbox" Grid.Row="5" Grid.Column="0" Content="Run at Startup" Margin="3" Click="RunAtStartupCheckbox_onClick" IsChecked="True"/>
-        <Button Grid.Row="5" Grid.Column="1" HorizontalAlignment="Right" Margin="3" Content=" View My Data " Click="OpenUserPageInBrowser"/>
-        <Button Name="StartButton" Grid.Row="5" Grid.Column="2" Margin="3" Content="Start" Click="StartButton_onClick"/>
+        <CheckBox Grid.Row="3" Grid.Column="0" Name="RunAtStartupCheckbox" Content="Run at Startup" Margin="3" Click="RunAtStartupCheckbox_onClick" IsChecked="True"/>
+        <Button Grid.Row="3" Grid.Column="1" HorizontalAlignment="Right" Margin="3" Content=" View My Data " Click="OpenUserPageInBrowser"/>
+        <Button Grid.Row="3" Grid.Column="2" Name="StartButton" Margin="3" Content="Start Parsing" Click="StartButton_onClick"/>
     </Grid>
 </Window>
