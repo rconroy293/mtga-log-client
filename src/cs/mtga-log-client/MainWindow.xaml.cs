@@ -16,6 +16,7 @@ using System.Windows.Controls;
 using Microsoft.Win32;
 using System.Reflection;
 using log4net;
+using log4net.Core;
 
 namespace mtga_log_client
 {
@@ -183,7 +184,7 @@ namespace mtga_log_client
         private void StopParser()
         {
             if (!isStarted) return;
-            LogMessage("Stopped parsing.");
+            LogMessage("Stopped parsing.", Level.Info);
 
             if (worker != null && !worker.CancellationPending)
             {
@@ -221,6 +222,7 @@ namespace mtga_log_client
 
             return false;
         }
+
         private bool ValidateTokenInput(bool promptForUpdate)
         {
             if (IsValidToken(ClientTokenTextBox.Text)) return true;
@@ -347,28 +349,32 @@ namespace mtga_log_client
             }
         }
 
-        private void LogMessage(string message)
+        private void LogMessage(string message, Level logLevel)
         {
-            log.Info(message);
-            Application.Current.Dispatcher.Invoke((Action)delegate {
-                var item = new ListBoxItem();
-                item.Content = message;
-                MessageListBox.Items.Insert(0, item);
+            log.Logger.Log(null, logLevel, message, null);
 
-                while (MessageListBox.Items.Count > MESSAGE_HISTORY)
-                {
-                    MessageListBox.Items.RemoveAt(MESSAGE_HISTORY);
-                }
-            });
+            if (logLevel >= Level.Info)
+            {
+                Application.Current.Dispatcher.Invoke((Action)delegate {
+                    var item = new ListBoxItem();
+                    item.Content = message;
+                    MessageListBox.Items.Insert(0, item);
+
+                    while (MessageListBox.Items.Count > MESSAGE_HISTORY)
+                    {
+                        MessageListBox.Items.RemoveAt(MESSAGE_HISTORY);
+                    }
+                });
+            }
         }
 
     }
 
-    delegate void LogMessageFunction(string message);
+    delegate void LogMessageFunction(string message, log4net.Core.Level logLevel);
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.0";
+        public const string CLIENT_VERSION = "0.1.1";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -400,6 +406,11 @@ namespace mtga_log_client
         private string currentUser = null;
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
 
+        private const int ERROR_LINES_RECENCY = 10;
+        private LinkedList<string> recentLines = new LinkedList<string>();
+        private string lastBlob = "";
+        private string currentDebugBlob = "";
+
         private readonly ApiClient apiClient;
         private readonly string apiToken;
         private readonly string filePath;
@@ -415,7 +426,7 @@ namespace mtga_log_client
 
         public void ResumeParsing(object sender, DoWorkEventArgs e)
         {
-            LogMessage("Starting parsing of " + filePath);
+            LogMessage("Starting parsing of " + filePath, Level.Info);
             BackgroundWorker worker = sender as BackgroundWorker;
 
             while (!worker.CancellationPending)
@@ -458,13 +469,13 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error parsing log: {0}", e));
+                LogMessage(String.Format("Error parsing log: {0}", e), Level.Error);
             }
         }
 
         private DateTime ParseDateTime(string dateString)
         {
-            DateTime readDate = new DateTime();
+            DateTime readDate;
             foreach (string format in TIME_FORMATS)
             {
                 if (DateTime.TryParseExact(dateString, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out readDate))
@@ -477,6 +488,9 @@ namespace mtga_log_client
 
         private void ProcessLine(string line)
         {
+            if (recentLines.Count >= ERROR_LINES_RECENCY) recentLines.RemoveFirst();
+            recentLines.AddLast(line);
+
             var match = LOG_START_REGEX_UNTIMED.Match(line);
             var match2 = LOG_START_REGEX_UNTIMED_2.Match(line);
             if (match.Success || match2.Success)
@@ -507,14 +521,16 @@ namespace mtga_log_client
             }
 
             var fullLog = String.Join("", buffer);
+            currentDebugBlob = fullLog;
             try
             {
                 HandleBlob(fullLog);
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} while processing {1}", e, fullLog));
+                LogMessage(String.Format("Error {0} while processing {1}", e, fullLog), Level.Error);
             }
+            lastBlob = fullLog;
 
             buffer.Clear();
             currentLogTime = null;
@@ -572,7 +588,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing login from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing login from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -632,7 +648,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing game result from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing game result from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -666,7 +682,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing draft pack from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing draft pack from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -698,7 +714,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing draft pick from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing draft pick from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -734,7 +750,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing deck submission from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing deck submission from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -770,7 +786,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing v3 deck submission from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing v3 deck submission from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -798,7 +814,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing event completion from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing event completion from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -827,7 +843,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -860,7 +876,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
@@ -881,14 +897,24 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing event completion from {1}", e, blob));
+                LogMessage(String.Format("Error {0} parsing event completion from {1}", e, blob), Level.Warn);
                 return false;
             }
         }
 
-        private void LogMessage(string message)
+        private void LogMessage(string message, Level logLevel)
         {
-            messageFunction(message);
+            messageFunction(message, logLevel);
+            if (logLevel != Level.Info)
+            {
+                messageFunction(String.Format("Current blob: {0}", currentDebugBlob), Level.Debug);
+                messageFunction(String.Format("Previous blob: {0}", lastBlob), Level.Debug);
+                messageFunction("Recent lines:", Level.Debug);
+                foreach (string line in recentLines)
+                {
+                    messageFunction(line, Level.Debug);
+                }
+            }
         }
 
         private string GetDatetimeString(DateTime value)
@@ -1012,19 +1038,19 @@ namespace mtga_log_client
             }
             else
             {
-                LogMessage(String.Format("Got error response {0} ({1})", (int) response.StatusCode, response.ReasonPhrase));
+                LogMessage(String.Format("Got error response {0} ({1})", (int) response.StatusCode, response.ReasonPhrase), Level.Warn);
                 return null;
             }
         }
 
         private void PostJson(string endpoint, String blob)
         {
-            LogMessage(String.Format("Posting {0} of {1}", endpoint, blob));
+            LogMessage(String.Format("Posting {0} of {1}", endpoint, blob), Level.Info);
             var content = new StringContent(blob, Encoding.UTF8, "application/json");
             var response = client.PostAsync(endpoint, content).Result;
             if (!response.IsSuccessStatusCode)
             {
-                LogMessage(String.Format("Got error response {0} ({1})", (int)response.StatusCode, response.ReasonPhrase));
+                LogMessage(String.Format("Got error response {0} ({1})", (int)response.StatusCode, response.ReasonPhrase), Level.Warn);
             }
         }
 
@@ -1098,9 +1124,9 @@ namespace mtga_log_client
             PostJson(ENDPOINT_EVENT, jsonString);
         }
 
-        private void LogMessage(string message)
+        private void LogMessage(string message, Level logLevel)
         {
-            messageFunction(message);
+            messageFunction(message, logLevel);
         }
     }
 
