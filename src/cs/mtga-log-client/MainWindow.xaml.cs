@@ -49,19 +49,17 @@ namespace mtga_log_client
             log.Info("        =============  Started Logging  =============        ");
 
             LoadSettings();
-            RunAtStartupCheckbox.IsChecked = runAtStartup;
             UpdateStartupRegistryKey();
             SetupTrayMinimization();
-
-            LogFileTextBox.Text = filePath;
-            ClientTokenTextBox.Text = userToken;
 
             client = new ApiClient(LogMessage);
 
             if (!ValidateClientVersion()) return;
 
-            if (!ValidateUserInputs()) return;
-            StartParser();
+            if (ValidateUserInputs(false))
+            {
+                StartParser();
+            }
         }
 
         protected override void OnClosing(CancelEventArgs e)
@@ -118,6 +116,10 @@ namespace mtga_log_client
             userToken = Properties.Settings.Default.client_token;
             filePath = Properties.Settings.Default.mtga_log_filename;
             runAtStartup = Properties.Settings.Default.run_at_startup;
+
+            RunAtStartupCheckbox.IsChecked = runAtStartup;
+            LogFileTextBox.Text = filePath;
+            ClientTokenTextBox.Text = userToken;
         }
 
         private void SaveSettings()
@@ -133,13 +135,6 @@ namespace mtga_log_client
             var versionValidation = client.GetVersionValidation();
             if (versionValidation.is_supported)
             {
-                if (LogParser.CLIENT_VERSION.Equals(versionValidation.latest_version))
-                {
-                    UpdateButton.IsEnabled = false;
-                }
-
-                UpdateTextBox.Text = "Client version: " + LogParser.CLIENT_VERSION + " Latest version: " + versionValidation.latest_version;
-
                 return true;
             }
 
@@ -149,14 +144,9 @@ namespace mtga_log_client
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
 
-            VisitSiteForUpdate();
+            System.Diagnostics.Process.Start(DOWNLOAD_URL);
             Application.Current.Shutdown();
             return false;
-        }
-
-        private void VisitSiteForUpdate()
-        {
-            System.Diagnostics.Process.Start(DOWNLOAD_URL);
         }
 
         private void StartParser()
@@ -165,21 +155,37 @@ namespace mtga_log_client
             {
                 worker.CancelAsync();
             }
+            isStarted = true;
+            StartButton.IsEnabled = false;
+            StartButton.Content = "Parsing";
 
             parser = new LogParser(client, userToken, filePath, LogMessage);
-            StartButton.IsEnabled = false;
 
             worker = new BackgroundWorker();
             worker.DoWork += parser.ResumeParsing;
             worker.WorkerSupportsCancellation = true;
             worker.RunWorkerAsync();
-
-            isStarted = true;
         }
 
-        private bool ValidateUserInputs()
+        private void StopParser()
         {
-            if (!File.Exists(LogFileTextBox.Text) || !IsValidLogFile(LogFileTextBox.Text))
+            if (!isStarted) return;
+            LogMessage("Stopped parsing.");
+
+            if (worker != null && !worker.CancellationPending)
+            {
+                worker.CancelAsync();
+            }
+            StartButton.IsEnabled = true;
+            StartButton.Content = "Start Parsing";
+            isStarted = false;
+        }
+
+        private bool ValidateLogFileInput(bool promptForUpdate)
+        {
+            if (File.Exists(LogFileTextBox.Text) && IsValidLogFile(LogFileTextBox.Text)) return true;
+
+            if (promptForUpdate)
             {
                 MessageBox.Show(
                     "You must choose a valid log file named " + REQUIRED_FILENAME,
@@ -188,37 +194,43 @@ namespace mtga_log_client
                     MessageBoxImage.Information);
 
                 filePath = ChooseLogFile();
-
-                if (filePath == null)
+                if (filePath != null)
                 {
-                    MessageBox.Show(
-                        "You must enter a log file.",
-                        "Choose Valid Log File",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
-                    return false;
+                    return true;
                 }
-            }
-            else
-            {
-                filePath = LogFileTextBox.Text;
+
+                MessageBox.Show(
+                    "You must enter a log file.",
+                    "Choose Valid Log File",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
             }
 
-            if (!IsValidToken(ClientTokenTextBox.Text))
+            return false;
+        }
+        private bool ValidateTokenInput(bool promptForUpdate)
+        {
+            if (IsValidToken(ClientTokenTextBox.Text)) return true;
+
+            if (promptForUpdate)
             {
                 MessageBox.Show(
                     "You must enter a valid token from 17lands.com",
                     "Enter Valid Token",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
-                return false;
-            }
-            else
-            {
-                userToken = ClientTokenTextBox.Text;
             }
 
-            SaveSettings();
+            return false;
+        }
+
+        private bool ValidateUserInputs(bool promptForUpdate)
+        {
+            if (!ValidateLogFileInput(promptForUpdate)) return false;
+            filePath = LogFileTextBox.Text;
+
+            if (!ValidateTokenInput(promptForUpdate)) return false;
+            userToken = ClientTokenTextBox.Text;
 
             return true;
         }
@@ -245,19 +257,9 @@ namespace mtga_log_client
             }
         }
 
-        private void UpdateButton_onClick(object sender, EventArgs e)
-        {
-            VisitSiteForUpdate();
-        }
-
         private void ClientTokenTextBox_onTextChanged(object sender, EventArgs e)
         {
-            EnableApply();
-        }
-
-        private void EnableApply()
-        {
-            ApplyButton.IsEnabled = true;
+            StopParser();
         }
 
         private bool IsValidToken(string clientToken)
@@ -272,7 +274,7 @@ namespace mtga_log_client
             if (newFilename != null)
             {
                 LogFileTextBox.Text = newFilename;
-                ApplyButton.IsEnabled = true;
+                StopParser();
             }
         }
 
@@ -307,21 +309,11 @@ namespace mtga_log_client
             return filename.EndsWith("\\" + REQUIRED_FILENAME);
         }
 
-        private void ApplyChanges_onClick(object sender, EventArgs e)
+        private void ValidateInputsApplyAndStart()
         {
-            ApplyChangedSettings();
-        }
-
-        private void ApplyChangedSettings()
-        {
-            if (!ValidateUserInputs()) return;
-            StartButton.IsEnabled = false;
-
-            filePath = LogFileTextBox.Text;
-            userToken = ClientTokenTextBox.Text;
-
+            if (!ValidateUserInputs(true)) return;
+            SaveSettings();
             StartParser();
-            ApplyButton.IsEnabled = false;
         }
 
         private void OpenUserPageInBrowser(object sender, EventArgs e)
@@ -338,8 +330,7 @@ namespace mtga_log_client
         {
             if (!isStarted)
             {
-                ApplyChangedSettings();
-                return;
+                ValidateInputsApplyAndStart();
             }
         }
 
