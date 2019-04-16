@@ -30,11 +30,11 @@
     <ErrorReportUrl>https://www.17lands.com</ErrorReportUrl>
     <ProductName>17Lands MTGA Client</ProductName>
     <PublisherName>17Lands.com</PublisherName>
-    <MinimumRequiredVersion>1.0.0.8</MinimumRequiredVersion>
+    <MinimumRequiredVersion>1.0.1.0</MinimumRequiredVersion>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>10</ApplicationRevision>
-    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <ApplicationRevision>1</ApplicationRevision>
+    <ApplicationVersion>1.0.1.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
     <BootstrapperEnabled>true</BootstrapperEnabled>

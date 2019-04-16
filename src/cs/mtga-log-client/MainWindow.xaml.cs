@@ -371,7 +371,7 @@ namespace mtga_log_client
 
     }
 
-    delegate void LogMessageFunction(string message, log4net.Core.Level logLevel);
+    delegate void LogMessageFunction(string message, Level logLevel);
 
     class LogParser
     {
@@ -916,6 +916,17 @@ namespace mtga_log_client
                     messageFunction(line, Level.Debug);
                 }
             }
+
+            if (logLevel >= Level.Warn)
+            {
+                var errorInfo = new ErrorInfo();
+                errorInfo.client_version = CLIENT_VERSION;
+                errorInfo.token = apiToken;
+                errorInfo.blob = currentDebugBlob;
+                errorInfo.recent_lines = new List<string>(recentLines);
+                errorInfo.stacktrace = "";
+                apiClient.PostErrorInfo(errorInfo);
+            }
         }
 
         private string GetDatetimeString(DateTime value)
@@ -984,6 +995,7 @@ namespace mtga_log_client
         private const string ENDPOINT_PICK = "pick";
         private const string ENDPOINT_CLIENT_VERSION_VALIDATION = "api/version_validation";
         private const string ENDPOINT_TOKEN_VERSION_VALIDATION = "api/token_validation";
+        private const string ENDPOINT_ERROR_INFO = "api/client_errors";
 
         private static readonly DataContractJsonSerializer SERIALIZER_MTGA_ACCOUNT = new DataContractJsonSerializer(typeof(MTGAAccount));
         private static readonly DataContractJsonSerializer SERIALIZER_PACK = new DataContractJsonSerializer(typeof(Pack));
@@ -991,6 +1003,7 @@ namespace mtga_log_client
         private static readonly DataContractJsonSerializer SERIALIZER_DECK = new DataContractJsonSerializer(typeof(Deck));
         private static readonly DataContractJsonSerializer SERIALIZER_GAME = new DataContractJsonSerializer(typeof(Game));
         private static readonly DataContractJsonSerializer SERIALIZER_EVENT = new DataContractJsonSerializer(typeof(Event));
+        private static readonly DataContractJsonSerializer SERIALIZER_ERROR_INFO= new DataContractJsonSerializer(typeof(ErrorInfo));
 
         private HttpClient client;
         private readonly LogMessageFunction messageFunction;
@@ -1125,6 +1138,14 @@ namespace mtga_log_client
             PostJson(ENDPOINT_EVENT, jsonString);
         }
 
+        public void PostErrorInfo(ErrorInfo errorInfo)
+        {
+            MemoryStream stream = new MemoryStream();
+            SERIALIZER_ERROR_INFO.WriteObject(stream, errorInfo);
+            string jsonString = Encoding.UTF8.GetString(stream.ToArray());
+            PostJson(ENDPOINT_ERROR_INFO, jsonString);
+        }
+
         private void LogMessage(string message, Level logLevel)
         {
             messageFunction(message, logLevel);
@@ -1252,5 +1273,19 @@ namespace mtga_log_client
         internal int wins;
         [DataMember]
         internal int losses;
+    }
+    [DataContract]
+    internal class ErrorInfo
+    {
+        [DataMember]
+        internal string client_version;
+        [DataMember]
+        internal string token;
+        [DataMember]
+        internal string stacktrace;
+        [DataMember]
+        internal string blob;
+        [DataMember]
+        internal List<string> recent_lines;
     }
 }
