@@ -17,6 +17,8 @@ using Microsoft.Win32;
 using System.Reflection;
 using log4net;
 using log4net.Core;
+using System.Deployment.Application;
+using System.Threading.Tasks;
 
 namespace mtga_log_client
 {
@@ -25,6 +27,8 @@ namespace mtga_log_client
     /// </summary>
     public partial class MainWindow : Window
     {
+        private static readonly TimeSpan UPDATE_CHECK_INTERVAL = TimeSpan.FromHours(6);
+
         private static readonly string REQUIRED_FILENAME = "output_log.txt";
         private static readonly string STARTUP_REGISTRY_CUSTOM_KEY = "17LandsMTGAClient";
         private static readonly string STARTUP_REGISTRY_LOCATION = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
@@ -52,6 +56,7 @@ namespace mtga_log_client
             LoadSettings();
             UpdateStartupRegistryKey();
             SetupTrayMinimization();
+            StartUpdateCheckThread();
 
             client = new ApiClient(LogMessage);
 
@@ -369,13 +374,84 @@ namespace mtga_log_client
             }
         }
 
+        private static async Task RunPeriodicAsync(Action onTick, TimeSpan initialWait, TimeSpan interval, CancellationToken token)
+        {
+            if (initialWait > TimeSpan.Zero)
+                await Task.Delay(initialWait, token);
+
+            while (!token.IsCancellationRequested)
+            {
+                onTick?.Invoke();
+                if (interval > TimeSpan.Zero) await Task.Delay(interval, token);
+            }
+        }
+
+        protected void StartUpdateCheckThread()
+        {
+            _ = RunPeriodicAsync(InstallUpdateSyncWithInfo, UPDATE_CHECK_INTERVAL, UPDATE_CHECK_INTERVAL, CancellationToken.None);
+        }
+
+        private void InstallUpdateSyncWithInfo()
+        {
+            LogMessage("Checking for updates", Level.Info);
+            if (!ApplicationDeployment.IsNetworkDeployed)
+            {
+                LogMessage("Not network deployed", Level.Info);
+                return;
+            }
+
+            ApplicationDeployment ad = ApplicationDeployment.CurrentDeployment;
+            UpdateCheckInfo info;
+            try
+            {
+                info = ad.CheckForDetailedUpdate();
+            }
+            catch (Exception e)
+            {
+                LogMessage(String.Format("Error {0} while checking for updates", e), Level.Error);
+                return;
+            }
+
+            if (!info.UpdateAvailable)
+            {
+                LogMessage("No update available", Level.Info);
+                return;
+            }
+
+            if (!info.IsUpdateRequired)
+            {
+                LogMessage("An update is available. Please restart the 17Lands client to apply this update.", Level.Info);
+                return;
+            }
+
+            MessageBox.Show(
+                "This application has detected a mandatory update from your current version to version " +
+                info.MinimumRequiredVersion.ToString() + ". The application will now install the update and restart.",
+                "Update Required",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            try
+            {
+                ad.Update();
+                MessageBox.Show("The application has been upgraded, and will now restart.");
+                System.Windows.Forms.Application.Restart();
+                Application.Current.Shutdown();
+            }
+            catch (DeploymentDownloadException e)
+            {
+                LogMessage(String.Format("Error {0} while applying updates", e), Level.Error);
+                return;
+            }
+        }
+
     }
 
     delegate void LogMessageFunction(string message, Level logLevel);
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.1";
+        public const string CLIENT_VERSION = "0.1.2";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
