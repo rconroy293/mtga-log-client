@@ -1,20 +1,16 @@
 # mtga-log-client
 
-Simple client for passing relevant events from MTG Arena logs to a REST endpoint.
+Simple client for passing relevant events from MTG Arena logs to the 17Lands REST endpoint.
 
 ## Basic Usage
 
-On Windows, simply download and run `mtga_follower.exe`. This version will have a console window that shows you everything that's being uploaded. You can kick this off before you start MTG Arena and have it run while you play.
-
-If you'd prefer to have something started automatically and run in the background, you can have it start itself at startup and remain hidden (it shouldn't take up much in the way of resources). To make this happen, download the `mtga_follower_hidden.exe` file and do the following two steps:
-1. Create a shortcut to `mtga_follower_hidden.exe` (right click -> Create Shortcut)
-2. Move the shortcut to your startup folder (paste this into your file explorer addresss bar to find the startup folder: `%appdata%\Microsoft\Windows\Start Menu\Programs\Startup`)
+On Windows, simply download and run `clickonce/setup.exe`. This version will have a console window that shows you everything that's being uploaded. You can kick this off before you start MTG Arena and have it run while you play. It can be configured to run at startup and will prompt you when updates are available.
 
 ## Advanced Usage
 
 Requires [Python 3.6+](https://www.python.org/downloads/), along with the [`requests` package](http://docs.python-requests.org/en/master/).
 
-You can kick this off before you start MTG Arena and have it run in the background while you play. If you have Python installed on Windows, you can simply run the script directly. If you want to run through a terminal, the command would just be as follows:
+You can kick this off before you start MTG Arena and have it run in the background while you play. If you have Python installed, you can simply run the script directly. If you want to run through a terminal, the command would just be as follows:
 ```
 python3 mtga_follower.py
 ```
