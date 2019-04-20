@@ -32,6 +32,7 @@ namespace mtga_log_client
         private static readonly string REQUIRED_FILENAME = "output_log.txt";
         private static readonly string STARTUP_REGISTRY_CUSTOM_KEY = "17LandsMTGAClient";
         private static readonly string STARTUP_REGISTRY_LOCATION = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+        private static readonly string STARTUP_FILENAME = @"\17Lands.com\17Lands MTGA Client.appref-ms";
         private static readonly string DOWNLOAD_URL = "https://github.com/rconroy293/mtga-log-client";
         private static readonly int MESSAGE_HISTORY = 150;
 
@@ -265,11 +266,11 @@ namespace mtga_log_client
 
         private void UpdateStartupRegistryKey()
         {
-            var executorPath = Assembly.GetExecutingAssembly().Location;
+            var startupPath = Environment.GetFolderPath(Environment.SpecialFolder.Programs) + STARTUP_FILENAME;
             if (runAtStartup)
             {
                 RegistryKey key = Registry.CurrentUser.OpenSubKey(STARTUP_REGISTRY_LOCATION, true);
-                key.SetValue(STARTUP_REGISTRY_CUSTOM_KEY, executorPath);
+                key.SetValue(STARTUP_REGISTRY_CUSTOM_KEY, startupPath);
             }
             else
             {
@@ -420,12 +421,12 @@ namespace mtga_log_client
 
             if (!info.IsUpdateRequired)
             {
-                LogMessage("An update is available. Please restart the 17Lands client to apply this update.", Level.Info);
+                LogMessage("An optional update is available. Please restart the 17Lands client if you wish to apply this update.", Level.Info);
                 return;
             }
 
             MessageBox.Show(
-                "This application has detected a mandatory update from your current version to version " +
+                "17Lands has detected a mandatory update from your current version to version " +
                 info.MinimumRequiredVersion.ToString() + ". The application will now install the update and restart.",
                 "Update Required",
                 MessageBoxButton.OK,
@@ -434,7 +435,7 @@ namespace mtga_log_client
             try
             {
                 ad.Update();
-                MessageBox.Show("The application has been upgraded, and will now restart.");
+                MessageBox.Show("17Lands has been upgraded and will now restart.");
                 System.Windows.Forms.Application.Restart();
                 Application.Current.Shutdown();
             }
@@ -451,7 +452,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.2";
+        public const string CLIENT_VERSION = "0.1.3";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
