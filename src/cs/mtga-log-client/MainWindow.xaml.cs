@@ -547,12 +547,16 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error parsing log: {0}", e), Level.Error);
+                LogError(String.Format("Error parsing log: {0}", e), e.StackTrace, Level.Error);
             }
         }
 
         private DateTime ParseDateTime(string dateString)
         {
+            if (dateString.EndsWith(":") || dateString.EndsWith(" "))
+            {
+                dateString = dateString.TrimEnd(':', ' ');
+            }
             DateTime readDate;
             foreach (string format in TIME_FORMATS)
             {
@@ -606,7 +610,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} while processing {1}", e, fullLog), Level.Error);
+                LogError(String.Format("Error {0} while processing {1}", e, fullLog), e.StackTrace, Level.Error);
             }
             lastBlob = fullLog;
 
@@ -666,7 +670,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing login from {1}", e, blob), Level.Warn);
+                LogError(String.Format("Error {0} parsing login from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -726,7 +730,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing game result from {1}", e, blob), Level.Warn);
+                LogError(String.Format("Error {0} parsing game result from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -760,7 +764,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing draft pack from {1}", e, blob), Level.Warn);
+                LogError(String.Format("Error {0} parsing draft pack from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -792,7 +796,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing draft pick from {1}", e, blob), Level.Warn);
+                LogError(String.Format("Error {0} parsing draft pick from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -828,7 +832,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing deck submission from {1}", e, blob), Level.Warn);
+                LogError(String.Format("Error {0} parsing deck submission from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -864,7 +868,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing v3 deck submission from {1}", e, blob), Level.Warn);
+                LogError(String.Format("Error {0} parsing v3 deck submission from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -892,7 +896,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing event completion from {1}", e, blob), Level.Warn);
+                LogError(String.Format("Error {0} parsing event completion from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -921,7 +925,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob), Level.Warn);
+                LogError(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -954,7 +958,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob), Level.Warn);
+                LogError(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -975,7 +979,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogMessage(String.Format("Error {0} parsing event completion from {1}", e, blob), Level.Warn);
+                LogError(String.Format("Error {0} parsing event completion from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -983,27 +987,27 @@ namespace mtga_log_client
         private void LogMessage(string message, Level logLevel)
         {
             messageFunction(message, logLevel);
-            if (logLevel != Level.Info)
+        }
+
+        private void LogError(string message, string stacktrace, Level logLevel)
+        {
+            LogMessage(message, logLevel);
+
+            messageFunction(String.Format("Current blob: {0}", currentDebugBlob), Level.Debug);
+            messageFunction(String.Format("Previous blob: {0}", lastBlob), Level.Debug);
+            messageFunction("Recent lines:", Level.Debug);
+            foreach (string line in recentLines)
             {
-                messageFunction(String.Format("Current blob: {0}", currentDebugBlob), Level.Debug);
-                messageFunction(String.Format("Previous blob: {0}", lastBlob), Level.Debug);
-                messageFunction("Recent lines:", Level.Debug);
-                foreach (string line in recentLines)
-                {
-                    messageFunction(line, Level.Debug);
-                }
+                messageFunction(line, Level.Debug);
             }
 
-            if (logLevel >= Level.Warn)
-            {
-                var errorInfo = new ErrorInfo();
-                errorInfo.client_version = CLIENT_VERSION;
-                errorInfo.token = apiToken;
-                errorInfo.blob = currentDebugBlob;
-                errorInfo.recent_lines = new List<string>(recentLines);
-                errorInfo.stacktrace = "";
-                apiClient.PostErrorInfo(errorInfo);
-            }
+            var errorInfo = new ErrorInfo();
+            errorInfo.client_version = CLIENT_VERSION;
+            errorInfo.token = apiToken;
+            errorInfo.blob = currentDebugBlob;
+            errorInfo.recent_lines = new List<string>(recentLines);
+            errorInfo.stacktrace = String.Format("{0}\r\n{1}", message, stacktrace);
+            apiClient.PostErrorInfo(errorInfo);
         }
 
         private string GetDatetimeString(DateTime value)
