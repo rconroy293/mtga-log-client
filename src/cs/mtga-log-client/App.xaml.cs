@@ -29,7 +29,7 @@ namespace mtga_log_client
             }
             else
             {
-                MessageBox.Show("Another instance of 17Lands is running. Not starting another.");
+                MessageBox.Show("Another instance of 17Lands is already running. Try checking the system tray for the other.");
             }
         }
     }
