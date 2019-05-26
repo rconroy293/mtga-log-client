@@ -452,13 +452,13 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.5";
+        public const string CLIENT_VERSION = "0.1.6";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
         private const int BUFFER_SIZE = 65536;
         private static readonly Regex LOG_START_REGEX = new Regex(
-            "^\\[(UnityCrossThreadLogger|Client GRE)\\]([\\d:/ -]+(AM|PM)?)");
+            "^\\[(UnityCrossThreadLogger|Client GRE)\\]([\\d/.-]+[ T][\\d]+:[\\d]+:[\\d]+( AM| PM)?)");
         private static readonly Regex LOG_START_REGEX_UNTIMED = new Regex(
             "^\\[(UnityCrossThreadLogger|Client GRE)\\]");
         private static readonly Regex LOG_START_REGEX_UNTIMED_2 = new Regex(
@@ -1089,6 +1089,9 @@ namespace mtga_log_client
         private HttpClient client;
         private readonly LogMessageFunction messageFunction;
 
+        private const int ERROR_COOLDOWN_MINUTES = 2;
+        private DateTime? lastErrorPosted = null;
+
         [DataContract]
         public class VersionValidationResponse
         {
@@ -1221,10 +1224,21 @@ namespace mtga_log_client
 
         public void PostErrorInfo(ErrorInfo errorInfo)
         {
-            MemoryStream stream = new MemoryStream();
-            SERIALIZER_ERROR_INFO.WriteObject(stream, errorInfo);
-            string jsonString = Encoding.UTF8.GetString(stream.ToArray());
-            PostJson(ENDPOINT_ERROR_INFO, jsonString);
+            DateTime now = DateTime.UtcNow;
+            if (lastErrorPosted != null && now < lastErrorPosted.GetValueOrDefault().AddMinutes(ERROR_COOLDOWN_MINUTES))
+            {
+                LogMessage(String.Format("Waiting to post another error, as last message was sent recently at {0}", lastErrorPosted), Level.Warn);
+                return;
+            }
+            else
+            {
+                lastErrorPosted = now;
+                MemoryStream stream = new MemoryStream();
+                SERIALIZER_ERROR_INFO.WriteObject(stream, errorInfo);
+                string jsonString = Encoding.UTF8.GetString(stream.ToArray());
+                PostJson(ENDPOINT_ERROR_INFO, jsonString);
+            }
+
         }
 
         private void LogMessage(string message, Level logLevel)
