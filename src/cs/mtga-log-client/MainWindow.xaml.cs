@@ -481,6 +481,7 @@ namespace mtga_log_client
         private long farthestReadPosition = 0;
         private List<string> buffer = new List<string>();
         private Nullable<DateTime> currentLogTime = null;
+        private string lastRawTime = "";
         private string currentUser = null;
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
 
@@ -581,7 +582,8 @@ namespace mtga_log_client
                 var timedMatch = LOG_START_REGEX.Match(line);
                 if (timedMatch.Success)
                 {
-                    currentLogTime = ParseDateTime(timedMatch.Groups[2].Value);
+                    lastRawTime = timedMatch.Groups[2].Value;
+                    currentLogTime = ParseDateTime(lastRawTime);
                 }
             }
             else
@@ -662,6 +664,7 @@ namespace mtga_log_client
                 account.token = apiToken;
                 account.client_version = CLIENT_VERSION;
                 account.player_id = currentUser;
+                account.raw_time = lastRawTime;
 
                 account.screen_name = screenName;
                 apiClient.PostMTGAAccount(account);
@@ -1258,6 +1261,8 @@ namespace mtga_log_client
         internal string player_id;
         [DataMember]
         internal string screen_name;
+        [DataMember]
+        internal string raw_time;
     }
     [DataContract]
     internal class Pack
