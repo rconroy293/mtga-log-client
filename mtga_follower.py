@@ -115,6 +115,7 @@ class Follower:
         self.token = token
         self.buffer = []
         self.cur_log_time = None
+        self.last_raw_time = ''
         self.json_decoder = json.JSONDecoder()
         self.cur_user = None
         self.objects_by_owner = {}
@@ -180,6 +181,7 @@ class Follower:
         if match:
             self.__handle_complete_log_entry()
             self.cur_logger, self.cur_log_time = (match.group(1), match.group(2))
+            self.last_raw_time = self.cur_log_time
             self.cur_log_time = extract_time(self.cur_log_time)
         else:
             self.buffer.append(line)
@@ -304,6 +306,7 @@ class Follower:
         user_info = {
             'player_id': self.cur_user,
             'screen_name': screen_name,
+            'raw_time': self.last_raw_time,
         }
         logging.info(f'Adding user: {user_info}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
