@@ -452,7 +452,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.6";
+        public const string CLIENT_VERSION = "0.1.8";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -558,6 +558,16 @@ namespace mtga_log_client
             {
                 dateString = dateString.TrimEnd(':', ' ');
             }
+
+            try
+            {
+                return DateTime.Parse(dateString);
+            }
+            catch (FormatException)
+            {
+                // pass
+            }
+
             DateTime readDate;
             foreach (string format in TIME_FORMATS)
             {
