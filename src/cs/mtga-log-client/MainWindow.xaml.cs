@@ -833,11 +833,18 @@ namespace mtga_log_client
                 var deckInfo = JObject.Parse(parameters["deck"].Value<String>());
 
                 var maindeckCardIds = GetCardIdsFromDeck(deckInfo["mainDeck"].Value<JArray>());
-                var sideboardCardIds = GetCardIdsFromDeck(deckInfo["sideboard"].Value<JArray>());
+
+                if (deckInfo["sideboard"] == null)
+                {
+                    deck.sideboard_card_ids = new List<int>();
+                }
+                else
+                {
+                    deck.sideboard_card_ids = GetCardIdsFromDeck(deckInfo["sideboard"].Value<JArray>());
+                }
 
                 deck.event_name = parameters["eventName"].Value<String>();
                 deck.maindeck_card_ids = maindeckCardIds;
-                deck.sideboard_card_ids = sideboardCardIds;
                 deck.is_during_match = false;
 
                 apiClient.PostDeck(deck);
@@ -869,11 +876,18 @@ namespace mtga_log_client
                 var deckInfo = JObject.Parse(parameters["deck"].Value<String>());
 
                 var maindeckCardIds = GetCardIdsFromDecklistV3(deckInfo["mainDeck"].Value<JArray>());
-                var sideboardCardIds = GetCardIdsFromDecklistV3(deckInfo["sideboard"].Value<JArray>());
+
+                if (deckInfo["sideboard"] == null)
+                {
+                    deck.sideboard_card_ids = new List<int>();
+                }
+                else
+                {
+                    deck.sideboard_card_ids = GetCardIdsFromDecklistV3(deckInfo["sideboard"].Value<JArray>());
+                }
 
                 deck.event_name = parameters["eventName"].Value<String>();
                 deck.maindeck_card_ids = maindeckCardIds;
-                deck.sideboard_card_ids = sideboardCardIds;
                 deck.is_during_match = false;
 
                 apiClient.PostDeck(deck);
@@ -930,7 +944,13 @@ namespace mtga_log_client
 
                 deck.event_name = null;
                 deck.maindeck_card_ids = JArrayToIntList(blob["submitDeckReq"]["deck"]["deckCards"].Value<JArray>());
-                deck.sideboard_card_ids = JArrayToIntList(blob["submitDeckReq"]["deck"]["sideboardCards"].Value<JArray>());
+                if (blob["submitDeckReq"]["deck"]["sideboardCards"] == null) {
+                    deck.sideboard_card_ids = new List<int>();
+                }
+                else
+                {
+                    deck.sideboard_card_ids = JArrayToIntList(blob["submitDeckReq"]["deck"]["sideboardCards"].Value<JArray>());
+                }
                 deck.is_during_match = true;
 
                 apiClient.PostDeck(deck);
