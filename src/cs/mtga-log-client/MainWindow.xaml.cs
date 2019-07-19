@@ -639,7 +639,7 @@ namespace mtga_log_client
             }
 
             var listMatch = JSON_LIST_REGEX.Match(fullLog);
-            if (listMatch.Success && listMatch.Value.Length > dictMatch.Value.Length)
+            if (listMatch.Success && listMatch.Value.Length > dictMatch.Value.Length && listMatch.Index < dictMatch.Index)
             {
                 return;
             }
@@ -734,7 +734,15 @@ namespace mtga_log_client
                 game.game_end_reason = payload["winningReason"].Value<string>();
                 game.mulligans = mulligans;
                 game.turns = payload["turnCount"].Value<int>();
-                game.duration = payload["secondsCount"].Value<int>();
+                try
+                {
+                    game.duration = payload["secondsCount"].Value<int>();
+                }
+                catch (OverflowException e)
+                {
+                    game.duration = 0;
+                }
+                
                 game.opponent_card_ids = opponentCardIds;
 
                 apiClient.PostGame(game);
