@@ -19,6 +19,7 @@ using log4net;
 using log4net.Core;
 using System.Deployment.Application;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace mtga_log_client
 {
@@ -452,7 +453,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.8";
+        public const string CLIENT_VERSION = "0.1.11";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -644,7 +645,7 @@ namespace mtga_log_client
                 return;
             }
 
-            var blob = JObject.Parse(dictMatch.Value);
+            var blob = ParseBlob(dictMatch.Value);
 
             if (MaybeHandleLogin(blob)) return;
             if (MaybeHandleGameEnd(blob)) return;
@@ -654,6 +655,41 @@ namespace mtga_log_client
             if (MaybeHandleDeckSubmissionV3(blob)) return;
             if (MaybeHandleEventCompletion(blob)) return;
             if (MaybeHandleGreToClientMessages(blob)) return;
+        }
+
+        private JObject ParseBlob(String blob)
+        {
+            JsonReaderException firstError = null;
+            var endIndex = blob.Length - 1;
+            while (true)
+            {
+                try
+                {
+                    return JObject.Parse(blob.Substring(0, endIndex + 1));
+                }
+                catch (JsonReaderException e)
+                {
+                    if (firstError == null)
+                    {
+                        firstError = e;
+                    }
+
+                    var nextIndex = blob.LastIndexOf("}", endIndex - 1);
+                    if (nextIndex == endIndex)
+                    {
+                        LogError(String.Format("endIndex didn't change: {0}", endIndex), "", Level.Error);
+                        throw e;
+                    }
+                    else if (nextIndex < 0)
+                    {
+                        throw firstError;
+                    }
+                    else
+                    {
+                        endIndex = nextIndex;
+                    }
+                }
+            }
         }
 
         private bool MaybeHandleLogin(JObject blob)
