@@ -585,6 +585,20 @@ namespace mtga_log_client
             if (recentLines.Count >= ERROR_LINES_RECENCY) recentLines.RemoveFirst();
             recentLines.AddLast(line);
 
+            if (line.StartsWith("DETAILED LOGS: DISABLED"))
+            {
+                LogMessage("Warning! Detailed logs disabled in MTGA.", Level.Error);
+                ShowMessageBoxAsync(
+                    "17Lands needs detailed logging enabled in MTGA. To enable this, click the gear at the top right of MTGA, then 'View Account' (at the bottom), then check 'Detailed Logs', then restart MTGA.",
+                    "MTGA Logging Disabled",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            else if (line.StartsWith("DETAILED LOGS: ENABLED"))
+            {
+                LogMessage("Detailed logs enabled in MTGA", Level.Info);
+            }
+
             var match = LOG_START_REGEX_UNTIMED.Match(line);
             var match2 = LOG_START_REGEX_UNTIMED_2.Match(line);
             if (match.Success || match2.Success)
@@ -1145,6 +1159,17 @@ namespace mtga_log_client
                 }
             }
             return cardIds;
+        }
+
+        private delegate void ShowMessageBoxDelegate(string strMessage, string strCaption, MessageBoxButton enmButton, MessageBoxImage enmImage);
+        private static void ShowMessageBox(string strMessage, string strCaption, MessageBoxButton enmButton, MessageBoxImage enmImage)
+        {
+            MessageBox.Show(strMessage, strCaption, enmButton, enmImage);
+        }
+        private static void ShowMessageBoxAsync(string strMessage, string strCaption, MessageBoxButton enmButton, MessageBoxImage enmImage)
+        {
+            ShowMessageBoxDelegate caller = new ShowMessageBoxDelegate(ShowMessageBox);
+            caller.BeginInvoke(strMessage, strCaption, enmButton, enmImage, null, null);
         }
 
     }
