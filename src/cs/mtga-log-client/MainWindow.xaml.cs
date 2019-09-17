@@ -453,7 +453,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.11";
+        public const string CLIENT_VERSION = "0.1.12";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -958,7 +958,14 @@ namespace mtga_log_client
                 event_.time = GetDatetimeString(currentLogTime.Value);
 
                 event_.event_name = blob["InternalEventName"].Value<String>();
-                event_.entry_fee = blob["ModuleInstanceData"]["HasPaidEntry"].Value<String>();
+                if (blob["ModuleInstanceData"]["HasPaidEntry"] != null)
+                {
+                    event_.entry_fee = blob["ModuleInstanceData"]["HasPaidEntry"].Value<String>();
+                }
+                else
+                {
+                    event_.entry_fee = "None";
+                }
                 event_.wins = blob["ModuleInstanceData"]["WinLossGate"]["CurrentWins"].Value<int>();
                 event_.losses = blob["ModuleInstanceData"]["WinLossGate"]["CurrentLosses"].Value<int>();
 
