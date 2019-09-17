@@ -88,7 +88,15 @@ namespace mtga_log_client
         {
             if (Properties.Settings.Default.do_not_ask_on_close)
             {
-                base.OnClosing(e);
+                if (Properties.Settings.Default.minimize_on_close)
+                {
+                    e.Cancel = true;
+                    this.Hide();
+                }
+                else
+                {
+                    base.OnClosing(e);
+                }
                 return;
             }
 
@@ -99,10 +107,13 @@ namespace mtga_log_client
             {
                 case ExitConfirmation.ExitState.EXIT:
                     Properties.Settings.Default.do_not_ask_on_close = dialog.GetRemember();
+                    Properties.Settings.Default.minimize_on_close = false;
                     Properties.Settings.Default.Save();
                     base.OnClosing(e);
                     break;
                 case ExitConfirmation.ExitState.MINIMIZE:
+                    Properties.Settings.Default.do_not_ask_on_close = dialog.GetRemember();
+                    Properties.Settings.Default.minimize_on_close = true;
                     e.Cancel = true;
                     this.Hide();
                     break;
