@@ -88,7 +88,15 @@ namespace mtga_log_client
         {
             if (Properties.Settings.Default.do_not_ask_on_close)
             {
-                base.OnClosing(e);
+                if (Properties.Settings.Default.minimize_on_close)
+                {
+                    e.Cancel = true;
+                    this.Hide();
+                }
+                else
+                {
+                    base.OnClosing(e);
+                }
                 return;
             }
 
@@ -99,10 +107,13 @@ namespace mtga_log_client
             {
                 case ExitConfirmation.ExitState.EXIT:
                     Properties.Settings.Default.do_not_ask_on_close = dialog.GetRemember();
+                    Properties.Settings.Default.minimize_on_close = false;
                     Properties.Settings.Default.Save();
                     base.OnClosing(e);
                     break;
                 case ExitConfirmation.ExitState.MINIMIZE:
+                    Properties.Settings.Default.do_not_ask_on_close = dialog.GetRemember();
+                    Properties.Settings.Default.minimize_on_close = true;
                     e.Cancel = true;
                     this.Hide();
                     break;
@@ -453,7 +464,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.11";
+        public const string CLIENT_VERSION = "0.1.12";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -584,6 +595,20 @@ namespace mtga_log_client
         {
             if (recentLines.Count >= ERROR_LINES_RECENCY) recentLines.RemoveFirst();
             recentLines.AddLast(line);
+
+            if (line.StartsWith("DETAILED LOGS: DISABLED"))
+            {
+                LogMessage("Warning! Detailed logs disabled in MTGA.", Level.Error);
+                ShowMessageBoxAsync(
+                    "17Lands needs detailed logging enabled in MTGA. To enable this, click the gear at the top right of MTGA, then 'View Account' (at the bottom), then check 'Detailed Logs', then restart MTGA.",
+                    "MTGA Logging Disabled",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            else if (line.StartsWith("DETAILED LOGS: ENABLED"))
+            {
+                LogMessage("Detailed logs enabled in MTGA", Level.Info);
+            }
 
             var match = LOG_START_REGEX_UNTIMED.Match(line);
             var match2 = LOG_START_REGEX_UNTIMED_2.Match(line);
@@ -958,7 +983,14 @@ namespace mtga_log_client
                 event_.time = GetDatetimeString(currentLogTime.Value);
 
                 event_.event_name = blob["InternalEventName"].Value<String>();
-                event_.entry_fee = blob["ModuleInstanceData"]["HasPaidEntry"].Value<String>();
+                if (blob["ModuleInstanceData"]["HasPaidEntry"] != null)
+                {
+                    event_.entry_fee = blob["ModuleInstanceData"]["HasPaidEntry"].Value<String>();
+                }
+                else
+                {
+                    event_.entry_fee = "None";
+                }
                 event_.wins = blob["ModuleInstanceData"]["WinLossGate"]["CurrentWins"].Value<int>();
                 event_.losses = blob["ModuleInstanceData"]["WinLossGate"]["CurrentLosses"].Value<int>();
 
@@ -1138,6 +1170,17 @@ namespace mtga_log_client
                 }
             }
             return cardIds;
+        }
+
+        private delegate void ShowMessageBoxDelegate(string strMessage, string strCaption, MessageBoxButton enmButton, MessageBoxImage enmImage);
+        private static void ShowMessageBox(string strMessage, string strCaption, MessageBoxButton enmButton, MessageBoxImage enmImage)
+        {
+            MessageBox.Show(strMessage, strCaption, enmButton, enmImage);
+        }
+        private static void ShowMessageBoxAsync(string strMessage, string strCaption, MessageBoxButton enmButton, MessageBoxImage enmImage)
+        {
+            ShowMessageBoxDelegate caller = new ShowMessageBoxDelegate(ShowMessageBox);
+            caller.BeginInvoke(strMessage, strCaption, enmButton, enmImage, null, null);
         }
 
     }
