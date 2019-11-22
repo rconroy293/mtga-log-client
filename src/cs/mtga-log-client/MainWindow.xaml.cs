@@ -464,13 +464,15 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.13";
+        public const string CLIENT_VERSION = "0.1.14";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
         private const int BUFFER_SIZE = 65536;
         private static readonly Regex LOG_START_REGEX = new Regex(
             "^\\[(UnityCrossThreadLogger|Client GRE)\\]([\\d/.-]+[ T][\\d]+:[\\d]+:[\\d]+( AM| PM)?)");
+        private static readonly Regex TIMESTAMP_REGEX = new Regex(
+            "^([\\d/.-]+[ T][\\d]+:[\\d]+:[\\d]+( AM| PM)?)");
         private static readonly Regex LOG_START_REGEX_UNTIMED = new Regex(
             "^\\[(UnityCrossThreadLogger|Client GRE)\\]");
         private static readonly Regex LOG_START_REGEX_UNTIMED_2 = new Regex(
@@ -608,6 +610,13 @@ namespace mtga_log_client
             else if (line.StartsWith("DETAILED LOGS: ENABLED"))
             {
                 LogMessage("Detailed logs enabled in MTGA", Level.Info);
+            }
+
+            var timestampMatch = TIMESTAMP_REGEX.Match(line);
+            if (timestampMatch.Success)
+            {
+                lastRawTime = timestampMatch.Groups[1].Value;
+                currentLogTime = ParseDateTime(lastRawTime);
             }
 
             var match = LOG_START_REGEX_UNTIMED.Match(line);
