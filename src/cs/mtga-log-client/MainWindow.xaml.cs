@@ -464,7 +464,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.12";
+        public const string CLIENT_VERSION = "0.1.13";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -492,7 +492,7 @@ namespace mtga_log_client
         private bool first = true;
         private long farthestReadPosition = 0;
         private List<string> buffer = new List<string>();
-        private Nullable<DateTime> currentLogTime = null;
+        private Nullable<DateTime> currentLogTime = new DateTime(0);
         private string lastRawTime = "";
         private string currentUser = null;
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
@@ -615,6 +615,16 @@ namespace mtga_log_client
             if (match.Success || match2.Success)
             {
                 HandleCompleteLogEntry();
+
+                if (match.Success)
+                {
+                    buffer.Add(line.Substring(match.Length));
+                }
+                else
+                {
+                    buffer.Add(line.Substring(match2.Length));
+                }
+
                 var timedMatch = LOG_START_REGEX.Match(line);
                 if (timedMatch.Success)
                 {
@@ -653,7 +663,7 @@ namespace mtga_log_client
             lastBlob = fullLog;
 
             buffer.Clear();
-            currentLogTime = null;
+            // currentLogTime = null;
         }
 
         private void HandleBlob(string fullLog)
@@ -671,6 +681,8 @@ namespace mtga_log_client
             }
 
             var blob = ParseBlob(dictMatch.Value);
+            blob = ExtractPayload(blob);
+            if (blob == null) return;
 
             if (MaybeHandleLogin(blob)) return;
             if (MaybeHandleGameEnd(blob)) return;
@@ -680,6 +692,33 @@ namespace mtga_log_client
             if (MaybeHandleDeckSubmissionV3(blob)) return;
             if (MaybeHandleEventCompletion(blob)) return;
             if (MaybeHandleGreToClientMessages(blob)) return;
+        }
+
+        private JObject ExtractPayload(JObject blob)
+        {
+            if (!blob.ContainsKey("id"))
+            {
+                return blob;
+            }
+
+            try
+            {
+                if (blob.ContainsKey("payload"))
+                {
+                    return blob["payload"].Value<JObject>();
+                }
+
+                if (blob.ContainsKey("request"))
+                {
+                    return ParseBlob(blob["request"].Value<String>());
+                }
+            }
+            catch (Exception)
+            {
+                // pass
+            }
+
+            return blob;
         }
 
         private JObject ParseBlob(String blob)
@@ -792,6 +831,7 @@ namespace mtga_log_client
                 game.match_id = payload["matchId"].Value<string>();
                 game.on_play = payload["teamId"].Value<int>() == payload["startingTeamId"].Value<int>();
                 game.won = payload["teamId"].Value<int>() == payload["winningTeamId"].Value<int>();
+                game.win_type = payload["winningType"].Value<string>();
                 game.game_end_reason = payload["winningReason"].Value<string>();
                 game.mulligans = mulligans;
                 game.turns = payload["turnCount"].Value<int>();
@@ -819,8 +859,8 @@ namespace mtga_log_client
 
         private bool MaybeHandleDraftLog(JObject blob)
         {
-            if (!blob.ContainsKey("draftStatus")) return false;
-            if (!"Draft.PickNext".Equals(blob["draftStatus"].Value<String>())) return false;
+            if (!blob.ContainsKey("DraftStatus")) return false;
+            if (!"Draft.PickNext".Equals(blob["DraftStatus"].Value<String>())) return false;
 
             try
             {
@@ -831,14 +871,14 @@ namespace mtga_log_client
                 pack.time = GetDatetimeString(currentLogTime.Value);
 
                 var cardIds = new List<int>();
-                foreach (JToken cardString in blob["draftPack"].Value<JArray>())
+                foreach (JToken cardString in blob["DraftPack"].Value<JArray>())
                 {
                     cardIds.Add(int.Parse(cardString.Value<String>()));
                 }
 
-                pack.event_name = blob["eventName"].Value<String>();
-                pack.pack_number = blob["packNumber"].Value<int>();
-                pack.pick_number = blob["pickNumber"].Value<int>();
+                pack.event_name = blob["DraftId"].Value<String>().Split(':')[1];
+                pack.pack_number = blob["PackNumber"].Value<int>();
+                pack.pick_number = blob["PickNumber"].Value<int>();
                 pack.card_ids = cardIds;
 
                 apiClient.PostPack(pack);
@@ -1067,7 +1107,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogError(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob), e.StackTrace, Level.Warn);
+                LogError(String.Format("Error {0} parsing GRE message from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -1460,6 +1500,8 @@ namespace mtga_log_client
         internal bool on_play;
         [DataMember]
         internal bool won;
+        [DataMember]
+        internal string win_type;
         [DataMember]
         internal string game_end_reason;
         [DataMember]
