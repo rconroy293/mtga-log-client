@@ -32,7 +32,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-CLIENT_VERSION = '0.1.2'
+CLIENT_VERSION = '0.1.3'
 
 PATH_ON_DRIVE = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA','output_log.txt')
 POSSIBLE_FILEPATHS = (
@@ -47,7 +47,9 @@ POSSIBLE_FILEPATHS = (
 
 CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.mtga_follower.ini')
 
-LOG_START_REGEX = re.compile(r'^\[(UnityCrossThreadLogger|Client GRE)\]([\d:/ -]+(AM|PM)?)')
+LOG_START_REGEX_TIMED = re.compile(r'^\[(UnityCrossThreadLogger|Client GRE)\]([\d:/ -]+(AM|PM)?)')
+LOG_START_REGEX_UNTIMED = re.compile(r'^\[(UnityCrossThreadLogger|Client GRE)\]')
+TIMESTAMP_REGEX = re.compile('^([\\d/.-]+[ T][\\d]+:[\\d]+:[\\d]+( AM| PM)?)')
 JSON_START_REGEX = re.compile(r'[[{]')
 SLEEP_TIME = 0.5
 
@@ -114,7 +116,7 @@ class Follower:
         self.host = host
         self.token = token
         self.buffer = []
-        self.cur_log_time = None
+        self.cur_log_time = datetime.datetime.fromtimestamp(0)
         self.last_raw_time = ''
         self.json_decoder = json.JSONDecoder()
         self.cur_user = None
@@ -177,12 +179,22 @@ class Follower:
 
     def __append_line(self, line):
         """Add a complete line (not necessarily a complete message) from the log."""
-        match = LOG_START_REGEX.match(line)
+        timestamp_match = TIMESTAMP_REGEX.match(line)
+        if timestamp_match:
+            self.last_raw_time = timestamp_match.group(1)
+            self.cur_log_time = extract_time(self.last_raw_time)
+
+        match = LOG_START_REGEX_UNTIMED.match(line)
         if match:
             self.__handle_complete_log_entry()
-            self.cur_logger, self.cur_log_time = (match.group(1), match.group(2))
-            self.last_raw_time = self.cur_log_time
-            self.cur_log_time = extract_time(self.cur_log_time)
+
+            timed_match = LOG_START_REGEX_TIMED.match(line)
+            if timed_match:
+                self.last_raw_time = timed_match.group(2)
+                self.cur_log_time = extract_time(self.last_raw_time)
+                self.buffer.append(line[timed_match.end():])
+            else:
+                self.buffer.append(line[match.end():])
         else:
             self.buffer.append(line)
 
@@ -202,8 +214,7 @@ class Follower:
             logging.error(traceback.format_exc())
 
         self.buffer = []
-        self.cur_logger = None
-        self.cur_log_time = None
+        # self.cur_log_time = None
 
     def __handle_blob(self, full_log):
         """Attempt to parse a complete log message and send the data if relevant."""
@@ -217,11 +228,14 @@ class Follower:
             logging.debug(f'Ran into error {e} when parsing at {self.cur_log_time}. Data was: {full_log}')
             return
 
+        json_obj = self.__extract_payload(json_obj)
+        if type(json_obj) != dict: return
+
         if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj):
             self.__handle_login(json_obj)
         elif json_value_matches('DuelScene.GameStop', ['params', 'messageName'], json_obj):
             self.__handle_game_end(json_obj)
-        elif 'draftStatus' in json_obj:
+        elif 'DraftStatus' in json_obj:
             self.__handle_draft_log(json_obj)
         elif json_value_matches('Draft.MakePick', ['method'], json_obj):
             self.__handle_draft_pick(json_obj)
@@ -234,6 +248,19 @@ class Follower:
         elif 'greToClientEvent' in json_obj and 'greToClientMessages' in json_obj['greToClientEvent']:
             for message in json_obj['greToClientEvent']['greToClientMessages']:
                 self.__handle_gre_to_client_message(message)
+
+    def __extract_payload(self, blob):
+        if 'id' not in blob: return blob
+        if 'payload' in blob: return blob['payload']
+        if 'request' in blob:
+            try:
+                json_obj, end = self.json_decoder.raw_decode(blob['request'])
+                return json_obj
+            except Exception as e:
+                pass
+
+        return blob
+
 
     def __handle_gre_to_client_message(self, message_blob):
         """Handle messages in the 'greToClientEvent' field."""
@@ -289,6 +316,7 @@ class Follower:
             'time': self.cur_log_time.isoformat(),
             'on_play': blob['teamId'] == blob['startingTeamId'],
             'won': blob['teamId'] == blob['winningTeamId'],
+            'win_type': blob['winningType'],
             'game_end_reason': blob['winningReason'],
             'mulligans': [[x['grpId'] for x in hand] for hand in blob['mulliganedHands']],
             'turns': blob['turnCount'],
@@ -313,14 +341,15 @@ class Follower:
 
     def __handle_draft_log(self, json_obj):
         """Handle 'draftStatus' messages."""
-        if json_obj['draftStatus'] == 'Draft.PickNext':
+        if json_obj['DraftStatus'] == 'Draft.PickNext':
+            (user, event_name, other) = json_obj['DraftId'].rsplit(':', 2)
             pack = {
                 'player_id': self.cur_user,
-                'event_name': json_obj['eventName'],
+                'event_name': event_name,
                 'time': self.cur_log_time.isoformat(),
-                'pack_number': int(json_obj['packNumber']),
-                'pick_number': int(json_obj['pickNumber']),
-                'card_ids': [int(x) for x in json_obj['draftPack']],
+                'pack_number': int(json_obj['PackNumber']),
+                'pick_number': int(json_obj['PickNumber']),
+                'card_ids': [int(x) for x in json_obj['DraftPack']],
             }
             logging.info(f'Draft pack: {pack}')
             response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PACK}', blob=pack)
