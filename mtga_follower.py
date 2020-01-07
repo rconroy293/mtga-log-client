@@ -24,6 +24,7 @@ import uuid
 
 from collections import namedtuple
 
+import dateutil.parser
 import requests
 
 logging.basicConfig(
@@ -117,6 +118,7 @@ class Follower:
         self.token = token
         self.buffer = []
         self.cur_log_time = datetime.datetime.fromtimestamp(0)
+        self.last_utc_time = datetime.datetime.fromtimestamp(0)
         self.last_raw_time = ''
         self.json_decoder = json.JSONDecoder()
         self.cur_user = None
@@ -136,6 +138,7 @@ class Follower:
         """
         blob['client_version'] = CLIENT_VERSION
         blob['token'] = self.token
+        blob['last_utc_time'] = self.last_utc_time.isoformat()
 
         tries_left = num_retries + 1
         while tries_left > 0:
@@ -216,6 +219,22 @@ class Follower:
         self.buffer = []
         # self.cur_log_time = None
 
+    def __maybe_get_utc_timestamp(self, blob):
+        timestamp = None
+        if 'timestamp' in blob:
+            timestamp = blob['timestamp']
+        elif 'timestamp' in blob.get('payloadObject', {}):
+            timestamp = blob['payloadObject']['timestamp']
+        
+        if timestamp is None:
+            return None
+
+        try:
+            seconds_since_year_1 = int(timestamp) / 10000000
+            return datetime.datetime.fromordinal(1) + datetime.timedelta(seconds=seconds_since_year_1)
+        except ValueError:
+            return dateutil.parser.isoparse(timestamp)
+
     def __handle_blob(self, full_log):
         """Attempt to parse a complete log message and send the data if relevant."""
         match = JSON_START_REGEX.search(full_log)
@@ -230,6 +249,13 @@ class Follower:
 
         json_obj = self.__extract_payload(json_obj)
         if type(json_obj) != dict: return
+
+        try:
+            maybe_time = self.__maybe_get_utc_timestamp(json_obj)
+            if maybe_time is not None:
+                self.last_utc_time = maybe_time
+        except:
+            pass
 
         if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj):
             self.__handle_login(json_obj)
