@@ -138,7 +138,7 @@ class Follower:
         """
         blob['client_version'] = CLIENT_VERSION
         blob['token'] = self.token
-        blob['last_utc_time'] = self.last_utc_time.isoformat()
+        blob['utc_time'] = self.last_utc_time.isoformat()
 
         tries_left = num_retries + 1
         while tries_left > 0:
