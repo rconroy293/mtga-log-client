@@ -715,6 +715,8 @@ namespace mtga_log_client
             if (MaybeHandleDeckSubmissionV3(blob)) return;
             if (MaybeHandleEventCompletion(blob)) return;
             if (MaybeHandleGreToClientMessages(blob)) return;
+            if (MaybeHandleSelfRankInfo(blob)) return;
+            if (MaybeHandleMatchCreated(blob)) return;
         }
 
         private JObject ExtractPayload(JObject blob)
@@ -816,6 +818,11 @@ namespace mtga_log_client
             }
         }
 
+        private String GetRankString(String rankClass, String level, String percentile, String place, String step)
+        {
+            return String.Format("{0}-{1}-{2}-{3}-{4}", rankClass, level, percentile, place, step == null ? "None" : step);
+        }
+
         private bool MaybeHandleLogin(JObject blob)
         {
             JToken token;
@@ -881,6 +888,11 @@ namespace mtga_log_client
                     mulligans.Add(mulliganHand);
                 }
 
+                if (!payload["matchId"].Value<string>().Equals(currentMatchId))
+                {
+                    currentOpponentLevel = null;
+                }
+
                 Game game = new Game();
                 game.token = apiToken;
                 game.client_version = CLIENT_VERSION;
@@ -896,6 +908,9 @@ namespace mtga_log_client
                 game.game_end_reason = payload["winningReason"].Value<string>();
                 game.mulligans = mulligans;
                 game.turns = payload["turnCount"].Value<int>();
+                game.limited_rank = currentLimitedLevel;
+                game.constructed_rank = currentConstructedLevel;
+                game.opponent_rank = currentOpponentLevel;
                 try
                 {
                     game.duration = payload["secondsCount"].Value<int>();
@@ -1196,6 +1211,73 @@ namespace mtga_log_client
             catch (Exception e)
             {
                 LogError(String.Format("Error {0} parsing event completion from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandleSelfRankInfo(JObject blob)
+        {
+            if (!blob.ContainsKey("limitedStep")) return false;
+
+            try
+            {
+                currentLimitedLevel = GetRankString(
+                    blob["limitedClass"].Value<String>(),
+                    blob["limitedLevel"].Value<String>(),
+                    blob["limitedPercentile"].Value<String>(),
+                    blob["limitedLeaderboardPlace"].Value<String>(),
+                    blob["limitedStep"].Value<String>()
+                );
+                currentConstructedLevel = GetRankString(
+                    blob["constructedClass"].Value<String>(),
+                    blob["constructedLevel"].Value<String>(),
+                    blob["constructedPercentile"].Value<String>(),
+                    blob["constructedLeaderboardPlace"].Value<String>(),
+                    blob["constructedStep"].Value<String>()
+                );
+
+                if (blob.ContainsKey("playerId"))
+                {
+                    currentUser = blob["playerId"].Value<String>();
+                }
+
+                LogMessage(String.Format("Parsed rank info for {0} as limited {1} and constructed {2}", currentUser, currentLimitedLevel, currentConstructedLevel), Level.Info);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing self rank info from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandleMatchCreated(JObject blob)
+        {
+            if (!blob.ContainsKey("opponentRankingClass")) return false;
+
+            try
+            {
+                currentOpponentLevel = GetRankString(
+                    blob["opponentRankingClass"].Value<String>(),
+                    blob["opponentRankingTier"].Value<String>(),
+                    blob["opponentMythicPercentile"].Value<String>(),
+                    blob["opponentMythicLeaderboardPlace"].Value<String>(),
+                    null
+                );
+
+                if (blob.ContainsKey("matchId"))
+                {
+                    currentMatchId = blob["matchId"].Value<String>();
+                }
+
+                LogMessage(String.Format("Parsed opponent rank info as {0} in match {1}", currentOpponentLevel, currentMatchId), Level.Info);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing match creation from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -1587,6 +1669,12 @@ namespace mtga_log_client
         internal List<int> opponent_card_ids;
         [DataMember]
         internal string utc_time;
+        [DataMember]
+        internal string limited_rank;
+        [DataMember]
+        internal string constructed_rank;
+        [DataMember]
+        internal string opponent_rank;
     }
     [DataContract]
     internal class Event
