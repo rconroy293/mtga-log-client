@@ -114,10 +114,12 @@ namespace mtga_log_client
                 case ExitConfirmation.ExitState.MINIMIZE:
                     Properties.Settings.Default.do_not_ask_on_close = dialog.GetRemember();
                     Properties.Settings.Default.minimize_on_close = true;
+                    Properties.Settings.Default.Save();
                     e.Cancel = true;
                     this.Hide();
                     break;
                 case ExitConfirmation.ExitState.CANCEL:
+                    Properties.Settings.Default.Save();
                     e.Cancel = true;
                     break;
             }
