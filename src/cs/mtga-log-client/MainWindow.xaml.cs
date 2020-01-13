@@ -131,13 +131,45 @@ namespace mtga_log_client
 
             System.Windows.Forms.NotifyIcon ni = new System.Windows.Forms.NotifyIcon();
 
+            System.Windows.Forms.MenuItem trayMenuShow = new System.Windows.Forms.MenuItem();
+            trayMenuShow.Index = 0;
+            trayMenuShow.Text = "S&how";
+            trayMenuShow.Click += new EventHandler(this.ShowClient);
+
+            System.Windows.Forms.MenuItem trayMenuExit = new System.Windows.Forms.MenuItem();
+            trayMenuExit.Index = 1;
+            trayMenuExit.Text = "E&xit";
+            trayMenuExit.Click += new EventHandler(this.ExitClient);
+
+            System.Windows.Forms.MenuItem trayMenuClearPreferences = new System.Windows.Forms.MenuItem();
+            trayMenuClearPreferences.Index = 2;
+            trayMenuClearPreferences.Text = "C&lear Preferences";
+            trayMenuClearPreferences.Click += new EventHandler(this.ClearPreferences);
+
+            System.Windows.Forms.ContextMenu trayMenu = new System.Windows.Forms.ContextMenu();
+            trayMenu.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] { trayMenuShow, trayMenuExit, trayMenuClearPreferences });
+
             ni.Icon = Properties.Resources.icon_white;
             ni.Visible = true;
-            ni.DoubleClick += delegate (object sender, EventArgs args)
-                {
-                    this.Show();
-                    this.WindowState = WindowState.Normal;
-                };
+            ni.DoubleClick += new EventHandler(this.ShowClient);
+            ni.ContextMenu = trayMenu;
+        }
+
+        private void ShowClient(object Sender, EventArgs e)
+        {
+            this.Show();
+            this.WindowState = WindowState.Normal;
+        }
+
+        private void ExitClient(object Sender, EventArgs e)
+        {
+            base.Close();
+        }
+
+        private void ClearPreferences(object Sender, EventArgs e)
+        {
+            Properties.Settings.Default.do_not_ask_on_close = false;
+            Properties.Settings.Default.Save();
         }
 
         protected override void OnStateChanged(EventArgs e)
