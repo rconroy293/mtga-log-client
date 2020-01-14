@@ -24,6 +24,7 @@ import uuid
 
 from collections import namedtuple
 
+import dateutil.parser
 import requests
 
 logging.basicConfig(
@@ -32,7 +33,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-CLIENT_VERSION = '0.1.3'
+CLIENT_VERSION = '0.1.4'
 
 PATH_ON_DRIVE = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA','output_log.txt')
 POSSIBLE_FILEPATHS = (
@@ -109,6 +110,20 @@ def json_value_matches(expectation, path, blob):
             return False
     return blob == expectation
 
+def get_rank_string(rank_class, level, percentile, place, step):
+    """
+    Convert the components of rank into a serializable value for recording
+
+    :param rank_class: Class (e.g. Bronze, Mythic)
+    :param level:      Level within the class
+    :param percentile: Percentile (within Mythic)
+    :param place:      Leaderboard place (within Mythic)
+    :param step:       Step towards next level
+
+    :returns: Serialized rank string (e.g. "Gold-3-0.0-0-2")
+    """
+    return '-'.join(str(x) for x in [rank_class, level, percentile, place, step])
+
 class Follower:
     """Follows along a log, parses the messages, and passes along the parsed data to the API endpoint."""
 
@@ -117,9 +132,14 @@ class Follower:
         self.token = token
         self.buffer = []
         self.cur_log_time = datetime.datetime.fromtimestamp(0)
+        self.last_utc_time = datetime.datetime.fromtimestamp(0)
         self.last_raw_time = ''
         self.json_decoder = json.JSONDecoder()
         self.cur_user = None
+        self.cur_constructed_level = None
+        self.cur_limited_level = None
+        self.cur_opponent_level = None
+        self.cur_opponent_match_id = None
         self.objects_by_owner = {}
 
     def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME):
@@ -136,6 +156,7 @@ class Follower:
         """
         blob['client_version'] = CLIENT_VERSION
         blob['token'] = self.token
+        blob['utc_time'] = self.last_utc_time.isoformat()
 
         tries_left = num_retries + 1
         while tries_left > 0:
@@ -216,6 +237,22 @@ class Follower:
         self.buffer = []
         # self.cur_log_time = None
 
+    def __maybe_get_utc_timestamp(self, blob):
+        timestamp = None
+        if 'timestamp' in blob:
+            timestamp = blob['timestamp']
+        elif 'timestamp' in blob.get('payloadObject', {}):
+            timestamp = blob['payloadObject']['timestamp']
+        
+        if timestamp is None:
+            return None
+
+        try:
+            seconds_since_year_1 = int(timestamp) / 10000000
+            return datetime.datetime.fromordinal(1) + datetime.timedelta(seconds=seconds_since_year_1)
+        except ValueError:
+            return dateutil.parser.isoparse(timestamp)
+
     def __handle_blob(self, full_log):
         """Attempt to parse a complete log message and send the data if relevant."""
         match = JSON_START_REGEX.search(full_log)
@@ -230,6 +267,13 @@ class Follower:
 
         json_obj = self.__extract_payload(json_obj)
         if type(json_obj) != dict: return
+
+        try:
+            maybe_time = self.__maybe_get_utc_timestamp(json_obj)
+            if maybe_time is not None:
+                self.last_utc_time = maybe_time
+        except:
+            pass
 
         if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj):
             self.__handle_login(json_obj)
@@ -248,6 +292,10 @@ class Follower:
         elif 'greToClientEvent' in json_obj and 'greToClientMessages' in json_obj['greToClientEvent']:
             for message in json_obj['greToClientEvent']['greToClientMessages']:
                 self.__handle_gre_to_client_message(message)
+        elif 'limitedStep' in json_obj:
+            self.__handle_self_rank_info(json_obj)
+        elif 'opponentRankingClass' in json_obj:
+            self.__handle_match_created(json_obj)
 
     def __extract_payload(self, blob):
         if 'id' not in blob: return blob
@@ -309,6 +357,9 @@ class Follower:
         opponent_card_ids = [c for c in self.objects_by_owner.get(opponent_id, {}).values()]
         self.objects_by_owner = {}
 
+        if blob['matchId'] != self.cur_opponent_match_id:
+            self.cur_opponent_level = None
+
         game = {
             'player_id': self.cur_user,
             'event_name': blob['eventId'],
@@ -322,6 +373,9 @@ class Follower:
             'turns': blob['turnCount'],
             'duration': blob['secondsCount'],
             'opponent_card_ids': opponent_card_ids,
+            'limited_rank': self.cur_limited_level,
+            'constructed_rank': self.cur_constructed_level,
+            'opponent_rank': self.cur_opponent_level,
         }
         logging.info(f'Completed game: {game}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=game)
@@ -399,6 +453,37 @@ class Follower:
         }
         logging.info(f'Deck submission: {deck}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+
+    def __handle_self_rank_info(self, json_obj):
+        """Handle 'Event.GetCombinedRankInfo' messages."""
+        self.cur_limited_level = get_rank_string(
+            rank_class=json_obj.get('limitedClass'),
+            level=json_obj.get('limitedLevel'),
+            percentile=json_obj.get('limitedPercentile'),
+            place=json_obj.get('limitedLeaderboardPlace'),
+            step=json_obj.get('limitedStep'),
+        )
+        self.cur_constructed_level = get_rank_string(
+            rank_class=json_obj.get('constructedClass'),
+            level=json_obj.get('constructedLevel'),
+            percentile=json_obj.get('constructedPercentile'),
+            place=json_obj.get('constructedLeaderboardPlace'),
+            step=json_obj.get('constructedStep'),
+        )
+        self.cur_user = json_obj.get('playerId', self.cur_user)
+        logging.info(f'Parsed rank info for {self.cur_user} as limited {self.cur_limited_level} and constructed {self.cur_constructed_level}')
+
+    def __handle_match_created(self, json_obj):
+        """Handle 'Event.MatchCreated' messages."""
+        self.cur_opponent_level = get_rank_string(
+            rank_class=json_obj.get('opponentRankingClass'),
+            level=json_obj.get('opponentRankingTier'),
+            percentile=json_obj.get('opponentMythicPercentile'),
+            place=json_obj.get('opponentMythicLeaderboardPlace'),
+            step=None,
+        )
+        self.cur_opponent_match_id = json_obj.get('matchId')
+        logging.info(f'Parsed opponent rank info as limited {self.cur_opponent_level} in match {self.cur_opponent_match_id}')
 
     def __get_card_ids_from_decklist_v3(self, decklist):
         """Parse a list of [card_id_1, count_1, card_id_2, count_2, ...] elements."""

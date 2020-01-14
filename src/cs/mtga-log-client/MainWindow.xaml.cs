@@ -114,10 +114,12 @@ namespace mtga_log_client
                 case ExitConfirmation.ExitState.MINIMIZE:
                     Properties.Settings.Default.do_not_ask_on_close = dialog.GetRemember();
                     Properties.Settings.Default.minimize_on_close = true;
+                    Properties.Settings.Default.Save();
                     e.Cancel = true;
                     this.Hide();
                     break;
                 case ExitConfirmation.ExitState.CANCEL:
+                    Properties.Settings.Default.Save();
                     e.Cancel = true;
                     break;
             }
@@ -129,13 +131,45 @@ namespace mtga_log_client
 
             System.Windows.Forms.NotifyIcon ni = new System.Windows.Forms.NotifyIcon();
 
+            System.Windows.Forms.MenuItem trayMenuShow = new System.Windows.Forms.MenuItem();
+            trayMenuShow.Index = 0;
+            trayMenuShow.Text = "S&how";
+            trayMenuShow.Click += new EventHandler(this.ShowClient);
+
+            System.Windows.Forms.MenuItem trayMenuExit = new System.Windows.Forms.MenuItem();
+            trayMenuExit.Index = 1;
+            trayMenuExit.Text = "E&xit";
+            trayMenuExit.Click += new EventHandler(this.ExitClient);
+
+            System.Windows.Forms.MenuItem trayMenuClearPreferences = new System.Windows.Forms.MenuItem();
+            trayMenuClearPreferences.Index = 2;
+            trayMenuClearPreferences.Text = "C&lear Preferences";
+            trayMenuClearPreferences.Click += new EventHandler(this.ClearPreferences);
+
+            System.Windows.Forms.ContextMenu trayMenu = new System.Windows.Forms.ContextMenu();
+            trayMenu.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] { trayMenuShow, trayMenuExit, trayMenuClearPreferences });
+
             ni.Icon = Properties.Resources.icon_white;
             ni.Visible = true;
-            ni.DoubleClick += delegate (object sender, EventArgs args)
-                {
-                    this.Show();
-                    this.WindowState = WindowState.Normal;
-                };
+            ni.DoubleClick += new EventHandler(this.ShowClient);
+            ni.ContextMenu = trayMenu;
+        }
+
+        private void ShowClient(object Sender, EventArgs e)
+        {
+            this.Show();
+            this.WindowState = WindowState.Normal;
+        }
+
+        private void ExitClient(object Sender, EventArgs e)
+        {
+            base.Close();
+        }
+
+        private void ClearPreferences(object Sender, EventArgs e)
+        {
+            Properties.Settings.Default.do_not_ask_on_close = false;
+            Properties.Settings.Default.Save();
         }
 
         protected override void OnStateChanged(EventArgs e)
@@ -464,7 +498,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.14";
+        public const string CLIENT_VERSION = "0.1.15";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -491,12 +525,20 @@ namespace mtga_log_client
             "dd.MM.yyyy HH:mm:ss"
         };
 
+        private static long SECONDS_AT_YEAR_2000 = 63082281600L;
+        private static DateTime YEAR_2000 = new DateTime(2000, 1, 1);
+
         private bool first = true;
         private long farthestReadPosition = 0;
         private List<string> buffer = new List<string>();
         private Nullable<DateTime> currentLogTime = new DateTime(0);
+        private Nullable<DateTime> lastUtcTime = new DateTime(0);
         private string lastRawTime = "";
         private string currentUser = null;
+        private string currentConstructedLevel = null;
+        private string currentLimitedLevel = null;
+        private string currentOpponentLevel = null;
+        private string currentMatchId = null;
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
 
         private const int ERROR_LINES_RECENCY = 10;
@@ -559,6 +601,10 @@ namespace mtga_log_client
                         }
                     }
                 }
+            }
+            catch (FileNotFoundException e)
+            {
+                LogMessage(String.Format("File not found error while parsing log. If this message persists, please email seventeenlands@gmail.com: {0}", e), Level.Warn);
             }
             catch (Exception e)
             {
@@ -693,6 +739,12 @@ namespace mtga_log_client
             blob = ExtractPayload(blob);
             if (blob == null) return;
 
+            DateTime? maybeUtcTimestamp = MaybeGetUtcTimestamp(blob);
+            if (maybeUtcTimestamp != null)
+            {
+                lastUtcTime = maybeUtcTimestamp;
+            }
+
             if (MaybeHandleLogin(blob)) return;
             if (MaybeHandleGameEnd(blob)) return;
             if (MaybeHandleDraftLog(blob)) return;
@@ -701,6 +753,8 @@ namespace mtga_log_client
             if (MaybeHandleDeckSubmissionV3(blob)) return;
             if (MaybeHandleEventCompletion(blob)) return;
             if (MaybeHandleGreToClientMessages(blob)) return;
+            if (MaybeHandleSelfRankInfo(blob)) return;
+            if (MaybeHandleMatchCreated(blob)) return;
         }
 
         private JObject ExtractPayload(JObject blob)
@@ -728,6 +782,43 @@ namespace mtga_log_client
             }
 
             return blob;
+        }
+
+        private DateTime? MaybeGetUtcTimestamp(JObject blob)
+        {
+            String timestamp;
+            if (blob.ContainsKey("timestamp"))
+            {
+                timestamp = blob["timestamp"].Value<String>();
+            }
+            else if (blob.ContainsKey("payloadObject") && blob.GetValue("payloadObject").Value<JObject>().ContainsKey("timestamp"))
+            {
+                timestamp = blob.GetValue("payloadObject").Value<JObject>().GetValue("timestamp").Value<String>();
+            }
+            else
+            {
+                return null;
+            }
+
+            long secondsSinceYear2000;
+            if (long.TryParse(timestamp, out secondsSinceYear2000))
+            {
+                secondsSinceYear2000 /= 10000000L;
+                secondsSinceYear2000 -= SECONDS_AT_YEAR_2000;
+                return YEAR_2000.AddSeconds(secondsSinceYear2000);
+            }
+            else
+            {
+                DateTime output;
+                if (DateTime.TryParse(timestamp, out output))
+                {
+                    return output;
+                }
+                else
+                {
+                    return null;
+                }
+            }
         }
 
         private JObject ParseBlob(String blob)
@@ -763,6 +854,11 @@ namespace mtga_log_client
                     }
                 }
             }
+        }
+
+        private String GetRankString(String rankClass, String level, String percentile, String place, String step)
+        {
+            return String.Format("{0}-{1}-{2}-{3}-{4}", rankClass, level, percentile, place, step == null ? "None" : step);
         }
 
         private bool MaybeHandleLogin(JObject blob)
@@ -830,11 +926,17 @@ namespace mtga_log_client
                     mulligans.Add(mulliganHand);
                 }
 
+                if (!payload["matchId"].Value<string>().Equals(currentMatchId))
+                {
+                    currentOpponentLevel = null;
+                }
+
                 Game game = new Game();
                 game.token = apiToken;
                 game.client_version = CLIENT_VERSION;
                 game.player_id = currentUser;
                 game.time = GetDatetimeString(currentLogTime.Value);
+                game.utc_time = GetDatetimeString(lastUtcTime.Value);
 
                 game.event_name = payload["eventId"].Value<string>();
                 game.match_id = payload["matchId"].Value<string>();
@@ -844,6 +946,9 @@ namespace mtga_log_client
                 game.game_end_reason = payload["winningReason"].Value<string>();
                 game.mulligans = mulligans;
                 game.turns = payload["turnCount"].Value<int>();
+                game.limited_rank = currentLimitedLevel;
+                game.constructed_rank = currentConstructedLevel;
+                game.opponent_rank = currentOpponentLevel;
                 try
                 {
                     game.duration = payload["secondsCount"].Value<int>();
@@ -878,6 +983,7 @@ namespace mtga_log_client
                 pack.client_version = CLIENT_VERSION;
                 pack.player_id = currentUser;
                 pack.time = GetDatetimeString(currentLogTime.Value);
+                pack.utc_time = GetDatetimeString(lastUtcTime.Value);
 
                 var cardIds = new List<int>();
                 foreach (JToken cardString in blob["DraftPack"].Value<JArray>())
@@ -915,6 +1021,7 @@ namespace mtga_log_client
                 pick.client_version = CLIENT_VERSION;
                 pick.player_id = currentUser;
                 pick.time = GetDatetimeString(currentLogTime.Value);
+                pick.utc_time = GetDatetimeString(lastUtcTime.Value);
 
                 pick.event_name = draftIdComponents[1];
                 pick.pack_number = parameters["packNumber"].Value<int>();
@@ -946,6 +1053,7 @@ namespace mtga_log_client
                 deck.client_version = CLIENT_VERSION;
                 deck.player_id = currentUser;
                 deck.time = GetDatetimeString(currentLogTime.Value);
+                deck.utc_time = GetDatetimeString(lastUtcTime.Value);
 
                 var parameters = blob["params"].Value<JObject>();
                 var deckInfo = JObject.Parse(parameters["deck"].Value<String>());
@@ -989,6 +1097,7 @@ namespace mtga_log_client
                 deck.client_version = CLIENT_VERSION;
                 deck.player_id = currentUser;
                 deck.time = GetDatetimeString(currentLogTime.Value);
+                deck.utc_time = GetDatetimeString(lastUtcTime.Value);
 
                 var parameters = blob["params"].Value<JObject>();
                 var deckInfo = JObject.Parse(parameters["deck"].Value<String>());
@@ -1030,6 +1139,7 @@ namespace mtga_log_client
                 event_.client_version = CLIENT_VERSION;
                 event_.player_id = currentUser;
                 event_.time = GetDatetimeString(currentLogTime.Value);
+                event_.utc_time = GetDatetimeString(lastUtcTime.Value);
 
                 event_.event_name = blob["InternalEventName"].Value<String>();
                 if (blob["ModuleInstanceData"]["HasPaidEntry"] != null)
@@ -1066,6 +1176,7 @@ namespace mtga_log_client
                 deck.client_version = CLIENT_VERSION;
                 deck.player_id = currentUser;
                 deck.time = GetDatetimeString(currentLogTime.Value);
+                deck.utc_time = GetDatetimeString(lastUtcTime.Value);
 
                 deck.event_name = null;
                 deck.maindeck_card_ids = JArrayToIntList(blob["submitDeckReq"]["deck"]["deckCards"].Value<JArray>());
@@ -1138,6 +1249,73 @@ namespace mtga_log_client
             catch (Exception e)
             {
                 LogError(String.Format("Error {0} parsing event completion from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandleSelfRankInfo(JObject blob)
+        {
+            if (!blob.ContainsKey("limitedStep")) return false;
+
+            try
+            {
+                currentLimitedLevel = GetRankString(
+                    blob["limitedClass"].Value<String>(),
+                    blob["limitedLevel"].Value<String>(),
+                    blob["limitedPercentile"].Value<String>(),
+                    blob["limitedLeaderboardPlace"].Value<String>(),
+                    blob["limitedStep"].Value<String>()
+                );
+                currentConstructedLevel = GetRankString(
+                    blob["constructedClass"].Value<String>(),
+                    blob["constructedLevel"].Value<String>(),
+                    blob["constructedPercentile"].Value<String>(),
+                    blob["constructedLeaderboardPlace"].Value<String>(),
+                    blob["constructedStep"].Value<String>()
+                );
+
+                if (blob.ContainsKey("playerId"))
+                {
+                    currentUser = blob["playerId"].Value<String>();
+                }
+
+                LogMessage(String.Format("Parsed rank info for {0} as limited {1} and constructed {2}", currentUser, currentLimitedLevel, currentConstructedLevel), Level.Info);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing self rank info from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandleMatchCreated(JObject blob)
+        {
+            if (!blob.ContainsKey("opponentRankingClass")) return false;
+
+            try
+            {
+                currentOpponentLevel = GetRankString(
+                    blob["opponentRankingClass"].Value<String>(),
+                    blob["opponentRankingTier"].Value<String>(),
+                    blob["opponentMythicPercentile"].Value<String>(),
+                    blob["opponentMythicLeaderboardPlace"].Value<String>(),
+                    null
+                );
+
+                if (blob.ContainsKey("matchId"))
+                {
+                    currentMatchId = blob["matchId"].Value<String>();
+                }
+
+                LogMessage(String.Format("Parsed opponent rank info as {0} in match {1}", currentOpponentLevel, currentMatchId), Level.Info);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing match creation from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -1449,6 +1627,8 @@ namespace mtga_log_client
         internal int pick_number;
         [DataMember]
         internal List<int> card_ids;
+        [DataMember]
+        internal string utc_time;
     }
     [DataContract]
     internal class Pick
@@ -1469,6 +1649,8 @@ namespace mtga_log_client
         internal int pick_number;
         [DataMember]
         internal int card_id;
+        [DataMember]
+        internal string utc_time;
     }
     [DataContract]
     internal class Deck
@@ -1489,6 +1671,8 @@ namespace mtga_log_client
         internal List<int> sideboard_card_ids;
         [DataMember]
         internal bool is_during_match;
+        [DataMember]
+        internal string utc_time;
     }
     [DataContract]
     internal class Game
@@ -1521,6 +1705,14 @@ namespace mtga_log_client
         internal int duration;
         [DataMember]
         internal List<int> opponent_card_ids;
+        [DataMember]
+        internal string utc_time;
+        [DataMember]
+        internal string limited_rank;
+        [DataMember]
+        internal string constructed_rank;
+        [DataMember]
+        internal string opponent_rank;
     }
     [DataContract]
     internal class Event
@@ -1541,6 +1733,8 @@ namespace mtga_log_client
         internal int wins;
         [DataMember]
         internal int losses;
+        [DataMember]
+        internal string utc_time;
     }
     [DataContract]
     internal class ErrorInfo
