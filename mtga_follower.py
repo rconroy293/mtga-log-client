@@ -179,21 +179,25 @@ class Follower:
         """
         last_read_time = time.time()
         while True:
-            with open(filename) as f:
-                while True:
-                    line = f.readline()
-                    if line:
-                        self.__append_line(line)
-                        last_read_time = time.time()
-                    else:
-                        self.__handle_complete_log_entry()
-                        last_modified_time = os.stat(filename).st_mtime
-                        if last_modified_time > last_read_time:
-                            break
-                        elif follow:
-                            time.sleep(SLEEP_TIME)
+            try:
+                with open(filename) as f:
+                    while True:
+                        line = f.readline()
+                        if line:
+                            self.__append_line(line)
+                            last_read_time = time.time()
                         else:
-                            break
+                            self.__handle_complete_log_entry()
+                            last_modified_time = os.stat(filename).st_mtime
+                            if last_modified_time > last_read_time:
+                                break
+                            elif follow:
+                                time.sleep(SLEEP_TIME)
+                            else:
+                                break
+            except FileNotFoundError:
+                time.sleep(SLEEP_TIME)
+
             if not follow:
                 logging.info('Done processing file.')
                 break
