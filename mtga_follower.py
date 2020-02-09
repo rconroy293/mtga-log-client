@@ -22,7 +22,7 @@ import time
 import traceback
 import uuid
 
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 
 import dateutil.parser
 import requests
@@ -33,7 +33,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-CLIENT_VERSION = '0.1.4'
+CLIENT_VERSION = '0.1.5'
 
 PATH_ON_DRIVE = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA','output_log.txt')
 POSSIBLE_FILEPATHS = (
@@ -140,7 +140,10 @@ class Follower:
         self.cur_limited_level = None
         self.cur_opponent_level = None
         self.cur_opponent_match_id = None
-        self.objects_by_owner = {}
+        self.objects_by_owner = defaultdict(dict)
+        self.opening_hand_count_by_seat = defaultdict(int)
+        self.opening_hand = defaultdict(list)
+        self.cards_in_hand = defaultdict(list)
 
     def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME):
         """
@@ -313,7 +316,6 @@ class Follower:
 
         return blob
 
-
     def __handle_gre_to_client_message(self, message_blob):
         """Handle messages in the 'greToClientEvent' field."""
         if message_blob['type'] == 'GREMessageType_SubmitDeckReq':
@@ -327,16 +329,40 @@ class Follower:
             logging.info(f'Deck submission: {deck}')
             response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
         elif message_blob['type'] == 'GREMessageType_GameStateMessage':
-            for game_object in message_blob['gameStateMessage'].get('gameObjects', []):
+            game_state_message = message_blob.get('gameStateMessage', {})
+            for game_object in game_state_message.get('gameObjects', []):
                 if game_object['type'] != 'GameObjectType_Card':
                     continue
                 owner = game_object['ownerSeatId']
                 instance_id = game_object['instanceId']
                 card_id = game_object['overlayGrpId']
 
-                if owner not in self.objects_by_owner:
-                    self.objects_by_owner[owner] = {}
                 self.objects_by_owner[owner][instance_id] = card_id
+                
+            for zone in game_state_message.get('zones', []):
+                if zone['type'] == 'ZoneType_Hand':
+                    owner = zone['ownerSeatId']
+                    player_objects = self.objects_by_owner[owner]
+                    hand_card_ids = zone.get('objectInstanceIds', [])
+                    self.cards_in_hand[owner] = [player_objects.get(instance_id) for instance_id in hand_card_ids if instance_id]
+
+            players_deciding_hand = {
+                p['systemSeatNumber']
+                for p in game_state_message.get('players', [])
+                if p.get('pendingMessageType') == 'ClientMessageType_MulliganResp'
+            }
+            for player_id in players_deciding_hand:
+                self.opening_hand_count_by_seat[player_id] += 1
+
+            turn_info = game_state_message.get('turnInfo', {})
+            if len(self.opening_hand) == 0 and ('Phase_Beginning', 'Step_Upkeep', 1) == (turn_info.get('phase'), turn_info.get('step'), turn_info.get('turnNumber')):
+                for (owner, hand) in self.cards_in_hand.items():
+                    self.opening_hand[owner] = hand.copy()
+
+    def __clear_game_data(self):
+        self.objects_by_owner.clear()
+        self.opening_hand_count_by_seat.clear()
+        self.opening_hand.clear()
 
     def __handle_event_completion(self, json_obj):
         """Handle messages upon event completion."""
@@ -359,10 +385,12 @@ class Follower:
 
         opponent_id = 2 if blob['seatId'] == 1 else 1
         opponent_card_ids = [c for c in self.objects_by_owner.get(opponent_id, {}).values()]
-        self.objects_by_owner = {}
 
         if blob['matchId'] != self.cur_opponent_match_id:
             self.cur_opponent_level = None
+
+        if len(blob['mulliganedHands']) + 1 != self.opening_hand_count_by_seat[blob['seatId']]:
+            logging.warning(f'Discrepancy in mulligan count - thought they were {dict(self.opening_hand_count_by_seat)} (seat {blob["seatId"]}) vs. {blob["mulliganedHands"]}')
 
         game = {
             'player_id': self.cur_user,
@@ -373,7 +401,9 @@ class Follower:
             'won': blob['teamId'] == blob['winningTeamId'],
             'win_type': blob['winningType'],
             'game_end_reason': blob['winningReason'],
+            'opening_hand': self.opening_hand[blob['seatId']],
             'mulligans': [[x['grpId'] for x in hand] for hand in blob['mulliganedHands']],
+            'opponent_mulligan_count': self.opening_hand_count_by_seat[opponent_id] - 1,
             'turns': blob['turnCount'],
             'duration': blob['secondsCount'],
             'opponent_card_ids': opponent_card_ids,
@@ -381,11 +411,14 @@ class Follower:
             'constructed_rank': self.cur_constructed_level,
             'opponent_rank': self.cur_opponent_level,
         }
+        self.__clear_game_data()
         logging.info(f'Completed game: {game}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=game)
 
     def __handle_login(self, json_obj):
         """Handle 'Client.Connected' messages."""
+        self.__clear_game_data()
+
         self.cur_user = json_obj['params']['payloadObject']['playerId']
         screen_name = json_obj['params']['payloadObject']['screenName']
 
@@ -400,6 +433,7 @@ class Follower:
     def __handle_draft_log(self, json_obj):
         """Handle 'draftStatus' messages."""
         if json_obj['DraftStatus'] == 'Draft.PickNext':
+            self.__clear_game_data()
             (user, event_name, other) = json_obj['DraftId'].rsplit(':', 2)
             pack = {
                 'player_id': self.cur_user,
@@ -414,6 +448,7 @@ class Follower:
 
     def __handle_draft_pick(self, json_obj):
         """Handle 'Draft.MakePick messages."""
+        self.__clear_game_data()
         inner_obj = json_obj['params']
         (user, event_name, other) = inner_obj['draftId'].rsplit(':', 2)
 
@@ -430,6 +465,7 @@ class Follower:
 
     def __handle_deck_submission(self, json_obj):
         """Handle 'Event.DeckSubmit' messages."""
+        self.__clear_game_data()
         inner_obj = json_obj['params']
         deck_info = json.loads(inner_obj['deck'])
         deck = {
@@ -445,6 +481,7 @@ class Follower:
 
     def __handle_deck_submission_v3(self, json_obj):
         """Handle 'Event.DeckSubmitV3' messages."""
+        self.__clear_game_data()
         inner_obj = json_obj['params']
         deck_info = json.loads(inner_obj['deck'])
         deck = {
@@ -479,6 +516,7 @@ class Follower:
 
     def __handle_match_created(self, json_obj):
         """Handle 'Event.MatchCreated' messages."""
+        self.__clear_game_data()
         self.cur_opponent_level = get_rank_string(
             rank_class=json_obj.get('opponentRankingClass'),
             level=json_obj.get('opponentRankingTier'),
