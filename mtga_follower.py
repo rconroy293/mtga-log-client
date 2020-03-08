@@ -250,6 +250,8 @@ class Follower:
             timestamp = blob['timestamp']
         elif 'timestamp' in blob.get('payloadObject', {}):
             timestamp = blob['payloadObject']['timestamp']
+        elif 'timestamp' in blob.get('params', {}).get('payloadObject', {}):
+            timestamp = blob['params']['payloadObject']['timestamp']
         
         if timestamp is None:
             return None
