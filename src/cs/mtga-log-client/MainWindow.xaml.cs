@@ -498,7 +498,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.15";
+        public const string CLIENT_VERSION = "0.1.16";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -540,6 +540,9 @@ namespace mtga_log_client
         private string currentOpponentLevel = null;
         private string currentMatchId = null;
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
+        private readonly Dictionary<int, int> openingHandCountBySeat = new Dictionary<int, int>();
+        private readonly Dictionary<int, List<int>> openingHand = new Dictionary<int, List<int>>();
+        private readonly Dictionary<int, List<int>> cardsInHand = new Dictionary<int, List<int>>();
 
         private const int ERROR_LINES_RECENCY = 10;
         private LinkedList<string> recentLines = new LinkedList<string>();
@@ -795,6 +798,12 @@ namespace mtga_log_client
             {
                 timestamp = blob.GetValue("payloadObject").Value<JObject>().GetValue("timestamp").Value<String>();
             }
+            else if (blob.ContainsKey("params") 
+                && blob.GetValue("params").Value<JObject>().ContainsKey("payloadObject")
+                && blob.GetValue("params").Value<JObject>().GetValue("payloadObject").Value<JObject>().ContainsKey("timestamp"))
+            {
+                timestamp = blob.GetValue("params").Value<JObject>().GetValue("payloadObject").Value<JObject>().GetValue("timestamp").Value<String>();
+            }
             else
             {
                 return null;
@@ -861,12 +870,21 @@ namespace mtga_log_client
             return String.Format("{0}-{1}-{2}-{3}-{4}", rankClass, level, percentile, place, step == null ? "None" : step);
         }
 
+        private void ClearGameData()
+        {
+            objectsByOwner.Clear();
+            openingHandCountBySeat.Clear();
+            openingHand.Clear();
+        }
+
         private bool MaybeHandleLogin(JObject blob)
         {
             JToken token;
             if (!blob.TryGetValue("params", out token)) return false;
             if (!token.Value<JObject>().TryGetValue("messageName", out token)) return false;
             if (!token.Value<String>().Equals("Client.Connected")) return false;
+
+            ClearGameData();
 
             try
             {
@@ -904,7 +922,8 @@ namespace mtga_log_client
             {
                 var payload = blob["params"]["payloadObject"];
 
-                var opponentId = payload["seatId"].Value<int>() == 1 ? 2 : 1;
+                var seatId = payload["seatId"].Value<int>();
+                var opponentId = seatId == 1 ? 2 : 1;
                 var opponentCardIds = new List<int>();
                 if (objectsByOwner.ContainsKey(opponentId))
                 {
@@ -913,7 +932,6 @@ namespace mtga_log_client
                         opponentCardIds.Add(entry.Value);
                     }
                 }
-                objectsByOwner.Clear();
 
                 var mulligans = new List<List<int>>();
                 foreach (JArray hand in payload["mulliganedHands"].Value<JArray>())
@@ -944,6 +962,17 @@ namespace mtga_log_client
                 game.won = payload["teamId"].Value<int>() == payload["winningTeamId"].Value<int>();
                 game.win_type = payload["winningType"].Value<string>();
                 game.game_end_reason = payload["winningReason"].Value<string>();
+
+                if (openingHand.ContainsKey(seatId))
+                {
+                    game.opening_hand = openingHand[seatId];
+                }
+
+                if (openingHandCountBySeat.ContainsKey(opponentId))
+                {
+                    game.opponent_mulligan_count = openingHandCountBySeat[opponentId] - 1;
+                }
+
                 game.mulligans = mulligans;
                 game.turns = payload["turnCount"].Value<int>();
                 game.limited_rank = currentLimitedLevel;
@@ -960,6 +989,7 @@ namespace mtga_log_client
                 
                 game.opponent_card_ids = opponentCardIds;
 
+                ClearGameData();
                 apiClient.PostGame(game);
 
                 return true;
@@ -975,6 +1005,8 @@ namespace mtga_log_client
         {
             if (!blob.ContainsKey("DraftStatus")) return false;
             if (!"Draft.PickNext".Equals(blob["DraftStatus"].Value<String>())) return false;
+
+            ClearGameData();
 
             try
             {
@@ -1011,6 +1043,8 @@ namespace mtga_log_client
             if (!blob.ContainsKey("method")) return false;
             if (!"Draft.MakePick".Equals(blob["method"].Value<String>())) return false;
 
+            ClearGameData();
+
             try
             {
                 var parameters = blob["params"].Value<JObject>();
@@ -1043,6 +1077,8 @@ namespace mtga_log_client
         {
             if (!blob.ContainsKey("method")) return false;
             if (!"Event.DeckSubmit".Equals(blob["method"].Value<String>())) return false;
+
+            ClearGameData();
 
             try
             {
@@ -1087,6 +1123,8 @@ namespace mtga_log_client
         {
             if (!blob.ContainsKey("method")) return false;
             if (!"Event.DeckSubmitV3".Equals(blob["method"].Value<String>())) return false;
+
+            ClearGameData();
 
             try
             {
@@ -1206,23 +1244,76 @@ namespace mtga_log_client
             try
             {
                 var gameStateMessage = blob["gameStateMessage"].Value<JObject>();
-                if (!gameStateMessage.ContainsKey("gameObjects")) return true;
-                var gameObjects = gameStateMessage["gameObjects"].Value<JArray>();
-
-                foreach (JToken gameObject in gameObjects)
+                if (gameStateMessage.ContainsKey("gameObjects"))
                 {
-                    if (!"GameObjectType_Card".Equals(gameObject["type"].Value<string>())) continue;
-
-                    var owner = gameObject["ownerSeatId"].Value<int>();
-                    var instanceId = gameObject["instanceId"].Value<int>();
-                    var cardId = gameObject["overlayGrpId"].Value<int>();
-
-                    if (!objectsByOwner.ContainsKey(owner))
+                    foreach (JToken gameObject in gameStateMessage["gameObjects"].Value<JArray>())
                     {
-                        objectsByOwner.Add(owner, new Dictionary<int, int>());
+                        if (!"GameObjectType_Card".Equals(gameObject["type"].Value<string>())) continue;
+
+                        var owner = gameObject["ownerSeatId"].Value<int>();
+                        var instanceId = gameObject["instanceId"].Value<int>();
+                        var cardId = gameObject["overlayGrpId"].Value<int>();
+
+                        if (!objectsByOwner.ContainsKey(owner))
+                        {
+                            objectsByOwner.Add(owner, new Dictionary<int, int>());
+                        }
+                        objectsByOwner[owner][instanceId] = cardId;
                     }
-                    objectsByOwner[owner][instanceId] = cardId;
+
                 }
+                if (gameStateMessage.ContainsKey("zones"))
+                {
+                    foreach (JObject zone in gameStateMessage["zones"].Value<JArray>())
+                    {
+                        if (!"ZoneType_Hand".Equals(zone["type"].Value<string>())) continue;
+
+                        var owner = zone["ownerSeatId"].Value<int>();
+                        var cards = new List<int>();
+                        if (zone.ContainsKey("objectInstanceIds"))
+                        {
+                            var playerObjects = objectsByOwner.ContainsKey(owner) ? objectsByOwner[owner] : new Dictionary<int, int>();
+                            foreach (JToken objectInstanceId in zone["objectInstanceIds"].Value<JArray>())
+                            {
+                                if (objectInstanceId != null && playerObjects.ContainsKey(objectInstanceId.Value<int>()))
+                                {
+                                    cards.Add(playerObjects[objectInstanceId.Value<int>()]);
+                                }
+                            }
+                        }
+                        cardsInHand[owner] = cards;
+                    }
+
+                }
+                if (gameStateMessage.ContainsKey("players"))
+                {
+                    foreach (JObject player in gameStateMessage.GetValue("players").Value<JArray>())
+                    {
+                        if (player.ContainsKey("pendingMessageType") && player.GetValue("pendingMessageType").Value<string>().Equals("ClientMessageType_MulliganResp"))
+                        {
+                            var playerId = player.GetValue("systemSeatNumber").Value<int>();
+                            if (!openingHandCountBySeat.ContainsKey(playerId))
+                            {
+                                openingHandCountBySeat.Add(playerId, 0);
+                            }
+                            openingHandCountBySeat[playerId] = 1 + openingHandCountBySeat[playerId];
+                        }
+                    }
+                }
+                if (openingHand.Count == 0 && gameStateMessage.ContainsKey("turnInfo"))
+                {
+                    var turnInfo = gameStateMessage.GetValue("turnInfo").Value<JObject>();
+                    if (turnInfo.ContainsKey("phase") && turnInfo.GetValue("phase").Value<string>().Equals("Phase_Beginning")
+                        && turnInfo.ContainsKey("step") && turnInfo.GetValue("step").Value<string>().Equals("Step_Upkeep")
+                        && turnInfo.ContainsKey("turnNumber") && turnInfo.GetValue("turnNumber").Value<int>() == 1)
+                    {
+                        foreach (int owner in cardsInHand.Keys)
+                        {
+                            openingHand[owner] = cardsInHand[owner];
+                        }
+                    }
+                }
+
                 return true;
             }
             catch (Exception e)
@@ -1293,6 +1384,8 @@ namespace mtga_log_client
         private bool MaybeHandleMatchCreated(JObject blob)
         {
             if (!blob.ContainsKey("opponentRankingClass")) return false;
+
+            ClearGameData();
 
             try
             {
@@ -1698,7 +1791,11 @@ namespace mtga_log_client
         [DataMember]
         internal string game_end_reason;
         [DataMember]
+        internal List<int> opening_hand;
+        [DataMember]
         internal List<List<int>> mulligans;
+        [DataMember]
+        internal int opponent_mulligan_count;
         [DataMember]
         internal int turns;
         [DataMember]
