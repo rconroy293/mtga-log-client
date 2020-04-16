@@ -355,7 +355,7 @@ class Follower:
             response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
         elif message_blob['type'] == 'GREMessageType_GameStateMessage':
             game_state_message = message_blob.get('gameStateMessage', {})
-            self.__maybe_handle_game_over_stage(game_state_message)
+            self.__maybe_handle_game_over_stage(message_blob.get('systemSeatIds', []), game_state_message)
             for game_object in game_state_message.get('gameObjects', []):
                 if game_object['type'] != 'GameObjectType_Card':
                     continue
@@ -387,32 +387,36 @@ class Follower:
                 for (owner, hand) in self.cards_in_hand.items():
                     self.opening_hand[owner] = hand.copy()
 
-    def __maybe_handle_game_over_stage(self, game_state_message):
+    def __maybe_handle_game_over_stage(self, system_seat_ids, game_state_message):
         game_info = game_state_message.get('gameInfo', {})
         if game_info.get('stage') != 'GameStage_GameOver':
             return
-        
+
         results = game_info.get('results', [])
         for result in results:
             if result.get('scope') != 'MatchScope_Game':
                 continue
 
-            seat_id = game_state_message['systemSeatIds'][0]
+            seat_id = system_seat_ids[0]
             match_id = game_info['matchID']
             event_id = None
             if self.current_match_event_id is not None and self.current_match_event_id[0] == match_id:
                 event_id = self.current_match_event_id[1]
+
+            maybe_turn_number = game_state_message.get('turnInfo', {}).get('turnNumber')
+            if maybe_turn_number is None:
+                maybe_turn_number = sum(p['turnNumber'] for p in game_state_message.get('players', []))
 
             self.__send_game_end(
                 seat_id=seat_id,
                 match_id=match_id,
                 mulliganed_hands=[], ## TODO
                 event_name=event_id,
-                on_play=seat_id == starting_team_id,
+                on_play=seat_id == self.starting_team_id,
                 won=seat_id == result['winningTeamId'],
                 win_type=result['result'],
                 game_end_reason=result['reason'],
-                turn_count=game_state_message['turnInfo']['turnNumber'],
+                turn_count=maybe_turn_number,
                 duration=None,
             )
 
@@ -470,7 +474,7 @@ class Follower:
             duration=blob['secondsCount'],
         )
 
-    def __send_game_end(self, seat_id, match_id, mulliganed_hands, event_name, on_play, won, win_type, game_end_reason, turn_count, duration)
+    def __send_game_end(self, seat_id, match_id, mulliganed_hands, event_name, on_play, won, win_type, game_end_reason, turn_count, duration):
         logging.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
 
         opponent_id = 2 if seat_id == 1 else 1
