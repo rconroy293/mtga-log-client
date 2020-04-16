@@ -52,6 +52,7 @@ LOG_START_REGEX_TIMED = re.compile(r'^\[(UnityCrossThreadLogger|Client GRE)\]([\
 LOG_START_REGEX_UNTIMED = re.compile(r'^\[(UnityCrossThreadLogger|Client GRE)\]')
 TIMESTAMP_REGEX = re.compile('^([\\d/.-]+[ T][\\d]+:[\\d]+:[\\d]+( AM| PM)?)')
 JSON_START_REGEX = re.compile(r'[[{]')
+ACCOUNT_INFO_REGEX = re.compile(r'.*Updated account\. DisplayName:(.*), AccountID:(.*), Token:.*')
 SLEEP_TIME = 0.5
 
 TIME_FORMATS = (
@@ -65,6 +66,7 @@ TIME_FORMATS = (
 OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
 
 API_ENDPOINT = 'https://www.17lands.com'
+API_ENDPOINT = 'http:://127.0.0.1:8000'
 ENDPOINT_USER = 'api/account'
 ENDPOINT_DECK_SUBMISSION = 'deck'
 ENDPOINT_EVENT_SUBMISSION = 'event'
@@ -161,6 +163,8 @@ class Follower:
         blob['token'] = self.token
         blob['utc_time'] = self.last_utc_time.isoformat()
 
+        return
+
         tries_left = num_retries + 1
         while tries_left > 0:
             tries_left -= 1
@@ -207,6 +211,8 @@ class Follower:
 
     def __append_line(self, line):
         """Add a complete line (not necessarily a complete message) from the log."""
+        self.__maybe_handle_account_info(line)
+
         timestamp_match = TIMESTAMP_REGEX.match(line)
         if timestamp_match:
             self.last_raw_time = timestamp_match.group(1)
@@ -365,6 +371,21 @@ class Follower:
         self.objects_by_owner.clear()
         self.opening_hand_count_by_seat.clear()
         self.opening_hand.clear()
+
+    def __maybe_handle_account_info(self, line):
+        match = ACCOUNT_INFO_REGEX.match(line)
+        if match:
+            screen_name = match.group(1)
+            self.cur_user = match.group(2)
+
+            user_info = {
+                'player_id': self.cur_user,
+                'screen_name': screen_name,
+                'raw_time': self.last_raw_time,
+            }
+            logging.info(f'Adding user: {user_info}')
+            response = self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
+
 
     def __handle_event_completion(self, json_obj):
         """Handle messages upon event completion."""
@@ -632,7 +653,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    verify_valid_version(args.host)
+    # verify_valid_version(args.host)
 
     token = get_client_token()
     logging.info(f'Using token {token}')
