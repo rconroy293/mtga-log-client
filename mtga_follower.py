@@ -66,7 +66,6 @@ TIME_FORMATS = (
 OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
 
 API_ENDPOINT = 'https://www.17lands.com'
-API_ENDPOINT = 'http:://127.0.0.1:8000'
 ENDPOINT_USER = 'api/account'
 ENDPOINT_DECK_SUBMISSION = 'deck'
 ENDPOINT_EVENT_SUBMISSION = 'event'
@@ -164,8 +163,6 @@ class Follower:
         blob['client_version'] = CLIENT_VERSION
         blob['token'] = self.token
         blob['utc_time'] = self.last_utc_time.isoformat()
-
-        return
 
         tries_left = num_retries + 1
         while tries_left > 0:
@@ -417,7 +414,7 @@ class Follower:
                 win_type=result['result'],
                 game_end_reason=result['reason'],
                 turn_count=maybe_turn_number,
-                duration=None,
+                duration=-1,
             )
 
             # TODO: Is this correct for Bo3?
@@ -722,7 +719,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # verify_valid_version(args.host)
+    verify_valid_version(args.host)
 
     token = get_client_token()
     logging.info(f'Using token {token}')
