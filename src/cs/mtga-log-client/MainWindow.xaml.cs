@@ -887,6 +887,7 @@ namespace mtga_log_client
 
         private void MaybeHandleAccountInfo(String line)
         {
+            if (!line.StartsWith("[Accounts - AccountClient]")) return;
             var match = ACCOUNT_INFO_REGEX.Match(line);
             if (match.Success)
             {
