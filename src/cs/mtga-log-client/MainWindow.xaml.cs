@@ -498,7 +498,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.16";
+        public const string CLIENT_VERSION = "0.1.17";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -513,6 +513,8 @@ namespace mtga_log_client
             "^\\(Filename:");
         private static readonly Regex JSON_DICT_REGEX = new Regex("\\{.+\\}");
         private static readonly Regex JSON_LIST_REGEX = new Regex("\\[.+\\]");
+        private static readonly Regex ACCOUNT_INFO_REGEX = new Regex(
+            ".*Updated account\\. DisplayName:(.*), AccountID:(.*), Token:.*");
 
         private static readonly List<string> TIME_FORMATS = new List<string>() {
             "yyyy-MM-dd h:mm:ss tt",
@@ -539,6 +541,8 @@ namespace mtga_log_client
         private string currentLimitedLevel = null;
         private string currentOpponentLevel = null;
         private string currentMatchId = null;
+        private string currentMatchEventId = null;
+        private int startingTeamId = -1;
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
         private readonly Dictionary<int, int> openingHandCountBySeat = new Dictionary<int, int>();
         private readonly Dictionary<int, List<int>> openingHand = new Dictionary<int, List<int>>();
@@ -660,6 +664,8 @@ namespace mtga_log_client
             {
                 LogMessage("Detailed logs enabled in MTGA", Level.Info);
             }
+
+            MaybeHandleAccountInfo(line);
 
             var timestampMatch = TIMESTAMP_REGEX.Match(line);
             if (timestampMatch.Success)
@@ -875,6 +881,25 @@ namespace mtga_log_client
             objectsByOwner.Clear();
             openingHandCountBySeat.Clear();
             openingHand.Clear();
+        }
+
+        private void MaybeHandleAccountInfo(String line)
+        {
+            var match = ACCOUNT_INFO_REGEX.Match(line);
+            if (match.Success)
+            {
+                var screenName = match.Groups[1].Value;
+                currentUser = match.Groups[2].Value;
+
+                MTGAAccount account = new MTGAAccount();
+                account.token = apiToken;
+                account.client_version = CLIENT_VERSION;
+                account.player_id = currentUser;
+                account.raw_time = lastRawTime;
+                account.screen_name = screenName;
+                apiClient.PostMTGAAccount(account);
+            }
+
         }
 
         private bool MaybeHandleLogin(JObject blob)
@@ -1584,6 +1609,7 @@ namespace mtga_log_client
         private void PostJson(string endpoint, String blob)
         {
             LogMessage(String.Format("Posting {0} of {1}", endpoint, blob), Level.Info);
+            if (true) return;
             var content = new StringContent(blob, Encoding.UTF8, "application/json");
             var response = client.PostAsync(endpoint, content).Result;
             if (!response.IsSuccessStatusCode)
