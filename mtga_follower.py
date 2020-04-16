@@ -402,7 +402,11 @@ class Follower:
 
             maybe_turn_number = game_state_message.get('turnInfo', {}).get('turnNumber')
             if maybe_turn_number is None:
-                maybe_turn_number = sum(p['turnNumber'] for p in game_state_message.get('players', []))
+                players = game_state_message.get('players', [])
+                if len(players) > 0:
+                    maybe_turn_number = sum(p['turnNumber'] for p in players)
+                else:
+                    maybe_turn_number = -1
 
             self.__send_game_end(
                 seat_id=seat_id,
