@@ -30,7 +30,7 @@
     <ErrorReportUrl>https://www.17lands.com</ErrorReportUrl>
     <ProductName>17Lands MTGA Client</ProductName>
     <PublisherName>17Lands.com</PublisherName>
-    <MinimumRequiredVersion>1.0.1.16</MinimumRequiredVersion>
+    <MinimumRequiredVersion>1.0.1.17</MinimumRequiredVersion>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
     <ApplicationRevision>17</ApplicationRevision>
@@ -59,10 +59,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>C76BB0E9B5DF622CF10D264453F502998F24C777</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>CDA6E8D0B88E2435592DB70F58E646BA3A710236</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>mtga-log-client_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>mtga-log-client_1_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <GenerateManifests>true</GenerateManifests>
@@ -149,6 +149,7 @@
     <Content Include="log4net.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <None Include="mtga-log-client_1_TemporaryKey.pfx" />
     <None Include="mtga-log-client_TemporaryKey.pfx" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
