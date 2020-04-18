@@ -345,7 +345,7 @@ class Follower:
                 'player_id': self.cur_user,
                 'time': self.cur_log_time.isoformat(),
                 'maindeck_card_ids': message_blob['submitDeckReq']['deck']['deckCards'],
-                'sideboard_card_ids': message_blob['submitDeckReq']['deck']['sideboardCards'],
+                'sideboard_card_ids': message_blob['submitDeckReq']['deck'].get('sideboardCards', []),
                 'is_during_match': True,
             }
             logging.info(f'Deck submission: {deck}')
@@ -390,7 +390,7 @@ class Follower:
             return
 
         results = game_info.get('results', [])
-        for result in results:
+        for result in reversed(results):
             if result.get('scope') != 'MatchScope_Game':
                 continue
 
@@ -421,7 +421,6 @@ class Follower:
                 duration=-1,
             )
 
-            # TODO: Is this correct for Bo3?
             return
 
 
@@ -584,6 +583,7 @@ class Follower:
             'maindeck_card_ids': self.__get_card_ids_from_decklist_v3(deck_info['mainDeck']),
             'sideboard_card_ids': self.__get_card_ids_from_decklist_v3(deck_info['sideboard']),
             'is_during_match': False,
+            'companion': deck_info.get('companionGRPId'),
         }
         logging.info(f'Deck submission: {deck}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
