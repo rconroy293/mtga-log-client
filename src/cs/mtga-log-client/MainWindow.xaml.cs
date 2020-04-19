@@ -498,7 +498,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.17";
+        public const string CLIENT_VERSION = "0.1.18";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -544,9 +544,8 @@ namespace mtga_log_client
         private string currentMatchEventId = null;
         private int startingTeamId = -1;
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
-        private readonly Dictionary<int, int> openingHandCountBySeat = new Dictionary<int, int>();
-        private readonly Dictionary<int, List<int>> openingHand = new Dictionary<int, List<int>>();
         private readonly Dictionary<int, List<int>> cardsInHand = new Dictionary<int, List<int>>();
+        private readonly Dictionary<int, List<List<int>>> drawnHands = new Dictionary<int, List<List<int>>>();
 
         private const int ERROR_LINES_RECENCY = 10;
         private LinkedList<string> recentLines = new LinkedList<string>();
@@ -880,8 +879,7 @@ namespace mtga_log_client
         private void ClearGameData()
         {
             objectsByOwner.Clear();
-            openingHandCountBySeat.Clear();
-            openingHand.Clear();
+            drawnHands.Clear();
             startingTeamId = -1;
         }
 
@@ -1024,14 +1022,14 @@ namespace mtga_log_client
                 game.win_type = winType;
                 game.game_end_reason = gameEndReason;
 
-                if (openingHand.ContainsKey(seatId))
+                if (drawnHands.ContainsKey(seatId) && drawnHands[seatId].Count > 0)
                 {
-                    game.opening_hand = openingHand[seatId];
+                    game.opening_hand = drawnHands[seatId][drawnHands[seatId].Count - 1];
                 }
 
-                if (openingHandCountBySeat.ContainsKey(opponentId))
+                if (drawnHands.ContainsKey(opponentId) && drawnHands[opponentId].Count > 0)
                 {
-                    game.opponent_mulligan_count = openingHandCountBySeat[opponentId] - 1;
+                    game.opponent_mulligan_count = drawnHands[opponentId].Count - 1;
                 }
 
                 game.mulligans = mulliganedHands;
@@ -1162,6 +1160,11 @@ namespace mtga_log_client
                 deck.event_name = parameters["eventName"].Value<String>();
                 deck.maindeck_card_ids = maindeckCardIds;
                 deck.is_during_match = false;
+
+                if (deckInfo.ContainsKey("companionGRPId"))
+                {
+                    deck.companion = deckInfo["companionGRPId"].Value<int>();
+                }
 
                 apiClient.PostDeck(deck);
                 return true;
@@ -1343,31 +1346,36 @@ namespace mtga_log_client
                     }
 
                 }
-                if (gameStateMessage.ContainsKey("players"))
-                {
-                    foreach (JObject player in gameStateMessage.GetValue("players").Value<JArray>())
-                    {
-                        if (player.ContainsKey("pendingMessageType") && player.GetValue("pendingMessageType").Value<string>().Equals("ClientMessageType_MulliganResp"))
-                        {
-                            var playerId = player.GetValue("systemSeatNumber").Value<int>();
-                            if (!openingHandCountBySeat.ContainsKey(playerId))
-                            {
-                                openingHandCountBySeat.Add(playerId, 0);
-                            }
-                            openingHandCountBySeat[playerId] = 1 + openingHandCountBySeat[playerId];
-                        }
-                    }
-                }
-                if (openingHand.Count == 0 && gameStateMessage.ContainsKey("turnInfo"))
+                if (gameStateMessage.ContainsKey("turnInfo"))
                 {
                     var turnInfo = gameStateMessage.GetValue("turnInfo").Value<JObject>();
-                    if (turnInfo.ContainsKey("phase") && turnInfo.GetValue("phase").Value<string>().Equals("Phase_Beginning")
-                        && turnInfo.ContainsKey("step") && turnInfo.GetValue("step").Value<string>().Equals("Step_Upkeep")
-                        && turnInfo.ContainsKey("turnNumber") && turnInfo.GetValue("turnNumber").Value<int>() == 1)
+                    if (gameStateMessage.ContainsKey("players"))
                     {
-                        foreach (int owner in cardsInHand.Keys)
+                        foreach (JObject player in gameStateMessage.GetValue("players").Value<JArray>())
                         {
-                            openingHand[owner] = cardsInHand[owner];
+                            if (player.ContainsKey("pendingMessageType") && player.GetValue("pendingMessageType").Value<string>().Equals("ClientMessageType_MulliganResp"))
+                            {
+                                JToken tmp;
+                                if (startingTeamId == -1 && turnInfo.TryGetValue("activePlayer", out tmp)) {
+                                    startingTeamId = tmp.Value<int>();
+                                }
+
+                                var playerId = player.GetValue("systemSeatNumber").Value<int>();
+
+                                if (!drawnHands.ContainsKey(playerId))
+                                {
+                                    drawnHands.Add(playerId, new List<List<int>>());
+                                }
+                                var mulliganCount = 0;
+                                if (player.TryGetValue("mulliganCount", out tmp))
+                                {
+                                    mulliganCount = tmp.Value<int>();
+                                }
+                                if (mulliganCount == drawnHands[playerId].Count)
+                                {
+                                    drawnHands[playerId].Add(new List<int>(cardsInHand[playerId]));
+                                }
+                            }
                         }
                     }
                 }
@@ -1389,9 +1397,9 @@ namespace mtga_log_client
             if (!gameInfo.ContainsKey("results")) return false;
 
             var results = gameInfo["results"].Value<JArray>();
-            foreach (JToken token in results)
+            for (int i = results.Count - 1; i >= 0; i--)
             {
-                var result = token.Value<JObject>();
+                var result = results[i].Value<JObject>();
                 if (!result.ContainsKey("scope") || !result["scope"].Value<String>().Equals("MatchScope_Game")) continue;
 
                 var matchId = gameInfo["matchID"].Value<String>();
@@ -1411,7 +1419,11 @@ namespace mtga_log_client
                     }
                 }
 
-                var mulligans = new List<List<int>>(); // TODO
+                var mulligans = new List<List<int>>();
+                if (drawnHands.ContainsKey(seatId) && drawnHands[seatId].Count > 0)
+                {
+                    mulligans = drawnHands[seatId].GetRange(0, drawnHands[seatId].Count - 1);
+                }
                 var onPlay = seatId.Equals(startingTeamId);
                 var won = seatId.Equals(result["winningTeamId"].Value<int>());
                 var winType = result["result"].Value<String>();
@@ -1876,6 +1888,8 @@ namespace mtga_log_client
         internal List<int> maindeck_card_ids;
         [DataMember]
         internal List<int> sideboard_card_ids;
+        [DataMember]
+        internal int companion;
         [DataMember]
         internal bool is_during_match;
         [DataMember]
