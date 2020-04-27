@@ -498,7 +498,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.18";
+        public const string CLIENT_VERSION = "0.1.19";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -546,6 +546,7 @@ namespace mtga_log_client
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
         private readonly Dictionary<int, List<int>> cardsInHand = new Dictionary<int, List<int>>();
         private readonly Dictionary<int, List<List<int>>> drawnHands = new Dictionary<int, List<List<int>>>();
+        private readonly Dictionary<int, List<int>> openingHand = new Dictionary<int, List<int>>();
 
         private const int ERROR_LINES_RECENCY = 10;
         private LinkedList<string> recentLines = new LinkedList<string>();
@@ -880,6 +881,7 @@ namespace mtga_log_client
         {
             objectsByOwner.Clear();
             drawnHands.Clear();
+            openingHand.Clear();
             startingTeamId = -1;
         }
 
@@ -1022,9 +1024,9 @@ namespace mtga_log_client
                 game.win_type = winType;
                 game.game_end_reason = gameEndReason;
 
-                if (drawnHands.ContainsKey(seatId) && drawnHands[seatId].Count > 0)
+                if (openingHand.ContainsKey(seatId) && openingHand[seatId].Count > 0)
                 {
-                    game.opening_hand = drawnHands[seatId][drawnHands[seatId].Count - 1];
+                    game.opening_hand = openingHand[seatId];
                 }
 
                 if (drawnHands.ContainsKey(opponentId) && drawnHands[opponentId].Count > 0)
@@ -1346,35 +1348,51 @@ namespace mtga_log_client
                     }
 
                 }
+                if (gameStateMessage.ContainsKey("players"))
+                {
+                    foreach (JObject player in gameStateMessage.GetValue("players").Value<JArray>())
+                    {
+                        if (player.ContainsKey("pendingMessageType") && player.GetValue("pendingMessageType").Value<string>().Equals("ClientMessageType_MulliganResp"))
+                        {
+                            JToken tmp;
+                            if (gameStateMessage.ContainsKey("turnInfo"))
+                            {
+                                var turnInfo = gameStateMessage.GetValue("turnInfo").Value<JObject>();
+                                if (startingTeamId == -1 && turnInfo.TryGetValue("activePlayer", out tmp))
+                                {
+                                    startingTeamId = tmp.Value<int>();
+                                }
+                            }
+
+                            var playerId = player.GetValue("systemSeatNumber").Value<int>();
+
+                            if (!drawnHands.ContainsKey(playerId))
+                            {
+                                drawnHands.Add(playerId, new List<List<int>>());
+                            }
+                            var mulliganCount = 0;
+                            if (player.TryGetValue("mulliganCount", out tmp))
+                            {
+                                mulliganCount = tmp.Value<int>();
+                            }
+                            if (mulliganCount == drawnHands[playerId].Count)
+                            {
+                                drawnHands[playerId].Add(new List<int>(cardsInHand[playerId]));
+                            }
+                        }
+                    }
+                }
                 if (gameStateMessage.ContainsKey("turnInfo"))
                 {
                     var turnInfo = gameStateMessage.GetValue("turnInfo").Value<JObject>();
-                    if (gameStateMessage.ContainsKey("players"))
+                    if (openingHand.Count == 0 && turnInfo.ContainsKey("phase") && turnInfo.ContainsKey("step") && turnInfo.ContainsKey("turnNumber"))
                     {
-                        foreach (JObject player in gameStateMessage.GetValue("players").Value<JArray>())
+                        if (turnInfo.GetValue("phase").Value<string>().Equals("Phase_Beginning") && turnInfo.GetValue("step").Value<string>().Equals("Step_Upkeep") && turnInfo.GetValue("turnNumber").Value<int>() == 1)
                         {
-                            if (player.ContainsKey("pendingMessageType") && player.GetValue("pendingMessageType").Value<string>().Equals("ClientMessageType_MulliganResp"))
+                            LogMessage("Recording opening hands", Level.Info);
+                            foreach (int playerId in cardsInHand.Keys)
                             {
-                                JToken tmp;
-                                if (startingTeamId == -1 && turnInfo.TryGetValue("activePlayer", out tmp)) {
-                                    startingTeamId = tmp.Value<int>();
-                                }
-
-                                var playerId = player.GetValue("systemSeatNumber").Value<int>();
-
-                                if (!drawnHands.ContainsKey(playerId))
-                                {
-                                    drawnHands.Add(playerId, new List<List<int>>());
-                                }
-                                var mulliganCount = 0;
-                                if (player.TryGetValue("mulliganCount", out tmp))
-                                {
-                                    mulliganCount = tmp.Value<int>();
-                                }
-                                if (mulliganCount == drawnHands[playerId].Count)
-                                {
-                                    drawnHands[playerId].Add(new List<int>(cardsInHand[playerId]));
-                                }
+                                openingHand[playerId] = new List<int>(cardsInHand[playerId]);
                             }
                         }
                     }
