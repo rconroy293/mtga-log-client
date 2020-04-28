@@ -498,7 +498,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.19";
+        public const string CLIENT_VERSION = "0.1.20";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -1213,6 +1213,11 @@ namespace mtga_log_client
                 deck.event_name = parameters["eventName"].Value<String>();
                 deck.maindeck_card_ids = maindeckCardIds;
                 deck.is_during_match = false;
+
+                if (deckInfo.ContainsKey("companionGRPId"))
+                {
+                    deck.companion = deckInfo["companionGRPId"].Value<int>();
+                }
 
                 apiClient.PostDeck(deck);
                 return true;
