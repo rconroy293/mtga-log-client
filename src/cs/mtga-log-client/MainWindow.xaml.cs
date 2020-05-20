@@ -1007,7 +1007,7 @@ namespace mtga_log_client
                 var opponentCardIds = new List<int>();
                 if (objectsByOwner.ContainsKey(opponentId))
                 {
-                    foreach(KeyValuePair<int, int> entry in objectsByOwner[opponentId])
+                    foreach (KeyValuePair<int, int> entry in objectsByOwner[opponentId])
                     {
                         opponentCardIds.Add(entry.Value);
                     }
@@ -1040,6 +1040,11 @@ namespace mtga_log_client
                 if (drawnHands.ContainsKey(opponentId) && drawnHands[opponentId].Count > 0)
                 {
                     game.opponent_mulligan_count = drawnHands[opponentId].Count - 1;
+                }
+
+                if (drawnHands.ContainsKey(seatId) && drawnHands[seatId].Count > 0)
+                {
+                    game.drawn_hands = drawnHands[seatId];
                 }
 
                 game.mulligans = mulliganedHands;
@@ -1993,6 +1998,8 @@ namespace mtga_log_client
         internal List<int> opening_hand;
         [DataMember]
         internal List<List<int>> mulligans;
+        [DataMember]
+        internal List<List<int>> drawn_hands;
         [DataMember]
         internal int opponent_mulligan_count;
         [DataMember]
