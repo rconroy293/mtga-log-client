@@ -498,7 +498,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.20";
+        public const string CLIENT_VERSION = "0.1.21";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -765,6 +765,7 @@ namespace mtga_log_client
             if (MaybeHandleGreToClientMessages(blob)) return;
             if (MaybeHandleSelfRankInfo(blob)) return;
             if (MaybeHandleMatchCreated(blob)) return;
+            if (MaybeHandleCollection(fullLog, blob)) return;
         }
 
         private JObject ExtractPayload(JObject blob)
@@ -1562,6 +1563,34 @@ namespace mtga_log_client
             }
         }
 
+        private bool MaybeHandleCollection(String fullLog, JObject blob)
+        {
+            if (!fullLog.Contains(" PlayerInventory.GetPlayerCardsV3 ")) return false;
+            if (blob.ContainsKey("method")) return false;
+
+            try
+            {
+                Collection collection = new Collection();
+                collection.token = apiToken;
+                collection.client_version = CLIENT_VERSION;
+                collection.player_id = currentUser;
+                collection.time = GetDatetimeString(currentLogTime.Value);
+                collection.utc_time = GetDatetimeString(lastUtcTime.Value);
+                collection.card_counts = blob.ToObject<Dictionary<string, int>>();
+
+                apiClient.PostCollection(collection);
+
+                LogMessage(String.Format("Parsed opponent rank info as {0} in match {1}", currentOpponentLevel, currentMatchId), Level.Info);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing collection from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
         private void LogMessage(string message, Level logLevel)
         {
             messageFunction(message, logLevel);
@@ -1658,6 +1687,7 @@ namespace mtga_log_client
     {
         private const string API_BASE_URL = "https://www.17lands.com";
         private const string ENDPOINT_ACCOUNT = "api/account";
+        private const string ENDPOINT_COLLECTION = "collection";
         private const string ENDPOINT_DECK = "deck";
         private const string ENDPOINT_EVENT = "event";
         private const string ENDPOINT_GAME = "game";
@@ -1667,12 +1697,15 @@ namespace mtga_log_client
         private const string ENDPOINT_TOKEN_VERSION_VALIDATION = "api/token_validation";
         private const string ENDPOINT_ERROR_INFO = "api/client_errors";
 
+        private static readonly DataContractJsonSerializerSettings SIMPLE_SERIALIZER_SETTINGS = new DataContractJsonSerializerSettings { UseSimpleDictionaryFormat = true };
+
         private static readonly DataContractJsonSerializer SERIALIZER_MTGA_ACCOUNT = new DataContractJsonSerializer(typeof(MTGAAccount));
         private static readonly DataContractJsonSerializer SERIALIZER_PACK = new DataContractJsonSerializer(typeof(Pack));
         private static readonly DataContractJsonSerializer SERIALIZER_PICK = new DataContractJsonSerializer(typeof(Pick));
         private static readonly DataContractJsonSerializer SERIALIZER_DECK = new DataContractJsonSerializer(typeof(Deck));
         private static readonly DataContractJsonSerializer SERIALIZER_GAME = new DataContractJsonSerializer(typeof(Game));
         private static readonly DataContractJsonSerializer SERIALIZER_EVENT = new DataContractJsonSerializer(typeof(Event));
+        private static readonly DataContractJsonSerializer SERIALIZER_COLLECTION = new DataContractJsonSerializer(typeof(Collection), SIMPLE_SERIALIZER_SETTINGS);
         private static readonly DataContractJsonSerializer SERIALIZER_ERROR_INFO= new DataContractJsonSerializer(typeof(ErrorInfo));
 
         private HttpClient client;
@@ -1809,6 +1842,14 @@ namespace mtga_log_client
             SERIALIZER_EVENT.WriteObject(stream, event_);
             string jsonString = Encoding.UTF8.GetString(stream.ToArray());
             PostJson(ENDPOINT_EVENT, jsonString);
+        }
+
+        public void PostCollection(Collection collection)
+        {
+            MemoryStream stream = new MemoryStream();
+            SERIALIZER_COLLECTION.WriteObject(stream, collection);
+            string jsonString = Encoding.UTF8.GetString(stream.ToArray());
+            PostJson(ENDPOINT_COLLECTION, jsonString);
         }
 
         public void PostErrorInfo(ErrorInfo errorInfo)
@@ -1997,5 +2038,21 @@ namespace mtga_log_client
         internal string blob;
         [DataMember]
         internal List<string> recent_lines;
+    }
+    [DataContract]
+    internal class Collection
+    {
+        [DataMember]
+        internal string client_version;
+        [DataMember]
+        internal string token;
+        [DataMember]
+        internal string player_id;
+        [DataMember]
+        internal string time;
+        [DataMember]
+        internal string utc_time;
+        [DataMember]
+        internal Dictionary<string, int> card_counts;
     }
 }
