@@ -30,14 +30,15 @@ namespace mtga_log_client
     {
         private static readonly TimeSpan UPDATE_CHECK_INTERVAL = TimeSpan.FromHours(6);
 
-        private static readonly string REQUIRED_FILENAME = "output_log.txt";
+
+        private static readonly HashSet<String> REQUIRED_FILENAMES = new HashSet<string> { "output_log.txt", "Player.log", "Player-prev.log" };
         private static readonly string STARTUP_REGISTRY_CUSTOM_KEY = "17LandsMTGAClient";
         private static readonly string STARTUP_REGISTRY_LOCATION = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
         private static readonly string STARTUP_FILENAME = @"\17Lands.com\17Lands MTGA Client.appref-ms";
         private static readonly string DOWNLOAD_URL = "https://github.com/rconroy293/mtga-log-client";
         private static readonly int MESSAGE_HISTORY = 150;
 
-        private static readonly ILog log =LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private LogParser parser;
         private ApiClient client;
@@ -255,7 +256,7 @@ namespace mtga_log_client
             if (promptForUpdate)
             {
                 MessageBox.Show(
-                    "You must choose a valid log file named " + REQUIRED_FILENAME,
+                    "You must choose a valid log file name from " + String.Join(", ", REQUIRED_FILENAMES),
                     "Choose Filename",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
@@ -349,7 +350,7 @@ namespace mtga_log_client
         private string ChooseLogFile()
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Filter = "Text files (*.txt)|*.txt";
+            openFileDialog.Filter = "Log files (*.log)|*.log|Text files (*.txt)|*.txt";
             openFileDialog.InitialDirectory = filePath;
 
             if (openFileDialog.ShowDialog() == true)
@@ -362,7 +363,7 @@ namespace mtga_log_client
                 else
                 {
                     MessageBox.Show(
-                        "You must choose a file named " + REQUIRED_FILENAME,
+                        "You must choose a file name from one of " + String.Join(", ", REQUIRED_FILENAMES),
                         "Bad Filename",
                         MessageBoxButton.OK,
                         MessageBoxImage.Error);
@@ -374,7 +375,13 @@ namespace mtga_log_client
 
         private bool IsValidLogFile(string filename)
         {
-            return filename.EndsWith("\\" + REQUIRED_FILENAME);
+            foreach (String possibleFilename in REQUIRED_FILENAMES)
+            {
+                if (filename.EndsWith("\\" + possibleFilename)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void ValidateInputsApplyAndStart()
@@ -498,7 +505,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.20";
+        public const string CLIENT_VERSION = "0.1.21";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -765,6 +772,7 @@ namespace mtga_log_client
             if (MaybeHandleGreToClientMessages(blob)) return;
             if (MaybeHandleSelfRankInfo(blob)) return;
             if (MaybeHandleMatchCreated(blob)) return;
+            if (MaybeHandleCollection(fullLog, blob)) return;
         }
 
         private JObject ExtractPayload(JObject blob)
@@ -999,7 +1007,7 @@ namespace mtga_log_client
                 var opponentCardIds = new List<int>();
                 if (objectsByOwner.ContainsKey(opponentId))
                 {
-                    foreach(KeyValuePair<int, int> entry in objectsByOwner[opponentId])
+                    foreach (KeyValuePair<int, int> entry in objectsByOwner[opponentId])
                     {
                         opponentCardIds.Add(entry.Value);
                     }
@@ -1032,6 +1040,11 @@ namespace mtga_log_client
                 if (drawnHands.ContainsKey(opponentId) && drawnHands[opponentId].Count > 0)
                 {
                     game.opponent_mulligan_count = drawnHands[opponentId].Count - 1;
+                }
+
+                if (drawnHands.ContainsKey(seatId) && drawnHands[seatId].Count > 0)
+                {
+                    game.drawn_hands = drawnHands[seatId];
                 }
 
                 game.mulligans = mulliganedHands;
@@ -1562,6 +1575,34 @@ namespace mtga_log_client
             }
         }
 
+        private bool MaybeHandleCollection(String fullLog, JObject blob)
+        {
+            if (!fullLog.Contains(" PlayerInventory.GetPlayerCardsV3 ")) return false;
+            if (blob.ContainsKey("method")) return false;
+
+            try
+            {
+                Collection collection = new Collection();
+                collection.token = apiToken;
+                collection.client_version = CLIENT_VERSION;
+                collection.player_id = currentUser;
+                collection.time = GetDatetimeString(currentLogTime.Value);
+                collection.utc_time = GetDatetimeString(lastUtcTime.Value);
+                collection.card_counts = blob.ToObject<Dictionary<string, int>>();
+
+                apiClient.PostCollection(collection);
+
+                LogMessage(String.Format("Parsed opponent rank info as {0} in match {1}", currentOpponentLevel, currentMatchId), Level.Info);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing collection from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
         private void LogMessage(string message, Level logLevel)
         {
             messageFunction(message, logLevel);
@@ -1658,6 +1699,7 @@ namespace mtga_log_client
     {
         private const string API_BASE_URL = "https://www.17lands.com";
         private const string ENDPOINT_ACCOUNT = "api/account";
+        private const string ENDPOINT_COLLECTION = "collection";
         private const string ENDPOINT_DECK = "deck";
         private const string ENDPOINT_EVENT = "event";
         private const string ENDPOINT_GAME = "game";
@@ -1667,12 +1709,15 @@ namespace mtga_log_client
         private const string ENDPOINT_TOKEN_VERSION_VALIDATION = "api/token_validation";
         private const string ENDPOINT_ERROR_INFO = "api/client_errors";
 
+        private static readonly DataContractJsonSerializerSettings SIMPLE_SERIALIZER_SETTINGS = new DataContractJsonSerializerSettings { UseSimpleDictionaryFormat = true };
+
         private static readonly DataContractJsonSerializer SERIALIZER_MTGA_ACCOUNT = new DataContractJsonSerializer(typeof(MTGAAccount));
         private static readonly DataContractJsonSerializer SERIALIZER_PACK = new DataContractJsonSerializer(typeof(Pack));
         private static readonly DataContractJsonSerializer SERIALIZER_PICK = new DataContractJsonSerializer(typeof(Pick));
         private static readonly DataContractJsonSerializer SERIALIZER_DECK = new DataContractJsonSerializer(typeof(Deck));
         private static readonly DataContractJsonSerializer SERIALIZER_GAME = new DataContractJsonSerializer(typeof(Game));
         private static readonly DataContractJsonSerializer SERIALIZER_EVENT = new DataContractJsonSerializer(typeof(Event));
+        private static readonly DataContractJsonSerializer SERIALIZER_COLLECTION = new DataContractJsonSerializer(typeof(Collection), SIMPLE_SERIALIZER_SETTINGS);
         private static readonly DataContractJsonSerializer SERIALIZER_ERROR_INFO= new DataContractJsonSerializer(typeof(ErrorInfo));
 
         private HttpClient client;
@@ -1811,6 +1856,14 @@ namespace mtga_log_client
             PostJson(ENDPOINT_EVENT, jsonString);
         }
 
+        public void PostCollection(Collection collection)
+        {
+            MemoryStream stream = new MemoryStream();
+            SERIALIZER_COLLECTION.WriteObject(stream, collection);
+            string jsonString = Encoding.UTF8.GetString(stream.ToArray());
+            PostJson(ENDPOINT_COLLECTION, jsonString);
+        }
+
         public void PostErrorInfo(ErrorInfo errorInfo)
         {
             DateTime now = DateTime.UtcNow;
@@ -1946,6 +1999,8 @@ namespace mtga_log_client
         [DataMember]
         internal List<List<int>> mulligans;
         [DataMember]
+        internal List<List<int>> drawn_hands;
+        [DataMember]
         internal int opponent_mulligan_count;
         [DataMember]
         internal int turns;
@@ -1997,5 +2052,21 @@ namespace mtga_log_client
         internal string blob;
         [DataMember]
         internal List<string> recent_lines;
+    }
+    [DataContract]
+    internal class Collection
+    {
+        [DataMember]
+        internal string client_version;
+        [DataMember]
+        internal string token;
+        [DataMember]
+        internal string player_id;
+        [DataMember]
+        internal string time;
+        [DataMember]
+        internal string utc_time;
+        [DataMember]
+        internal Dictionary<string, int> card_counts;
     }
 }
