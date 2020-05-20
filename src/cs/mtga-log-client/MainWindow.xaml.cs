@@ -30,14 +30,15 @@ namespace mtga_log_client
     {
         private static readonly TimeSpan UPDATE_CHECK_INTERVAL = TimeSpan.FromHours(6);
 
-        private static readonly string REQUIRED_FILENAME = "output_log.txt";
+
+        private static readonly HashSet<String> REQUIRED_FILENAMES = new HashSet<string> { "output_log.txt", "Player.log", "Player-prev.log" };
         private static readonly string STARTUP_REGISTRY_CUSTOM_KEY = "17LandsMTGAClient";
         private static readonly string STARTUP_REGISTRY_LOCATION = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
         private static readonly string STARTUP_FILENAME = @"\17Lands.com\17Lands MTGA Client.appref-ms";
         private static readonly string DOWNLOAD_URL = "https://github.com/rconroy293/mtga-log-client";
         private static readonly int MESSAGE_HISTORY = 150;
 
-        private static readonly ILog log =LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private LogParser parser;
         private ApiClient client;
@@ -255,7 +256,7 @@ namespace mtga_log_client
             if (promptForUpdate)
             {
                 MessageBox.Show(
-                    "You must choose a valid log file named " + REQUIRED_FILENAME,
+                    "You must choose a valid log file name from " + String.Join(", ", REQUIRED_FILENAMES),
                     "Choose Filename",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
@@ -349,7 +350,7 @@ namespace mtga_log_client
         private string ChooseLogFile()
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Filter = "Text files (*.txt)|*.txt";
+            openFileDialog.Filter = "Log files (*.log)|*.log|Text files (*.txt)|*.txt";
             openFileDialog.InitialDirectory = filePath;
 
             if (openFileDialog.ShowDialog() == true)
@@ -362,7 +363,7 @@ namespace mtga_log_client
                 else
                 {
                     MessageBox.Show(
-                        "You must choose a file named " + REQUIRED_FILENAME,
+                        "You must choose a file name from one of " + String.Join(", ", REQUIRED_FILENAMES),
                         "Bad Filename",
                         MessageBoxButton.OK,
                         MessageBoxImage.Error);
@@ -374,7 +375,13 @@ namespace mtga_log_client
 
         private bool IsValidLogFile(string filename)
         {
-            return filename.EndsWith("\\" + REQUIRED_FILENAME);
+            foreach (String possibleFilename in REQUIRED_FILENAMES)
+            {
+                if (filename.EndsWith("\\" + possibleFilename)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void ValidateInputsApplyAndStart()
