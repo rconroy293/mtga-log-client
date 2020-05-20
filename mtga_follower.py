@@ -72,6 +72,7 @@ ENDPOINT_EVENT_SUBMISSION = 'event'
 ENDPOINT_GAME_RESULT = 'game'
 ENDPOINT_DRAFT_PACK = 'pack'
 ENDPOINT_DRAFT_PICK = 'pick'
+ENDPOINT_COLLECTION = 'collection'
 ENDPOINT_CLIENT_VERSION = 'min_client_version'
 
 RETRIES = 2
@@ -313,6 +314,8 @@ class Follower:
             self.__handle_self_rank_info(json_obj)
         elif 'opponentRankingClass' in json_obj:
             self.__handle_match_created(json_obj)
+        elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj:
+            self.__handle_collection(json_obj)
 
     def __extract_payload(self, blob):
         if 'id' not in blob: return blob
@@ -624,6 +627,16 @@ class Follower:
         )
         self.cur_opponent_match_id = json_obj.get('matchId')
         logging.info(f'Parsed opponent rank info as limited {self.cur_opponent_level} in match {self.cur_opponent_match_id}')
+
+    def __handle_collection(self, json_obj):
+        """Handle 'PlayerInventory.GetPlayerCardsV3' messages."""
+        collection = {
+            'player_id': self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'card_counts': json_obj,
+        }
+        logging.info(f'Collection submission of {len(json_obj)} cards')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_COLLECTION}', blob=collection)
 
     def __get_card_ids_from_decklist_v3(self, decklist):
         """Parse a list of [card_id_1, count_1, card_id_2, count_2, ...] elements."""
