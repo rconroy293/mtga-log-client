@@ -72,6 +72,7 @@ ENDPOINT_EVENT_SUBMISSION = 'event'
 ENDPOINT_GAME_RESULT = 'game'
 ENDPOINT_DRAFT_PACK = 'pack'
 ENDPOINT_DRAFT_PICK = 'pick'
+ENDPOINT_HUMAN_DRAFT_PICK = 'human_draft_pick'
 ENDPOINT_COLLECTION = 'collection'
 ENDPOINT_CLIENT_VERSION = 'min_client_version'
 
@@ -299,6 +300,8 @@ class Follower:
             self.__handle_draft_log(json_obj)
         elif json_value_matches('Draft.MakePick', ['method'], json_obj):
             self.__handle_draft_pick(json_obj)
+        elif json_value_matches('Draft.MakeHumanDraftPick', ['method'], json_obj):
+            self.__handle_human_draft_pick(json_obj)
         elif json_value_matches('Event.DeckSubmit', ['method'], json_obj):
             self.__handle_deck_submission(json_obj)
         elif json_value_matches('Event.DeckSubmitV3', ['method'], json_obj):
@@ -562,6 +565,22 @@ class Follower:
         }
         logging.info(f'Draft pick: {pick}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PICK}', blob=pick)
+
+    def __handle_human_draft_pick(self, json_obj):
+        """Handle 'Draft.MakeHumanDraftPick messages."""
+        self.__clear_game_data()
+        inner_obj = json_obj['params']
+
+        pick = {
+            'player_id': self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'draft_id': inner_obj['draftId'],
+            'pack_number': int(inner_obj['packNumber']),
+            'pick_number': int(inner_obj['pickNumber']),
+            'card_id': int(inner_obj['cardId']),
+        }
+        logging.info(f'Human draft pick: {pick}')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
 
     def __handle_deck_submission(self, json_obj):
         """Handle 'Event.DeckSubmit' messages."""
