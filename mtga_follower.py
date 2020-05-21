@@ -739,7 +739,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--log_file',
         help=f'Log filename to process. If not specified, will try one of {POSSIBLE_CURRENT_FILEPATHS}')
     parser.add_argument('--host', default=API_ENDPOINT,
-        help=f'Host to submit requsts to. If not specified, will use {API_ENDPOINT}')
+        help=f'Host to submit requests to. If not specified, will use {API_ENDPOINT}')
     parser.add_argument('--once', action='store_true',
         help='Whether to stop after parsing the file once (default is to continue waiting for updates to the file)')
 
