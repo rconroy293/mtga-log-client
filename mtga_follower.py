@@ -37,7 +37,7 @@ logging.basicConfig(
 CLIENT_VERSION = '0.1.8'
 
 LOG_ROOT = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA')
-CURRENT_LOG_PATH = os.path.join(LOG_ROOT, 'output_log.txt')
+CURRENT_LOG_PATH = os.path.join(LOG_ROOT, 'Player.log')
 POSSIBLE_ROOTS = (
     # Windows
     'C:/',
