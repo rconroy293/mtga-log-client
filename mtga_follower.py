@@ -14,6 +14,7 @@ details.
 import datetime
 import json
 import getpass
+import itertools
 import logging
 import os
 import os.path
@@ -35,16 +36,19 @@ logging.basicConfig(
 
 CLIENT_VERSION = '0.1.8'
 
-PATH_ON_DRIVE = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA','output_log.txt')
-POSSIBLE_FILEPATHS = (
+LOG_ROOT = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA')
+CURRENT_LOG_PATH = os.path.join(LOG_ROOT, 'output_log.txt')
+POSSIBLE_ROOTS = (
     # Windows
-    os.path.join('C:/',PATH_ON_DRIVE),
-    os.path.join('D:/',PATH_ON_DRIVE),
+    'C:/',
+    'D:/',
     # Lutris
-    os.path.join(os.path.expanduser('~'),'Games','magic-the-gathering-arena','drive_c',PATH_ON_DRIVE),
+    os.path.join(os.path.expanduser('~'),'Games','magic-the-gathering-arena','drive_c'),
     # Wine
-    os.path.join(os.path.expanduser('~'),'.wine','drive_c',PATH_ON_DRIVE),
+    os.path.join(os.path.expanduser('~'),'.wine','drive_c'),
 )
+
+POSSIBLE_CURRENT_FILEPATHS = map(lambda root_and_path: os.path.join(*root_and_path), itertools.product(POSSIBLE_ROOTS, (CURRENT_LOG_PATH, )))
 
 CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.mtga_follower.ini')
 
@@ -733,7 +737,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='MTGA log follower')
     parser.add_argument('-l', '--log_file',
-        help=f'Log filename to process. If not specified, will try one of {POSSIBLE_FILEPATHS}')
+        help=f'Log filename to process. If not specified, will try one of {POSSIBLE_CURRENT_FILEPATHS}')
     parser.add_argument('--host', default=API_ENDPOINT,
         help=f'Host to submit requsts to. If not specified, will use {API_ENDPOINT}')
     parser.add_argument('--once', action='store_true',
@@ -746,7 +750,7 @@ if __name__ == '__main__':
     token = get_client_token()
     logging.info(f'Using token {token}')
 
-    filepaths = POSSIBLE_FILEPATHS
+    filepaths = POSSIBLE_CURRENT_FILEPATHS
     if args.log_file is not None:
         filepaths = (args.log_file, )
 
