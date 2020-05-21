@@ -38,6 +38,7 @@ CLIENT_VERSION = '0.1.8'
 
 LOG_ROOT = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA')
 CURRENT_LOG_PATH = os.path.join(LOG_ROOT, 'Player.log')
+PREVIOUS_LOG_PATH = os.path.join(LOG_ROOT, 'Player-prev.log')
 POSSIBLE_ROOTS = (
     # Windows
     'C:/',
@@ -49,6 +50,7 @@ POSSIBLE_ROOTS = (
 )
 
 POSSIBLE_CURRENT_FILEPATHS = map(lambda root_and_path: os.path.join(*root_and_path), itertools.product(POSSIBLE_ROOTS, (CURRENT_LOG_PATH, )))
+POSSIBLE_PREVIOUS_FILEPATHS = map(lambda root_and_path: os.path.join(*root_and_path), itertools.product(POSSIBLE_ROOTS, (PREVIOUS_LOG_PATH, )))
 
 CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.mtga_follower.ini')
 
@@ -757,6 +759,17 @@ if __name__ == '__main__':
     follow = not args.once
 
     follower = Follower(token, host=args.host)
+
+    # if running in "normal" mode...
+    if args.log_file is None and args.host == API_ENDPOINT and follow:
+        # parse previous log once at startup to catch up on any missed events
+        for filename in POSSIBLE_PREVIOUS_FILEPATHS:
+            if os.path.exists(filename):
+                logging.info(f'Parsing the previous log {filename} once')
+                follower.parse_log(filename=filename, follow=False)
+                break
+
+    # tail and parse current logfile to handle ongoing events
     for filename in filepaths:
         if os.path.exists(filename):
             logging.info(f'Following along {filename}')
