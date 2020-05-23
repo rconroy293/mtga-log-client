@@ -505,7 +505,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.21";
+        public const string CLIENT_VERSION = "0.1.22";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -765,9 +765,11 @@ namespace mtga_log_client
             if (MaybeHandleGameEnd(blob)) return;
             if (MaybeHandleDraftLog(blob)) return;
             if (MaybeHandleDraftPick(blob)) return;
+            if (MaybeHandleHumanDraftPick(blob)) return;
             if (MaybeHandleDeckSubmission(blob)) return;
             if (MaybeHandleDeckSubmissionV3(blob)) return;
             if (MaybeHandleEventCompletion(blob)) return;
+            if (MaybeHandleEventCourse(blob)) return;
             if (MaybeHandleGameRoomStateChanged(blob)) return;
             if (MaybeHandleGreToClientMessages(blob)) return;
             if (MaybeHandleSelfRankInfo(blob)) return;
@@ -1140,6 +1142,40 @@ namespace mtga_log_client
             }
         }
 
+        private bool MaybeHandleHumanDraftPick(JObject blob)
+        {
+            if (!blob.ContainsKey("method")) return false;
+            if (!"Draft.MakeHumanDraftPick".Equals(blob["method"].Value<String>())) return false;
+
+            ClearGameData();
+
+            try
+            {
+                var parameters = blob["params"].Value<JObject>();
+
+                HumanDraftPick pick = new HumanDraftPick();
+                pick.token = apiToken;
+                pick.client_version = CLIENT_VERSION;
+                pick.player_id = currentUser;
+                pick.time = GetDatetimeString(currentLogTime.Value);
+                pick.utc_time = GetDatetimeString(lastUtcTime.Value);
+
+                pick.draft_id = parameters["draftId"].Value<String>();
+                pick.pack_number = parameters["packNumber"].Value<int>();
+                pick.pick_number = parameters["pickNumber"].Value<int>();
+                pick.card_id = parameters["cardId"].Value<int>();
+
+                apiClient.PostHumanDraftPick(pick);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing human draft pick from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
         private bool MaybeHandleDeckSubmission(JObject blob)
         {
             if (!blob.ContainsKey("method")) return false;
@@ -1274,6 +1310,34 @@ namespace mtga_log_client
             catch (Exception e)
             {
                 LogError(String.Format("Error {0} parsing event completion from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandleEventCourse(JObject blob)
+        {
+            if (!blob.ContainsKey("ModuleInstanceData")) return false;
+            if (!blob["ModuleInstanceData"].Value<JObject>().ContainsKey("HumanDraft._internalState")) return false;
+            if (!blob["ModuleInstanceData"].Value<JObject>()["HumanDraft._internalState"].Value<JObject>().ContainsKey("DraftId")) return false;
+
+            try
+            {
+                EventCourse event_ = new EventCourse();
+                event_.token = apiToken;
+                event_.client_version = CLIENT_VERSION;
+                event_.time = GetDatetimeString(currentLogTime.Value);
+                event_.utc_time = GetDatetimeString(lastUtcTime.Value);
+                event_.player_id = currentUser;
+
+                event_.event_name = blob["InternalEventName"].Value<String>();
+                event_.draft_id = blob["ModuleInstanceData"].Value<JObject>()["HumanDraft._internalState"].Value<JObject>()["DraftId"].Value<String>();
+
+                apiClient.PostEventCourse(event_);
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing partial event course from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -1702,9 +1766,11 @@ namespace mtga_log_client
         private const string ENDPOINT_COLLECTION = "collection";
         private const string ENDPOINT_DECK = "deck";
         private const string ENDPOINT_EVENT = "event";
+        private const string ENDPOINT_EVENT_COURSE = "event_course";
         private const string ENDPOINT_GAME = "game";
         private const string ENDPOINT_PACK = "pack";
         private const string ENDPOINT_PICK = "pick";
+        private const string ENDPOINT_HUMAN_DRAFT_PICK = "human_draft_pick";
         private const string ENDPOINT_CLIENT_VERSION_VALIDATION = "api/version_validation";
         private const string ENDPOINT_TOKEN_VERSION_VALIDATION = "api/token_validation";
         private const string ENDPOINT_ERROR_INFO = "api/client_errors";
@@ -1714,9 +1780,11 @@ namespace mtga_log_client
         private static readonly DataContractJsonSerializer SERIALIZER_MTGA_ACCOUNT = new DataContractJsonSerializer(typeof(MTGAAccount));
         private static readonly DataContractJsonSerializer SERIALIZER_PACK = new DataContractJsonSerializer(typeof(Pack));
         private static readonly DataContractJsonSerializer SERIALIZER_PICK = new DataContractJsonSerializer(typeof(Pick));
+        private static readonly DataContractJsonSerializer SERIALIZER_HUMAN_DRAFT_PICK = new DataContractJsonSerializer(typeof(HumanDraftPick));
         private static readonly DataContractJsonSerializer SERIALIZER_DECK = new DataContractJsonSerializer(typeof(Deck));
         private static readonly DataContractJsonSerializer SERIALIZER_GAME = new DataContractJsonSerializer(typeof(Game));
         private static readonly DataContractJsonSerializer SERIALIZER_EVENT = new DataContractJsonSerializer(typeof(Event));
+        private static readonly DataContractJsonSerializer SERIALIZER_EVENT_COURSE = new DataContractJsonSerializer(typeof(EventCourse));
         private static readonly DataContractJsonSerializer SERIALIZER_COLLECTION = new DataContractJsonSerializer(typeof(Collection), SIMPLE_SERIALIZER_SETTINGS);
         private static readonly DataContractJsonSerializer SERIALIZER_ERROR_INFO= new DataContractJsonSerializer(typeof(ErrorInfo));
 
@@ -1832,6 +1900,14 @@ namespace mtga_log_client
             PostJson(ENDPOINT_PICK, jsonString);
         }
 
+        public void PostHumanDraftPick(HumanDraftPick pick)
+        {
+            MemoryStream stream = new MemoryStream();
+            SERIALIZER_HUMAN_DRAFT_PICK.WriteObject(stream, pick);
+            string jsonString = Encoding.UTF8.GetString(stream.ToArray());
+            PostJson(ENDPOINT_HUMAN_DRAFT_PICK, jsonString);
+        }
+
         public void PostDeck(Deck deck)
         {
             MemoryStream stream = new MemoryStream();
@@ -1854,6 +1930,14 @@ namespace mtga_log_client
             SERIALIZER_EVENT.WriteObject(stream, event_);
             string jsonString = Encoding.UTF8.GetString(stream.ToArray());
             PostJson(ENDPOINT_EVENT, jsonString);
+        }
+
+        public void PostEventCourse(EventCourse event_)
+        {
+            MemoryStream stream = new MemoryStream();
+            SERIALIZER_EVENT_COURSE.WriteObject(stream, event_);
+            string jsonString = Encoding.UTF8.GetString(stream.ToArray());
+            PostJson(ENDPOINT_EVENT_COURSE, jsonString);
         }
 
         public void PostCollection(Collection collection)
@@ -1948,6 +2032,28 @@ namespace mtga_log_client
         internal string utc_time;
     }
     [DataContract]
+    internal class HumanDraftPick
+    {
+        [DataMember]
+        internal string client_version;
+        [DataMember]
+        internal string token;
+        [DataMember]
+        internal string time;
+        [DataMember]
+        internal string utc_time;
+        [DataMember]
+        internal string player_id;
+        [DataMember]
+        internal string draft_id;
+        [DataMember]
+        internal int pack_number;
+        [DataMember]
+        internal int pick_number;
+        [DataMember]
+        internal int card_id;
+    }
+    [DataContract]
     internal class Deck
     {
         [DataMember]
@@ -2038,6 +2144,24 @@ namespace mtga_log_client
         internal int losses;
         [DataMember]
         internal string utc_time;
+    }
+    [DataContract]
+    internal class EventCourse
+    {
+        [DataMember]
+        internal string client_version;
+        [DataMember]
+        internal string token;
+        [DataMember]
+        internal string time;
+        [DataMember]
+        internal string utc_time;
+        [DataMember]
+        internal string player_id;
+        [DataMember]
+        internal string draft_id;
+        [DataMember]
+        internal string event_name;
     }
     [DataContract]
     internal class ErrorInfo
