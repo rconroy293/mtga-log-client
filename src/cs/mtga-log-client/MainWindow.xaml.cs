@@ -202,7 +202,7 @@ namespace mtga_log_client
 
                 MessageBox.Show(
                     String.Format("Arena updated the output log file name. 17Lands is now tracking {0}.", filePath),
-                    "Outdated Client",
+                    "17Lands Update",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
             }
