@@ -31,7 +31,7 @@ namespace mtga_log_client
         private static readonly TimeSpan UPDATE_CHECK_INTERVAL = TimeSpan.FromHours(6);
 
 
-        private static readonly HashSet<String> REQUIRED_FILENAMES = new HashSet<string> { "output_log.txt", "Player.log", "Player-prev.log" };
+        private static readonly HashSet<String> REQUIRED_FILENAMES = new HashSet<string> { "Player.log", "Player-prev.log" };
         private static readonly string STARTUP_REGISTRY_CUSTOM_KEY = "17LandsMTGAClient";
         private static readonly string STARTUP_REGISTRY_LOCATION = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
         private static readonly string STARTUP_FILENAME = @"\17Lands.com\17Lands MTGA Client.appref-ms";
@@ -185,9 +185,29 @@ namespace mtga_log_client
             filePath = Properties.Settings.Default.mtga_log_filename;
             runAtStartup = Properties.Settings.Default.run_at_startup;
 
+            filePath = MaybeSwitchLogFile(filePath);
+
             RunAtStartupCheckbox.IsChecked = runAtStartup;
             LogFileTextBox.Text = filePath;
             ClientTokenTextBox.Text = userToken;
+        }
+
+        private string MaybeSwitchLogFile(string filePath)
+        {
+            if (filePath.EndsWith(@"\output_log.txt"))
+            {
+                filePath = filePath.Replace(@"\output_log.txt", @"\Player.log");
+                Properties.Settings.Default.mtga_log_filename = filePath;
+                Properties.Settings.Default.Save();
+
+                MessageBox.Show(
+                    String.Format("Arena updated the output log file name. 17Lands is now tracking {0}.", filePath),
+                    "Outdated Client",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+
+            return filePath;
         }
 
         private void SaveSettings()
@@ -350,7 +370,7 @@ namespace mtga_log_client
         private string ChooseLogFile()
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Filter = "Log files (*.log)|*.log|Text files (*.txt)|*.txt";
+            openFileDialog.Filter = "Log files (*.log)|*.log";
             openFileDialog.InitialDirectory = filePath;
 
             if (openFileDialog.ShowDialog() == true)
