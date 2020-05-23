@@ -75,9 +75,11 @@ API_ENDPOINT = 'https://www.17lands.com'
 ENDPOINT_USER = 'api/account'
 ENDPOINT_DECK_SUBMISSION = 'deck'
 ENDPOINT_EVENT_SUBMISSION = 'event'
+ENDPOINT_EVENT_COURSE_SUBMISSION = 'event_course'
 ENDPOINT_GAME_RESULT = 'game'
 ENDPOINT_DRAFT_PACK = 'pack'
 ENDPOINT_DRAFT_PICK = 'pick'
+ENDPOINT_HUMAN_DRAFT_PICK = 'human_draft_pick'
 ENDPOINT_COLLECTION = 'collection'
 ENDPOINT_CLIENT_VERSION = 'min_client_version'
 
@@ -305,12 +307,16 @@ class Follower:
             self.__handle_draft_log(json_obj)
         elif json_value_matches('Draft.MakePick', ['method'], json_obj):
             self.__handle_draft_pick(json_obj)
+        elif json_value_matches('Draft.MakeHumanDraftPick', ['method'], json_obj):
+            self.__handle_human_draft_pick(json_obj)
         elif json_value_matches('Event.DeckSubmit', ['method'], json_obj):
             self.__handle_deck_submission(json_obj)
         elif json_value_matches('Event.DeckSubmitV3', ['method'], json_obj):
             self.__handle_deck_submission_v3(json_obj)
         elif json_value_matches('DoneWithMatches', ['CurrentEventState'], json_obj):
             self.__handle_event_completion(json_obj)
+        elif json_obj.get('ModuleInstanceData', {}).get('HumanDraft._internalState', {}).get('DraftId') is not None:
+            self.__handle_event_course(json_obj)
         elif 'matchGameRoomStateChangedEvent' in json_obj:
             self.__handle_match_started(json_obj)
         elif 'greToClientEvent' in json_obj and 'greToClientMessages' in json_obj['greToClientEvent']:
@@ -458,7 +464,6 @@ class Follower:
             logging.info(f'Adding user: {user_info}')
             response = self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
 
-
     def __handle_event_completion(self, json_obj):
         """Handle messages upon event completion."""
         event = {
@@ -471,6 +476,17 @@ class Follower:
         }
         logging.info(f'Event submission: {event}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_SUBMISSION}', blob=event)
+
+    def __handle_event_course(self, json_obj):
+        """Handle messages linking draft id to event name."""
+        event = {
+            'player_id': self.cur_user,
+            'event_name': json_obj['InternalEventName'],
+            'time': self.cur_log_time.isoformat(),
+            'draft_id': json_obj['ModuleInstanceData']['HumanDraft._internalState']['DraftId'],
+        }
+        logging.info(f'Event course: {event}')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_COURSE_SUBMISSION}', blob=event)
 
     def __handle_game_end(self, json_obj):
         """Handle 'DuelScene.GameStop' messages."""
@@ -568,6 +584,22 @@ class Follower:
         }
         logging.info(f'Draft pick: {pick}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PICK}', blob=pick)
+
+    def __handle_human_draft_pick(self, json_obj):
+        """Handle 'Draft.MakeHumanDraftPick messages."""
+        self.__clear_game_data()
+        inner_obj = json_obj['params']
+
+        pick = {
+            'player_id': self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'draft_id': inner_obj['draftId'],
+            'pack_number': int(inner_obj['packNumber']),
+            'pick_number': int(inner_obj['pickNumber']),
+            'card_id': int(inner_obj['cardId']),
+        }
+        logging.info(f'Human draft pick: {pick}')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
 
     def __handle_deck_submission(self, json_obj):
         """Handle 'Event.DeckSubmit' messages."""
