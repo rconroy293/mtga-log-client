@@ -592,7 +592,7 @@ class Follower:
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PICK}', blob=pick)
 
     def __handle_joined_pod(self, json_obj):
-        """Handle 'Draft.MakePick messages."""
+        """Handle 'Event.JoinPodmaking messages."""
         self.__clear_game_data()
         inner_obj = json_obj['params']
         self.cur_draft_event = inner_obj['queueId']
@@ -617,7 +617,7 @@ class Follower:
         response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
 
     def __handle_human_draft_pack(self, json_obj):
-        """Handle 'Draft.MakeHumanDraftPick messages."""
+        """Handle 'Draft.Notify messages."""
         self.__clear_game_data()
 
         pack = {

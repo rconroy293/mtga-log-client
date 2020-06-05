@@ -525,7 +525,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.22";
+        public const string CLIENT_VERSION = "0.1.23";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -564,6 +564,7 @@ namespace mtga_log_client
         private Nullable<DateTime> lastUtcTime = new DateTime(0);
         private string lastRawTime = "";
         private string currentUser = null;
+        private string currentDraftEvent = null;
         private string currentConstructedLevel = null;
         private string currentLimitedLevel = null;
         private string currentOpponentLevel = null;
@@ -785,6 +786,7 @@ namespace mtga_log_client
             if (MaybeHandleGameEnd(blob)) return;
             if (MaybeHandleDraftLog(blob)) return;
             if (MaybeHandleDraftPick(blob)) return;
+            if (MaybeHandleJoinPod(blob)) return;
             if (MaybeHandleHumanDraftPick(blob)) return;
             if (MaybeHandleDeckSubmission(blob)) return;
             if (MaybeHandleDeckSubmissionV3(blob)) return;
@@ -795,6 +797,7 @@ namespace mtga_log_client
             if (MaybeHandleSelfRankInfo(blob)) return;
             if (MaybeHandleMatchCreated(blob)) return;
             if (MaybeHandleCollection(fullLog, blob)) return;
+            if (MaybeHandleHumanDraftPack(fullLog, blob)) return;
         }
 
         private JObject ExtractPayload(JObject blob)
@@ -1162,6 +1165,27 @@ namespace mtga_log_client
             }
         }
 
+        private bool MaybeHandleJoinPod(JObject blob)
+        {
+            if (!blob.ContainsKey("method")) return false;
+            if (!"Event.JoinPodmaking".Equals(blob["method"].Value<String>())) return false;
+
+            ClearGameData();
+
+            try
+            {
+                var parameters = blob["params"].Value<JObject>();
+                currentDraftEvent = parameters["queueId"].Value<String>();
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing join pod event from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
         private bool MaybeHandleHumanDraftPick(JObject blob)
         {
             if (!blob.ContainsKey("method")) return false;
@@ -1184,6 +1208,7 @@ namespace mtga_log_client
                 pick.pack_number = parameters["packNumber"].Value<int>();
                 pick.pick_number = parameters["pickNumber"].Value<int>();
                 pick.card_id = parameters["cardId"].Value<int>();
+                pick.event_name = currentDraftEvent;
 
                 apiClient.PostHumanDraftPick(pick);
 
@@ -1192,6 +1217,45 @@ namespace mtga_log_client
             catch (Exception e)
             {
                 LogError(String.Format("Error {0} parsing human draft pick from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandleHumanDraftPack(String fullLog, JObject blob)
+        {
+            if (!fullLog.Contains("Draft.Notify ")) return false;
+            if (blob.ContainsKey("method")) return false;
+
+            ClearGameData();
+
+            try
+            {
+                HumanDraftPack pack = new HumanDraftPack();
+                pack.token = apiToken;
+                pack.client_version = CLIENT_VERSION;
+                pack.player_id = currentUser;
+                pack.time = GetDatetimeString(currentLogTime.Value);
+                pack.utc_time = GetDatetimeString(lastUtcTime.Value);
+
+                var cardIds = new List<int>();
+                var cardIdBlob = JArray.Parse(String.Format("[{0}]", blob["PackCards"].Value<String>()));
+                foreach (JToken cardId in cardIdBlob)
+                {
+                    cardIds.Add(cardId.Value<int>());
+                }
+
+                pack.draft_id = blob["draftId"].Value<String>();
+                pack.pack_number = blob["SelfPack"].Value<int>();
+                pack.pick_number = blob["SelfPick"].Value<int>();
+                pack.card_ids = cardIds;
+                pack.event_name = currentDraftEvent;
+
+                apiClient.PostHumanDraftPack(pack);
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing human draft pack from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -1791,6 +1855,7 @@ namespace mtga_log_client
         private const string ENDPOINT_PACK = "pack";
         private const string ENDPOINT_PICK = "pick";
         private const string ENDPOINT_HUMAN_DRAFT_PICK = "human_draft_pick";
+        private const string ENDPOINT_HUMAN_DRAFT_PACK = "human_draft_pack";
         private const string ENDPOINT_CLIENT_VERSION_VALIDATION = "api/version_validation";
         private const string ENDPOINT_TOKEN_VERSION_VALIDATION = "api/token_validation";
         private const string ENDPOINT_ERROR_INFO = "api/client_errors";
@@ -1801,6 +1866,7 @@ namespace mtga_log_client
         private static readonly DataContractJsonSerializer SERIALIZER_PACK = new DataContractJsonSerializer(typeof(Pack));
         private static readonly DataContractJsonSerializer SERIALIZER_PICK = new DataContractJsonSerializer(typeof(Pick));
         private static readonly DataContractJsonSerializer SERIALIZER_HUMAN_DRAFT_PICK = new DataContractJsonSerializer(typeof(HumanDraftPick));
+        private static readonly DataContractJsonSerializer SERIALIZER_HUMAN_DRAFT_PACK = new DataContractJsonSerializer(typeof(HumanDraftPack));
         private static readonly DataContractJsonSerializer SERIALIZER_DECK = new DataContractJsonSerializer(typeof(Deck));
         private static readonly DataContractJsonSerializer SERIALIZER_GAME = new DataContractJsonSerializer(typeof(Game));
         private static readonly DataContractJsonSerializer SERIALIZER_EVENT = new DataContractJsonSerializer(typeof(Event));
@@ -1926,6 +1992,14 @@ namespace mtga_log_client
             SERIALIZER_HUMAN_DRAFT_PICK.WriteObject(stream, pick);
             string jsonString = Encoding.UTF8.GetString(stream.ToArray());
             PostJson(ENDPOINT_HUMAN_DRAFT_PICK, jsonString);
+        }
+
+        public void PostHumanDraftPack(HumanDraftPack pack)
+        {
+            MemoryStream stream = new MemoryStream();
+            SERIALIZER_HUMAN_DRAFT_PACK.WriteObject(stream, pack);
+            string jsonString = Encoding.UTF8.GetString(stream.ToArray());
+            PostJson(ENDPOINT_HUMAN_DRAFT_PACK, jsonString);
         }
 
         public void PostDeck(Deck deck)
@@ -2067,11 +2141,37 @@ namespace mtga_log_client
         [DataMember]
         internal string draft_id;
         [DataMember]
+        internal string event_name;
+        [DataMember]
         internal int pack_number;
         [DataMember]
         internal int pick_number;
         [DataMember]
         internal int card_id;
+    }
+    [DataContract]
+    internal class HumanDraftPack
+    {
+        [DataMember]
+        internal string client_version;
+        [DataMember]
+        internal string token;
+        [DataMember]
+        internal string time;
+        [DataMember]
+        internal string utc_time;
+        [DataMember]
+        internal string player_id;
+        [DataMember]
+        internal string draft_id;
+        [DataMember]
+        internal string event_name;
+        [DataMember]
+        internal int pack_number;
+        [DataMember]
+        internal int pick_number;
+        [DataMember]
+        internal List<int> card_ids;
     }
     [DataContract]
     internal class Deck
