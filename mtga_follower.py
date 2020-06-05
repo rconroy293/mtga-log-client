@@ -34,7 +34,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-CLIENT_VERSION = '0.1.8'
+CLIENT_VERSION = '0.1.9'
 
 LOG_ROOT = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA')
 CURRENT_LOG_PATH = os.path.join(LOG_ROOT, 'Player.log')
@@ -80,6 +80,7 @@ ENDPOINT_GAME_RESULT = 'game'
 ENDPOINT_DRAFT_PACK = 'pack'
 ENDPOINT_DRAFT_PICK = 'pick'
 ENDPOINT_HUMAN_DRAFT_PICK = 'human_draft_pick'
+ENDPOINT_HUMAN_DRAFT_PACK = 'human_draft_pack'
 ENDPOINT_COLLECTION = 'collection'
 ENDPOINT_CLIENT_VERSION = 'min_client_version'
 
@@ -146,6 +147,7 @@ class Follower:
         self.last_raw_time = ''
         self.json_decoder = json.JSONDecoder()
         self.cur_user = None
+        self.cur_draft_event = None
         self.cur_constructed_level = None
         self.cur_limited_level = None
         self.cur_opponent_level = None
@@ -309,6 +311,8 @@ class Follower:
             self.__handle_draft_pick(json_obj)
         elif json_value_matches('Draft.MakeHumanDraftPick', ['method'], json_obj):
             self.__handle_human_draft_pick(json_obj)
+        elif json_value_matches('Event.JoinPodmaking', ['method'], json_obj):
+            self.__handle_joined_pod(json_obj)
         elif json_value_matches('Event.DeckSubmit', ['method'], json_obj):
             self.__handle_deck_submission(json_obj)
         elif json_value_matches('Event.DeckSubmitV3', ['method'], json_obj):
@@ -328,6 +332,8 @@ class Follower:
             self.__handle_match_created(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj:
             self.__handle_collection(json_obj)
+        elif 'Draft.Notify ' in full_log and 'method' not in json_obj:
+            self.__handle_human_draft_pack(json_obj)
 
     def __extract_payload(self, blob):
         if 'id' not in blob: return blob
@@ -585,6 +591,14 @@ class Follower:
         logging.info(f'Draft pick: {pick}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PICK}', blob=pick)
 
+    def __handle_joined_pod(self, json_obj):
+        """Handle 'Event.JoinPodmaking messages."""
+        self.__clear_game_data()
+        inner_obj = json_obj['params']
+        self.cur_draft_event = inner_obj['queueId']
+
+        logging.info(f'Joined draft pod: {self.cur_draft_event}')
+
     def __handle_human_draft_pick(self, json_obj):
         """Handle 'Draft.MakeHumanDraftPick messages."""
         self.__clear_game_data()
@@ -594,12 +608,29 @@ class Follower:
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
             'draft_id': inner_obj['draftId'],
+            'event_name': self.cur_draft_event,
             'pack_number': int(inner_obj['packNumber']),
             'pick_number': int(inner_obj['pickNumber']),
             'card_id': int(inner_obj['cardId']),
         }
         logging.info(f'Human draft pick: {pick}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
+
+    def __handle_human_draft_pack(self, json_obj):
+        """Handle 'Draft.Notify messages."""
+        self.__clear_game_data()
+
+        pack = {
+            'player_id': self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'draft_id': json_obj['draftId'],
+            'event_name': self.cur_draft_event,
+            'pack_number': int(json_obj['SelfPack']),
+            'pick_number': int(json_obj['SelfPick']),
+            'card_ids': [int(x) for x in json_obj['PackCards'].split(',')],
+        }
+        logging.info(f'Human draft pack: {pack}')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
 
     def __handle_deck_submission(self, json_obj):
         """Handle 'Event.DeckSubmit' messages."""
