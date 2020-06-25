@@ -34,23 +34,30 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-CLIENT_VERSION = '0.1.9'
+CLIENT_VERSION = '0.1.10'
 
-LOG_ROOT = os.path.join('users',getpass.getuser(),'AppData','LocalLow','Wizards Of The Coast','MTGA')
-CURRENT_LOG_PATH = os.path.join(LOG_ROOT, 'Player.log')
-PREVIOUS_LOG_PATH = os.path.join(LOG_ROOT, 'Player-prev.log')
+OSX_LOG_ROOT = os.path.join('Library','Logs')
+WINDOWS_LOG_ROOT = os.path.join('users', getpass.getuser(), 'AppData', 'LocalLow')
+LOG_INTERMEDIATE = os.path.join('Wizards Of The Coast', 'MTGA')
+CURRENT_LOG = 'Player.log'
+PREVIOUS_LOG = 'Player-prev.log'
+CURRENT_LOG_PATH = os.path.join(LOG_INTERMEDIATE, CURRENT_LOG)
+PREVIOUS_LOG_PATH = os.path.join(LOG_INTERMEDIATE, PREVIOUS_LOG)
+
 POSSIBLE_ROOTS = (
     # Windows
-    'C:/',
-    'D:/',
+    os.path.join('C:/', WINDOWS_LOG_ROOT),
+    os.path.join('D:/', WINDOWS_LOG_ROOT),
     # Lutris
-    os.path.join(os.path.expanduser('~'),'Games','magic-the-gathering-arena','drive_c'),
+    os.path.join(os.path.expanduser('~'), 'Games', 'magic-the-gathering-arena', 'drive_c', WINDOWS_LOG_ROOT),
     # Wine
-    os.path.join(os.path.expanduser('~'),'.wine','drive_c'),
+    os.path.join(os.path.expanduser('~'), '.wine', 'drive_c', WINDOWS_LOG_ROOT),
+    # OSX
+    os.path.join(os.path.expanduser('~'), OSX_LOG_ROOT),
 )
 
-POSSIBLE_CURRENT_FILEPATHS = map(lambda root_and_path: os.path.join(*root_and_path), itertools.product(POSSIBLE_ROOTS, (CURRENT_LOG_PATH, )))
-POSSIBLE_PREVIOUS_FILEPATHS = map(lambda root_and_path: os.path.join(*root_and_path), itertools.product(POSSIBLE_ROOTS, (PREVIOUS_LOG_PATH, )))
+POSSIBLE_CURRENT_FILEPATHS = list(map(lambda root_and_path: os.path.join(*root_and_path), itertools.product(POSSIBLE_ROOTS, (CURRENT_LOG_PATH, ))))
+POSSIBLE_PREVIOUS_FILEPATHS = list(map(lambda root_and_path: os.path.join(*root_and_path), itertools.product(POSSIBLE_ROOTS, (PREVIOUS_LOG_PATH, ))))
 
 CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.mtga_follower.ini')
 
