@@ -34,7 +34,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-CLIENT_VERSION = '0.1.10'
+CLIENT_VERSION = '0.1.11'
 
 OSX_LOG_ROOT = os.path.join('Library','Logs')
 WINDOWS_LOG_ROOT = os.path.join('users', getpass.getuser(), 'AppData', 'LocalLow')
@@ -64,7 +64,8 @@ CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.mtga_follower.ini')
 LOG_START_REGEX_TIMED = re.compile(r'^\[(UnityCrossThreadLogger|Client GRE)\]([\d:/ -]+(AM|PM)?)')
 LOG_START_REGEX_UNTIMED = re.compile(r'^\[(UnityCrossThreadLogger|Client GRE)\]')
 TIMESTAMP_REGEX = re.compile('^([\\d/.-]+[ T][\\d]+:[\\d]+:[\\d]+( AM| PM)?)')
-JSON_START_REGEX = re.compile(r'[[{]')
+STRIPPED_TIMESTAMP_REGEX = re.compile('^(.*?)[: /]*$')
+JSON_START_REGEX = re.compile(r'[\[\{]')
 ACCOUNT_INFO_REGEX = re.compile(r'.*Updated account\. DisplayName:(.*), AccountID:(.*), Token:.*')
 SLEEP_TIME = 0.5
 
@@ -104,13 +105,13 @@ def extract_time(time_str):
     :returns: The resulting datetime object.
     :raises ValueError: Raises an exception if it cannot interpret the string.
     """
-    time_str = time_str.rstrip(':')
+    time_str = STRIPPED_TIMESTAMP_REGEX.match(time_str).group(1)
     for possible_format in TIME_FORMATS:
         try:
             return datetime.datetime.strptime(time_str, possible_format)
         except ValueError:
             pass
-    raise ValueError(f'Unsupported time format: {time_str}')
+    raise ValueError(f'Unsupported time format: "{time_str}"')
 
 def json_value_matches(expectation, path, blob):
     """

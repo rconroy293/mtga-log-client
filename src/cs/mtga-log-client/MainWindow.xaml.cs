@@ -132,23 +132,20 @@ namespace mtga_log_client
 
             System.Windows.Forms.NotifyIcon ni = new System.Windows.Forms.NotifyIcon();
 
+            System.Windows.Forms.MenuItem trayMenuClearPreferences = new System.Windows.Forms.MenuItem();
+            trayMenuClearPreferences.Text = "C&lear Preferences";
+            trayMenuClearPreferences.Click += new EventHandler(this.ClearPreferences);
+
             System.Windows.Forms.MenuItem trayMenuShow = new System.Windows.Forms.MenuItem();
-            trayMenuShow.Index = 0;
             trayMenuShow.Text = "S&how";
             trayMenuShow.Click += new EventHandler(this.ShowClient);
 
             System.Windows.Forms.MenuItem trayMenuExit = new System.Windows.Forms.MenuItem();
-            trayMenuExit.Index = 1;
             trayMenuExit.Text = "E&xit";
             trayMenuExit.Click += new EventHandler(this.ExitClient);
 
-            System.Windows.Forms.MenuItem trayMenuClearPreferences = new System.Windows.Forms.MenuItem();
-            trayMenuClearPreferences.Index = 2;
-            trayMenuClearPreferences.Text = "C&lear Preferences";
-            trayMenuClearPreferences.Click += new EventHandler(this.ClearPreferences);
-
             System.Windows.Forms.ContextMenu trayMenu = new System.Windows.Forms.ContextMenu();
-            trayMenu.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] { trayMenuShow, trayMenuExit, trayMenuClearPreferences });
+            trayMenu.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] { trayMenuClearPreferences, trayMenuShow, trayMenuExit });
 
             ni.Icon = Properties.Resources.icon_white;
             ni.Visible = true;
