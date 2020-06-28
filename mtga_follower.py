@@ -104,6 +104,7 @@ def extract_time(time_str):
     :returns: The resulting datetime object.
     :raises ValueError: Raises an exception if it cannot interpret the string.
     """
+    time_str = time_str.rstrip(':')
     for possible_format in TIME_FORMATS:
         try:
             return datetime.datetime.strptime(time_str, possible_format)
