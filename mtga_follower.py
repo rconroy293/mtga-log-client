@@ -167,6 +167,7 @@ class Follower:
         self.opening_hand_count_by_seat = defaultdict(int)
         self.opening_hand = defaultdict(list)
         self.drawn_hands = defaultdict(list)
+        self.drawn_cards_by_instance_id = {}
         self.cards_in_hand = defaultdict(list)
 
     def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME):
@@ -399,6 +400,10 @@ class Follower:
                     player_objects = self.objects_by_owner[owner]
                     hand_card_ids = zone.get('objectInstanceIds', [])
                     self.cards_in_hand[owner] = [player_objects.get(instance_id) for instance_id in hand_card_ids if instance_id]
+                    for instance_id in hand_card_ids:
+                        card_id = player_objects.get(instance_id)
+                        if instance_id is not None and card_id is not None:
+                            self.drawn_cards_by_instance_id[instance_id] = card_id
 
             turn_info = game_state_message.get('turnInfo', {})
             players_deciding_hand = {
@@ -446,6 +451,8 @@ class Follower:
                 seat_id=seat_id,
                 match_id=match_id,
                 mulliganed_hands=self.drawn_hands[seat_id][:-1],
+                drawn_hands=self.drawn_hands[seat_id],
+                drawn_cards=list(self.drawn_cards_by_instance_id.values()),
                 event_name=event_id,
                 on_play=seat_id == self.starting_team_id,
                 won=seat_id == result['winningTeamId'],
@@ -463,6 +470,7 @@ class Follower:
         self.opening_hand_count_by_seat.clear()
         self.opening_hand.clear()
         self.drawn_hands.clear()
+        self.drawn_cards_by_instance_id.clear()
         self.starting_team_id = None
 
     def __maybe_handle_account_info(self, line):
@@ -510,6 +518,8 @@ class Follower:
             seat_id=blob['seatId'],
             match_id=blob['matchId'],
             mulliganed_hands=[[x['grpId'] for x in hand] for hand in blob['mulliganedHands']],
+            drawn_hands=None,
+            drawn_cards=None,
             event_name=blob['eventId'],
             on_play=blob['teamId'] == blob['startingTeamId'],
             won=blob['teamId'] == blob['winningTeamId'],
@@ -519,7 +529,7 @@ class Follower:
             duration=blob['secondsCount'],
         )
 
-    def __send_game_end(self, seat_id, match_id, mulliganed_hands, event_name, on_play, won, win_type, game_end_reason, turn_count, duration):
+    def __send_game_end(self, seat_id, match_id, mulliganed_hands, drawn_hands, drawn_cards, event_name, on_play, won, win_type, game_end_reason, turn_count, duration):
         logging.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
 
         opponent_id = 2 if seat_id == 1 else 1
@@ -539,6 +549,8 @@ class Follower:
             'game_end_reason': game_end_reason,
             'opening_hand': self.opening_hand[seat_id],
             'mulligans': mulliganed_hands,
+            'drawn_hands': drawn_hands,
+            'drawn_cards': drawn_cards,
             'mulligan_count': self.opening_hand_count_by_seat[seat_id] - 1,
             'opponent_mulligan_count': self.opening_hand_count_by_seat[opponent_id] - 1,
             'turns': turn_count,
