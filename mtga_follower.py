@@ -34,7 +34,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-CLIENT_VERSION = '0.1.11'
+CLIENT_VERSION = '0.1.12'
 
 OSX_LOG_ROOT = os.path.join('Library','Logs')
 WINDOWS_LOG_ROOT = os.path.join('users', getpass.getuser(), 'AppData', 'LocalLow')
@@ -167,7 +167,7 @@ class Follower:
         self.opening_hand_count_by_seat = defaultdict(int)
         self.opening_hand = defaultdict(list)
         self.drawn_hands = defaultdict(list)
-        self.drawn_cards_by_instance_id = {}
+        self.drawn_cards_by_instance_id = defaultdict(dict)
         self.cards_in_hand = defaultdict(list)
 
     def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME):
@@ -403,7 +403,7 @@ class Follower:
                     for instance_id in hand_card_ids:
                         card_id = player_objects.get(instance_id)
                         if instance_id is not None and card_id is not None:
-                            self.drawn_cards_by_instance_id[instance_id] = card_id
+                            self.drawn_cards_by_instance_id[owner][instance_id] = card_id
 
             turn_info = game_state_message.get('turnInfo', {})
             players_deciding_hand = {
@@ -452,7 +452,7 @@ class Follower:
                 match_id=match_id,
                 mulliganed_hands=self.drawn_hands[seat_id][:-1],
                 drawn_hands=self.drawn_hands[seat_id],
-                drawn_cards=list(self.drawn_cards_by_instance_id.values()),
+                drawn_cards=list(self.drawn_cards_by_instance_id[seat_id].values()),
                 event_name=event_id,
                 on_play=seat_id == self.starting_team_id,
                 won=seat_id == result['winningTeamId'],

@@ -20,6 +20,7 @@ using log4net.Core;
 using System.Deployment.Application;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using System.Linq;
 
 namespace mtga_log_client
 {
@@ -571,6 +572,7 @@ namespace mtga_log_client
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
         private readonly Dictionary<int, List<int>> cardsInHand = new Dictionary<int, List<int>>();
         private readonly Dictionary<int, List<List<int>>> drawnHands = new Dictionary<int, List<List<int>>>();
+        private readonly Dictionary<int, Dictionary<int, int>> drawnCardsByInstanceId = new Dictionary<int, Dictionary<int, int>>();
         private readonly Dictionary<int, List<int>> openingHand = new Dictionary<int, List<int>>();
 
         private const int ERROR_LINES_RECENCY = 10;
@@ -911,6 +913,7 @@ namespace mtga_log_client
         {
             objectsByOwner.Clear();
             drawnHands.Clear();
+            drawnCardsByInstanceId.Clear();
             openingHand.Clear();
             startingTeamId = -1;
         }
@@ -1067,6 +1070,11 @@ namespace mtga_log_client
                 if (drawnHands.ContainsKey(seatId) && drawnHands[seatId].Count > 0)
                 {
                     game.drawn_hands = drawnHands[seatId];
+                }
+
+                if (drawnCardsByInstanceId.ContainsKey(seatId))
+                {
+                    game.drawn_cards = drawnCardsByInstanceId[seatId].Values.ToList();
                 }
 
                 game.mulligans = mulliganedHands;
@@ -1496,6 +1504,10 @@ namespace mtga_log_client
 
                         var owner = zone["ownerSeatId"].Value<int>();
                         var cards = new List<int>();
+                        if (!drawnCardsByInstanceId.ContainsKey(owner))
+                        {
+                            drawnCardsByInstanceId[owner] = new Dictionary<int, int>();
+                        }
                         if (zone.ContainsKey("objectInstanceIds"))
                         {
                             var playerObjects = objectsByOwner.ContainsKey(owner) ? objectsByOwner[owner] : new Dictionary<int, int>();
@@ -1503,7 +1515,10 @@ namespace mtga_log_client
                             {
                                 if (objectInstanceId != null && playerObjects.ContainsKey(objectInstanceId.Value<int>()))
                                 {
-                                    cards.Add(playerObjects[objectInstanceId.Value<int>()]);
+                                    int instanceId = objectInstanceId.Value<int>();
+                                    int cardId = playerObjects[instanceId];
+                                    cards.Add(cardId);
+                                    drawnCardsByInstanceId[owner][instanceId] = cardId;
                                 }
                             }
                         }
@@ -2223,6 +2238,8 @@ namespace mtga_log_client
         internal List<List<int>> mulligans;
         [DataMember]
         internal List<List<int>> drawn_hands;
+        [DataMember]
+        internal List<int> drawn_cards;
         [DataMember]
         internal int opponent_mulligan_count;
         [DataMember]
