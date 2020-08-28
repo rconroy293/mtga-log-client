@@ -1482,7 +1482,8 @@ namespace mtga_log_client
                 {
                     foreach (JToken gameObject in gameStateMessage["gameObjects"].Value<JArray>())
                     {
-                        if (!"GameObjectType_Card".Equals(gameObject["type"].Value<string>())) continue;
+                        var objectType = gameObject["type"].Value<string>();
+                        if (!"GameObjectType_Card".Equals(objectType) && !"GameObjectType_SplitCard".Equals(objectType)) continue;
 
                         var owner = gameObject["ownerSeatId"].Value<int>();
                         var instanceId = gameObject["instanceId"].Value<int>();
