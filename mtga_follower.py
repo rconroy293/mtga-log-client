@@ -386,7 +386,7 @@ class Follower:
             game_state_message = message_blob.get('gameStateMessage', {})
             self.__maybe_handle_game_over_stage(message_blob.get('systemSeatIds', []), game_state_message)
             for game_object in game_state_message.get('gameObjects', []):
-                if game_object['type'] != 'GameObjectType_Card':
+                if game_object['type'] not in ('GameObjectType_Card', 'GameObjectType_SplitCard'):
                     continue
                 owner = game_object['ownerSeatId']
                 instance_id = game_object['instanceId']
