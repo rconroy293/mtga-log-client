@@ -20,6 +20,7 @@ using log4net.Core;
 using System.Deployment.Application;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using System.Linq;
 
 namespace mtga_log_client
 {
@@ -48,6 +49,7 @@ namespace mtga_log_client
         private string filePath;
         private string userToken;
         private bool runAtStartup;
+        private bool minimizeAtStartup;
 
         public MainWindow()
         {
@@ -74,6 +76,11 @@ namespace mtga_log_client
         protected override void OnContentRendered(EventArgs e)
         {
             base.OnContentRendered(e);
+
+            if (minimizeAtStartup)
+            {
+                this.Hide();
+            }
 
             if (!isStarted)
             {
@@ -167,7 +174,10 @@ namespace mtga_log_client
         private void ClearPreferences(object Sender, EventArgs e)
         {
             Properties.Settings.Default.do_not_ask_on_close = false;
+            Properties.Settings.Default.minimized_at_startup = false;
             Properties.Settings.Default.Save();
+
+            StartMinimizedCheckbox.IsChecked = false;
         }
 
         protected override void OnStateChanged(EventArgs e)
@@ -181,9 +191,11 @@ namespace mtga_log_client
             userToken = Properties.Settings.Default.client_token;
             filePath = Properties.Settings.Default.mtga_log_filename;
             runAtStartup = Properties.Settings.Default.run_at_startup;
+            minimizeAtStartup = Properties.Settings.Default.minimized_at_startup;
 
             filePath = MaybeSwitchLogFile(filePath);
 
+            StartMinimizedCheckbox.IsChecked = minimizeAtStartup;
             RunAtStartupCheckbox.IsChecked = runAtStartup;
             LogFileTextBox.Text = filePath;
             ClientTokenTextBox.Text = userToken;
@@ -212,6 +224,7 @@ namespace mtga_log_client
             Properties.Settings.Default.client_token = userToken;
             Properties.Settings.Default.mtga_log_filename = filePath;
             Properties.Settings.Default.run_at_startup = runAtStartup;
+            Properties.Settings.Default.minimized_at_startup = minimizeAtStartup;
             Properties.Settings.Default.Save();
         }
 
@@ -326,6 +339,12 @@ namespace mtga_log_client
             runAtStartup = RunAtStartupCheckbox.IsChecked.GetValueOrDefault(false);
             SaveSettings();
             UpdateStartupRegistryKey();
+        }
+
+        private void StartMinimizedCheckbox_onClick(object sender, EventArgs e)
+        {
+            minimizeAtStartup = StartMinimizedCheckbox.IsChecked.GetValueOrDefault(false);
+            SaveSettings();
         }
 
         private void UpdateStartupRegistryKey()
@@ -522,7 +541,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.23";
+        public const string CLIENT_VERSION = "0.1.24";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -571,6 +590,7 @@ namespace mtga_log_client
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
         private readonly Dictionary<int, List<int>> cardsInHand = new Dictionary<int, List<int>>();
         private readonly Dictionary<int, List<List<int>>> drawnHands = new Dictionary<int, List<List<int>>>();
+        private readonly Dictionary<int, Dictionary<int, int>> drawnCardsByInstanceId = new Dictionary<int, Dictionary<int, int>>();
         private readonly Dictionary<int, List<int>> openingHand = new Dictionary<int, List<int>>();
 
         private const int ERROR_LINES_RECENCY = 10;
@@ -780,7 +800,7 @@ namespace mtga_log_client
             }
 
             if (MaybeHandleLogin(blob)) return;
-            if (MaybeHandleGameEnd(blob)) return;
+            // if (MaybeHandleGameEnd(blob)) return;
             if (MaybeHandleDraftLog(blob)) return;
             if (MaybeHandleDraftPick(blob)) return;
             if (MaybeHandleJoinPod(blob)) return;
@@ -911,6 +931,7 @@ namespace mtga_log_client
         {
             objectsByOwner.Clear();
             drawnHands.Clear();
+            drawnCardsByInstanceId.Clear();
             openingHand.Clear();
             startingTeamId = -1;
         }
@@ -1067,6 +1088,11 @@ namespace mtga_log_client
                 if (drawnHands.ContainsKey(seatId) && drawnHands[seatId].Count > 0)
                 {
                     game.drawn_hands = drawnHands[seatId];
+                }
+
+                if (drawnCardsByInstanceId.ContainsKey(seatId))
+                {
+                    game.drawn_cards = drawnCardsByInstanceId[seatId].Values.ToList();
                 }
 
                 game.mulligans = mulliganedHands;
@@ -1474,7 +1500,8 @@ namespace mtga_log_client
                 {
                     foreach (JToken gameObject in gameStateMessage["gameObjects"].Value<JArray>())
                     {
-                        if (!"GameObjectType_Card".Equals(gameObject["type"].Value<string>())) continue;
+                        var objectType = gameObject["type"].Value<string>();
+                        if (!"GameObjectType_Card".Equals(objectType) && !"GameObjectType_SplitCard".Equals(objectType)) continue;
 
                         var owner = gameObject["ownerSeatId"].Value<int>();
                         var instanceId = gameObject["instanceId"].Value<int>();
@@ -1496,6 +1523,10 @@ namespace mtga_log_client
 
                         var owner = zone["ownerSeatId"].Value<int>();
                         var cards = new List<int>();
+                        if (!drawnCardsByInstanceId.ContainsKey(owner))
+                        {
+                            drawnCardsByInstanceId[owner] = new Dictionary<int, int>();
+                        }
                         if (zone.ContainsKey("objectInstanceIds"))
                         {
                             var playerObjects = objectsByOwner.ContainsKey(owner) ? objectsByOwner[owner] : new Dictionary<int, int>();
@@ -1503,7 +1534,10 @@ namespace mtga_log_client
                             {
                                 if (objectInstanceId != null && playerObjects.ContainsKey(objectInstanceId.Value<int>()))
                                 {
-                                    cards.Add(playerObjects[objectInstanceId.Value<int>()]);
+                                    int instanceId = objectInstanceId.Value<int>();
+                                    int cardId = playerObjects[instanceId];
+                                    cards.Add(cardId);
+                                    drawnCardsByInstanceId[owner][instanceId] = cardId;
                                 }
                             }
                         }
@@ -2223,6 +2257,8 @@ namespace mtga_log_client
         internal List<List<int>> mulligans;
         [DataMember]
         internal List<List<int>> drawn_hands;
+        [DataMember]
+        internal List<int> drawn_cards;
         [DataMember]
         internal int opponent_mulligan_count;
         [DataMember]
