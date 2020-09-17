@@ -782,7 +782,7 @@ namespace mtga_log_client
             }
 
             if (MaybeHandleLogin(blob)) return;
-            if (MaybeHandleGameEnd(blob)) return;
+            // if (MaybeHandleGameEnd(blob)) return;
             if (MaybeHandleDraftLog(blob)) return;
             if (MaybeHandleDraftPick(blob)) return;
             if (MaybeHandleJoinPod(blob)) return;

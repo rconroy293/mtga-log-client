@@ -313,8 +313,8 @@ class Follower:
 
         if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj):
             self.__handle_login(json_obj)
-        elif json_value_matches('DuelScene.GameStop', ['params', 'messageName'], json_obj):
-            self.__handle_game_end(json_obj)
+        # elif json_value_matches('DuelScene.GameStop', ['params', 'messageName'], json_obj):
+        #     self.__handle_game_end(json_obj)
         elif 'DraftStatus' in json_obj:
             self.__handle_draft_log(json_obj)
         elif json_value_matches('Draft.MakePick', ['method'], json_obj):
