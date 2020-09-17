@@ -49,6 +49,7 @@ namespace mtga_log_client
         private string filePath;
         private string userToken;
         private bool runAtStartup;
+        private bool minimizeAtStartup;
 
         public MainWindow()
         {
@@ -75,6 +76,11 @@ namespace mtga_log_client
         protected override void OnContentRendered(EventArgs e)
         {
             base.OnContentRendered(e);
+
+            if (minimizeAtStartup)
+            {
+                this.Hide();
+            }
 
             if (!isStarted)
             {
@@ -168,7 +174,10 @@ namespace mtga_log_client
         private void ClearPreferences(object Sender, EventArgs e)
         {
             Properties.Settings.Default.do_not_ask_on_close = false;
+            Properties.Settings.Default.minimized_at_startup = false;
             Properties.Settings.Default.Save();
+
+            StartMinimizedCheckbox.IsChecked = false;
         }
 
         protected override void OnStateChanged(EventArgs e)
@@ -182,9 +191,11 @@ namespace mtga_log_client
             userToken = Properties.Settings.Default.client_token;
             filePath = Properties.Settings.Default.mtga_log_filename;
             runAtStartup = Properties.Settings.Default.run_at_startup;
+            minimizeAtStartup = Properties.Settings.Default.minimized_at_startup;
 
             filePath = MaybeSwitchLogFile(filePath);
 
+            StartMinimizedCheckbox.IsChecked = minimizeAtStartup;
             RunAtStartupCheckbox.IsChecked = runAtStartup;
             LogFileTextBox.Text = filePath;
             ClientTokenTextBox.Text = userToken;
@@ -213,6 +224,7 @@ namespace mtga_log_client
             Properties.Settings.Default.client_token = userToken;
             Properties.Settings.Default.mtga_log_filename = filePath;
             Properties.Settings.Default.run_at_startup = runAtStartup;
+            Properties.Settings.Default.minimized_at_startup = minimizeAtStartup;
             Properties.Settings.Default.Save();
         }
 
@@ -327,6 +339,12 @@ namespace mtga_log_client
             runAtStartup = RunAtStartupCheckbox.IsChecked.GetValueOrDefault(false);
             SaveSettings();
             UpdateStartupRegistryKey();
+        }
+
+        private void StartMinimizedCheckbox_onClick(object sender, EventArgs e)
+        {
+            minimizeAtStartup = StartMinimizedCheckbox.IsChecked.GetValueOrDefault(false);
+            SaveSettings();
         }
 
         private void UpdateStartupRegistryKey()
