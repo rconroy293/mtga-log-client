@@ -34,7 +34,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-CLIENT_VERSION = '0.1.12'
+CLIENT_VERSION = '0.1.13'
 
 OSX_LOG_ROOT = os.path.join('Library','Logs')
 WINDOWS_LOG_ROOT = os.path.join('users', getpass.getuser(), 'AppData', 'LocalLow')
@@ -342,12 +342,19 @@ class Follower:
             self.__handle_match_created(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj:
             self.__handle_collection(json_obj)
-        elif 'Draft.Notify ' in full_log and 'method' not in json_obj:
-            self.__handle_human_draft_pack(json_obj)
+        # elif 'Draft.Notify ' in full_log and 'method' not in json_obj:
+        #     self.__handle_human_draft_pack(json_obj)
+        elif 'Draft.Notification ' in full_log and 'method' not in json_obj:
+            self.__handle_draft_notification(json_obj)
 
     def __extract_payload(self, blob):
         if 'id' not in blob: return blob
-        if 'payload' in blob: return blob['payload']
+        if 'payload' in blob:
+            try:
+                json_obj, end = self.json_decoder.raw_decode(blob['payload'])
+                return json_obj
+            except Exception as e:
+                return blob['payload']
         if 'request' in blob:
             try:
                 json_obj, end = self.json_decoder.raw_decode(blob['request'])
@@ -651,6 +658,27 @@ class Follower:
             'card_ids': [int(x) for x in json_obj['PackCards'].split(',')],
         }
         logging.info(f'Human draft pack: {pack}')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
+
+    def __handle_draft_notification(self, json_obj):
+        """Handle 'Draft.Notification messages."""
+        if json_obj.get('PickInfo') is None:
+            return
+
+        self.__clear_game_data()
+
+        pick_info = json_obj['PickInfo']
+
+        pack = {
+            'player_id': self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'draft_id': json_obj['DraftId'],
+            'event_name': self.cur_draft_event,
+            'pack_number': int(pick_info['SelfPack']),
+            'pick_number': int(pick_info['SelfPick']),
+            'card_ids': pick_info['PackCards'],
+        }
+        logging.info(f'Human draft pack via notification: {pack}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
 
     def __handle_deck_submission(self, json_obj):
