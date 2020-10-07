@@ -541,7 +541,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.24";
+        public const string CLIENT_VERSION = "0.1.25";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -814,7 +814,8 @@ namespace mtga_log_client
             if (MaybeHandleSelfRankInfo(blob)) return;
             if (MaybeHandleMatchCreated(blob)) return;
             if (MaybeHandleCollection(fullLog, blob)) return;
-            if (MaybeHandleHumanDraftPack(fullLog, blob)) return;
+            // if (MaybeHandleHumanDraftPack(fullLog, blob)) return;
+            if (MaybeHandleDraftNotification(fullLog, blob)) return;
         }
 
         private JObject ExtractPayload(JObject blob)
@@ -828,7 +829,14 @@ namespace mtga_log_client
             {
                 if (blob.ContainsKey("payload"))
                 {
-                    return blob["payload"].Value<JObject>();
+                    try
+                    {
+                        return ParseBlob(blob["payload"].Value<String>());
+                    }
+                    catch (Exception)
+                    {
+                        return blob["payload"].Value<JObject>();
+                    }
                 }
 
                 if (blob.ContainsKey("request"))
@@ -1279,6 +1287,48 @@ namespace mtga_log_client
             catch (Exception e)
             {
                 LogError(String.Format("Error {0} parsing human draft pack from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandleDraftNotification(String fullLog, JObject blob)
+        {
+            if (!fullLog.Contains("Draft.Notification ")) return false;
+            if (blob.ContainsKey("method")) return false;
+            if (!blob.ContainsKey("PickInfo")) return false;
+            if (blob["PickInfo"].Value<JObject>() == null) return false;
+
+            ClearGameData();
+
+            try
+            {
+                var pickInfo = blob["PickInfo"].Value<JObject>();
+                HumanDraftPack pack = new HumanDraftPack();
+                pack.token = apiToken;
+                pack.client_version = CLIENT_VERSION;
+                pack.player_id = currentUser;
+                pack.time = GetDatetimeString(currentLogTime.Value);
+                pack.utc_time = GetDatetimeString(lastUtcTime.Value);
+
+                var cardIds = new List<int>();
+                var cardIdJArray = pickInfo["PackCards"].Value<JArray>();
+                foreach (JToken cardId in cardIdJArray)
+                {
+                    cardIds.Add(cardId.Value<int>());
+                }
+
+                pack.draft_id = blob["DraftId"].Value<String>();
+                pack.pack_number = pickInfo["SelfPack"].Value<int>();
+                pack.pick_number = pickInfo["SelfPick"].Value<int>();
+                pack.card_ids = cardIds;
+                pack.event_name = currentDraftEvent;
+
+                apiClient.PostHumanDraftPack(pack);
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing human draft pack from notification {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
