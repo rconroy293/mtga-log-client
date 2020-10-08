@@ -34,7 +34,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-CLIENT_VERSION = '0.1.13'
+CLIENT_VERSION = '0.1.14'
 
 OSX_LOG_ROOT = os.path.join('Library','Logs')
 WINDOWS_LOG_ROOT = os.path.join('users', getpass.getuser(), 'AppData', 'LocalLow')
@@ -342,8 +342,8 @@ class Follower:
             self.__handle_match_created(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj:
             self.__handle_collection(json_obj)
-        # elif 'Draft.Notify ' in full_log and 'method' not in json_obj:
-        #     self.__handle_human_draft_pack(json_obj)
+        elif 'Draft.Notify ' in full_log and 'method' not in json_obj:
+            self.__handle_human_draft_pack(json_obj)
         elif 'Draft.Notification ' in full_log and 'method' not in json_obj:
             self.__handle_draft_notification(json_obj)
 
