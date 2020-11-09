@@ -628,7 +628,8 @@ namespace mtga_log_client
             {
                 using (FileStream filestream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, BUFFER_SIZE))
                 {
-                    if (first || filestream.Length < farthestReadPosition)
+                    bool catchingUp = first || filestream.Length < farthestReadPosition;
+                    if (catchingUp)
                     {
                         filestream.Position = 0;
                         farthestReadPosition = filestream.Length;
@@ -647,6 +648,10 @@ namespace mtga_log_client
                             string line = line = reader.ReadLine();
                             if (line == null)
                             {
+                                if (catchingUp)
+                                {
+                                    LogMessage("Initial parsing has caught up to the end of the log file. It will continue to monitor for any new updates from MTGA.", Level.Info);
+                                }
                                 break;
                             }
                             ProcessLine(line);
