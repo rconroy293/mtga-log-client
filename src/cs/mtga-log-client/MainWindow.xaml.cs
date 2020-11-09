@@ -198,7 +198,7 @@ namespace mtga_log_client
             StartMinimizedCheckbox.IsChecked = minimizeAtStartup;
             RunAtStartupCheckbox.IsChecked = runAtStartup;
             LogFileTextBox.Text = filePath;
-            ClientTokenTextBox.Text = userToken;
+            ClientTokenTextBox.Text = ObfuscateToken(userToken);
         }
 
         private string MaybeSwitchLogFile(string filePath)
@@ -309,7 +309,7 @@ namespace mtga_log_client
 
         private bool ValidateTokenInput(bool promptForUpdate)
         {
-            if (IsValidToken(ClientTokenTextBox.Text)) return true;
+            if (IsValidToken(userToken)) return true;
 
             if (promptForUpdate)
             {
@@ -329,7 +329,6 @@ namespace mtga_log_client
             filePath = LogFileTextBox.Text;
 
             if (!ValidateTokenInput(promptForUpdate)) return false;
-            userToken = ClientTokenTextBox.Text;
 
             return true;
         }
@@ -365,6 +364,22 @@ namespace mtga_log_client
         private void ClientTokenTextBox_onTextChanged(object sender, EventArgs e)
         {
             StopParser();
+        }
+
+        private void ClientTokenTextBox_onGotFocus(object sender, EventArgs e)
+        {
+            ClientTokenTextBox.Text = userToken;
+        }
+
+        private void ClientTokenTextBox_onLostFocus(object sender, EventArgs e)
+        {
+            userToken = ClientTokenTextBox.Text;
+            ClientTokenTextBox.Text = ObfuscateToken(userToken);
+        }
+
+        private string ObfuscateToken(string token)
+        {
+            return new String('*', token.Length);
         }
 
         private bool IsValidToken(string clientToken)
