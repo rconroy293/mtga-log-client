@@ -1980,6 +1980,8 @@ namespace mtga_log_client
 
         private const int ERROR_COOLDOWN_MINUTES = 2;
         private DateTime? lastErrorPosted = null;
+        private const int POST_TRIES = 3;
+        private const int POST_RETRY_INTERVAL_MILLIS = 10000;
 
         [DataContract]
         public class VersionValidationResponse
@@ -2033,11 +2035,24 @@ namespace mtga_log_client
         private void PostJson(string endpoint, String blob)
         {
             LogMessage(String.Format("Posting {0} of {1}", endpoint, blob), Level.Info);
-            var content = new StringContent(blob, Encoding.UTF8, "application/json");
-            var response = client.PostAsync(endpoint, content).Result;
-            if (!response.IsSuccessStatusCode)
+            for (int tryNumber = 0; tryNumber < POST_TRIES; tryNumber++)
             {
-                LogMessage(String.Format("Got error response {0} ({1})", (int)response.StatusCode, response.ReasonPhrase), Level.Warn);
+                var content = new StringContent(blob, Encoding.UTF8, "application/json");
+                var response = client.PostAsync(endpoint, content).Result;
+                if (response.IsSuccessStatusCode)
+                {
+                    break;
+                }
+                else 
+                {
+                    LogMessage(
+                        String.Format(
+                            "Got error response {0} ({1}) on try {2} of {3}",
+                            (int)response.StatusCode, response.ReasonPhrase, tryNumber + 1, POST_TRIES
+                        ),
+                        Level.Warn);
+                    Thread.Sleep(POST_RETRY_INTERVAL_MILLIS);
+                }
             }
         }
 
