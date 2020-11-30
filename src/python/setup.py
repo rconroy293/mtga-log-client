@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="seventeenlands",
-    version="0.0.2",
+    version="0.0.3",
     author="Robert Conroy",
     author_email="seventeenlands@gmail.com",
     description="Utility to upload MTG Arena data to 17Lands.com",
@@ -20,7 +20,7 @@ setuptools.setup(
     python_requires='>=3.6',
     entry_points={
         'console_scripts': [
-            'seventeenlands=seventeenlands.mtga_follower',
+            'seventeenlands=seventeenlands.mtga_follower:main',
         ],
     },
     install_requires=["requests", "python-dateutil"]
