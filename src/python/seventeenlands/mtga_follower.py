@@ -774,6 +774,44 @@ def validate_uuid_v4(maybe_uuid):
     except ValueError:
         return None
 
+def get_client_token_visual():
+    import tkinter
+    import tkinter.simpledialog
+    import tkinter.messagebox
+
+    window = tkinter.Tk()
+    window.wm_withdraw()
+
+    message = 'Please enter your client token from 17lands.com/account:'
+    while True:
+        token = tkinter.simpledialog.askstring('MTGA Log Client Token', message)
+
+        if token is None:
+            tkinter.messagebox.showerror(
+                'Error: Client Token Needed',
+                'The program cannot continue without specifying a client token. Exiting.'
+            )
+            exit(1)
+
+        if validate_uuid_v4(token) is None:
+            message = 'That token is invalid. Please specify a valid client token. See 17lands.com/getting_started for more details.'
+        else:
+            return token
+
+def get_client_token_cli():
+    message = 'Please enter your client token from 17lands.com/account: '
+    while True:
+        token = input(message)
+
+        if token is None:
+            print('Error: The program cannot continue without specifying a client token. Exiting.')
+            exit(1)
+
+        if validate_uuid_v4(token) is None:
+            message = 'That token is invalid. Please specify a valid client token. See 17lands.com/getting_started for more details. Token: '
+        else:
+            return token
+
 def get_client_token():
     import configparser
     token = None
@@ -784,28 +822,10 @@ def get_client_token():
             token = validate_uuid_v4(config['client'].get('token'))
 
     if token is None or validate_uuid_v4(token) is None:
-        import tkinter
-        import tkinter.simpledialog
-        import tkinter.messagebox
-
-        window = tkinter.Tk()
-        window.wm_withdraw()
-
-        message = 'Please enter your client token from 17lands.com/account:'
-        while True:
-            token = tkinter.simpledialog.askstring('MTGA Log Client Token', message)
-
-            if token is None:
-                tkinter.messagebox.showerror(
-                    'Error: Client Token Needed',
-                    'The program cannot continue without specifying a client token. Exiting.'
-                )
-                exit(1)
-
-            if validate_uuid_v4(token) is None:
-                message = 'That token is invalid. Please specify a valid client token. See 17lands.com/getting_started for more details.'
-            else:
-                break
+        try:
+            token = get_client_token_visual()
+        except ModuleNotFoundError:
+            token = get_client_token_cli()
 
         config['client'] = {'token': token}
         with open(CONFIG_FILE, 'w') as f:
