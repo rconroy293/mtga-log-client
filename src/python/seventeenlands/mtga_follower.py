@@ -846,7 +846,7 @@ def verify_valid_version(host):
     exit(1)
 
 
-if __name__ == '__main__':
+def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='MTGA log follower')
@@ -886,3 +886,6 @@ if __name__ == '__main__':
         if os.path.exists(filename):
             logging.info(f'Following along {filename}')
             follower.parse_log(filename=filename, follow=follow)
+
+if __name__ == '__main__':
+    main()
