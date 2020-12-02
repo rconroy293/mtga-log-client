@@ -16,6 +16,7 @@ import json
 import getpass
 import itertools
 import logging
+import logging.handlers
 import os
 import os.path
 import re
@@ -28,13 +29,24 @@ from collections import defaultdict, namedtuple
 import dateutil.parser
 import requests
 
-logging.basicConfig(
-    format='%(asctime)s,%(levelname)s,%(message)s',
-    datefmt='%Y%m%d %H%M%S',
-    level=logging.INFO,
-)
+LOG_FOLDER = os.path.join(os.path.expanduser('~'), '.seventeenlands')
+if not os.path.exists(LOG_FOLDER):
+    os.makedirs(LOG_FOLDER)
+LOG_FILENAME = os.path.join(LOG_FOLDER, 'seveentenlands.log')
 
-CLIENT_VERSION = '0.1.14'
+log_formatter = logging.Formatter('%(asctime)s,%(levelname)s,%(message)s', datefmt='%Y%m%d %H%M%S')
+handlers = {
+    logging.handlers.TimedRotatingFileHandler(LOG_FILENAME, when='D', interval=1, backupCount=7, utc=True),
+    logging.StreamHandler(),
+}
+logger = logging.getLogger('17Lands')
+for handler in handlers:
+    handler.setFormatter(log_formatter)
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+logger.info(f'Saving logs to {LOG_FILENAME}')
+
+CLIENT_VERSION = '0.1.15'
 
 OSX_LOG_ROOT = os.path.join('Library','Logs')
 WINDOWS_LOG_ROOT = os.path.join('users', getpass.getuser(), 'AppData', 'LocalLow')
@@ -192,9 +204,9 @@ class Follower:
             response = requests.post(endpoint, json=blob)
             if not IS_CODE_FOR_RETRY(response.status_code):
                 break
-            logging.warning(f'Got response code {response.status_code}; retrying {tries_left} more times')
+            logger.warning(f'Got response code {response.status_code}; retrying {tries_left} more times')
             time.sleep(sleep_time)
-        logging.info(f'{response.status_code} Response: {response.text}')
+        logger.info(f'{response.status_code} Response: {response.text}')
         return response
 
     def parse_log(self, filename, follow):
@@ -227,7 +239,7 @@ class Follower:
                 time.sleep(SLEEP_TIME)
 
             if not follow:
-                logging.info('Done processing file.')
+                logger.info('Done processing file.')
                 break
 
     def __append_line(self, line):
@@ -265,8 +277,8 @@ class Follower:
         try:
             self.__handle_blob(full_log)
         except Exception as e:
-            logging.error(f'Error {e} while processing {full_log}')
-            logging.error(traceback.format_exc())
+            logger.error(f'Error {e} while processing {full_log}')
+            logger.error(traceback.format_exc())
 
         self.buffer = []
         # self.cur_log_time = None
@@ -298,7 +310,7 @@ class Follower:
         try:
             json_obj, end = self.json_decoder.raw_decode(full_log, match.start())
         except json.JSONDecodeError as e:
-            logging.debug(f'Ran into error {e} when parsing at {self.cur_log_time}. Data was: {full_log}')
+            logger.debug(f'Ran into error {e} when parsing at {self.cur_log_time}. Data was: {full_log}')
             return
 
         json_obj = self.__extract_payload(json_obj)
@@ -387,7 +399,7 @@ class Follower:
                 'sideboard_card_ids': message_blob['submitDeckReq']['deck'].get('sideboardCards', []),
                 'is_during_match': True,
             }
-            logging.info(f'Deck submission: {deck}')
+            logger.info(f'Deck submission: {deck}')
             response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
         elif message_blob['type'] == 'GREMessageType_GameStateMessage':
             game_state_message = message_blob.get('gameStateMessage', {})
@@ -491,7 +503,7 @@ class Follower:
                 'screen_name': screen_name,
                 'raw_time': self.last_raw_time,
             }
-            logging.info(f'Adding user: {user_info}')
+            logger.info(f'Adding user: {user_info}')
             response = self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
 
     def __handle_event_completion(self, json_obj):
@@ -504,7 +516,7 @@ class Follower:
             'wins': json_obj['ModuleInstanceData']['WinLossGate']['CurrentWins'],
             'losses': json_obj['ModuleInstanceData']['WinLossGate']['CurrentLosses'],
         }
-        logging.info(f'Event submission: {event}')
+        logger.info(f'Event submission: {event}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_SUBMISSION}', blob=event)
 
     def __handle_event_course(self, json_obj):
@@ -515,7 +527,7 @@ class Follower:
             'time': self.cur_log_time.isoformat(),
             'draft_id': json_obj['ModuleInstanceData']['HumanDraft._internalState']['DraftId'],
         }
-        logging.info(f'Event course: {event}')
+        logger.info(f'Event course: {event}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_COURSE_SUBMISSION}', blob=event)
 
     def __handle_game_end(self, json_obj):
@@ -537,7 +549,7 @@ class Follower:
         )
 
     def __send_game_end(self, seat_id, match_id, mulliganed_hands, drawn_hands, drawn_cards, event_name, on_play, won, win_type, game_end_reason, turn_count, duration):
-        logging.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
+        logger.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
 
         opponent_id = 2 if seat_id == 1 else 1
         opponent_card_ids = [c for c in self.objects_by_owner.get(opponent_id, {}).values()]
@@ -568,7 +580,7 @@ class Follower:
             'opponent_rank': self.cur_opponent_level,
         }
         self.__clear_game_data()
-        logging.info(f'Completed game: {game}')
+        logger.info(f'Completed game: {game}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=game)
 
     def __handle_login(self, json_obj):
@@ -583,7 +595,7 @@ class Follower:
             'screen_name': screen_name,
             'raw_time': self.last_raw_time,
         }
-        logging.info(f'Adding user: {user_info}')
+        logger.info(f'Adding user: {user_info}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
 
     def __handle_draft_log(self, json_obj):
@@ -599,7 +611,7 @@ class Follower:
                 'pick_number': int(json_obj['PickNumber']),
                 'card_ids': [int(x) for x in json_obj['DraftPack']],
             }
-            logging.info(f'Draft pack: {pack}')
+            logger.info(f'Draft pack: {pack}')
             response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PACK}', blob=pack)
 
     def __handle_draft_pick(self, json_obj):
@@ -616,7 +628,7 @@ class Follower:
             'pick_number': int(inner_obj['pickNumber']),
             'card_id': int(inner_obj['cardId']),
         }
-        logging.info(f'Draft pick: {pick}')
+        logger.info(f'Draft pick: {pick}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PICK}', blob=pick)
 
     def __handle_joined_pod(self, json_obj):
@@ -625,7 +637,7 @@ class Follower:
         inner_obj = json_obj['params']
         self.cur_draft_event = inner_obj['queueId']
 
-        logging.info(f'Joined draft pod: {self.cur_draft_event}')
+        logger.info(f'Joined draft pod: {self.cur_draft_event}')
 
     def __handle_human_draft_pick(self, json_obj):
         """Handle 'Draft.MakeHumanDraftPick messages."""
@@ -641,7 +653,7 @@ class Follower:
             'pick_number': int(inner_obj['pickNumber']),
             'card_id': int(inner_obj['cardId']),
         }
-        logging.info(f'Human draft pick: {pick}')
+        logger.info(f'Human draft pick: {pick}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
 
     def __handle_human_draft_pack(self, json_obj):
@@ -657,7 +669,7 @@ class Follower:
             'pick_number': int(json_obj['SelfPick']),
             'card_ids': [int(x) for x in json_obj['PackCards'].split(',')],
         }
-        logging.info(f'Human draft pack: {pack}')
+        logger.info(f'Human draft pack: {pack}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
 
     def __handle_draft_notification(self, json_obj):
@@ -678,7 +690,7 @@ class Follower:
             'pick_number': int(pick_info['SelfPick']),
             'card_ids': pick_info['PackCards'],
         }
-        logging.info(f'Human draft pack via notification: {pack}')
+        logger.info(f'Human draft pack via notification: {pack}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
 
     def __handle_deck_submission(self, json_obj):
@@ -694,7 +706,7 @@ class Follower:
             'sideboard_card_ids': [d['Id'] for d in deck_info['sideboard'] for i in range(d['Quantity'])],
             'is_during_match': False,
         }
-        logging.info(f'Deck submission: {deck}')
+        logger.info(f'Deck submission: {deck}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __handle_deck_submission_v3(self, json_obj):
@@ -711,7 +723,7 @@ class Follower:
             'is_during_match': False,
             'companion': deck_info.get('companionGRPId'),
         }
-        logging.info(f'Deck submission: {deck}')
+        logger.info(f'Deck submission: {deck}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __handle_self_rank_info(self, json_obj):
@@ -731,7 +743,7 @@ class Follower:
             step=json_obj.get('constructedStep'),
         )
         self.cur_user = json_obj.get('playerId', self.cur_user)
-        logging.info(f'Parsed rank info for {self.cur_user} as limited {self.cur_limited_level} and constructed {self.cur_constructed_level}')
+        logger.info(f'Parsed rank info for {self.cur_user} as limited {self.cur_limited_level} and constructed {self.cur_constructed_level}')
 
     def __handle_match_created(self, json_obj):
         """Handle 'Event.MatchCreated' messages."""
@@ -744,7 +756,7 @@ class Follower:
             step=None,
         )
         self.cur_opponent_match_id = json_obj.get('matchId')
-        logging.info(f'Parsed opponent rank info as limited {self.cur_opponent_level} in match {self.cur_opponent_match_id}')
+        logger.info(f'Parsed opponent rank info as limited {self.cur_opponent_level} in match {self.cur_opponent_match_id}')
 
     def __handle_collection(self, json_obj):
         """Handle 'PlayerInventory.GetPlayerCardsV3' messages."""
@@ -753,7 +765,7 @@ class Follower:
             'time': self.cur_log_time.isoformat(),
             'card_counts': json_obj,
         }
-        logging.info(f'Collection submission of {len(json_obj)} cards')
+        logger.info(f'Collection submission of {len(json_obj)} cards')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_COLLECTION}', blob=collection)
 
     def __get_card_ids_from_decklist_v3(self, decklist):
@@ -838,17 +850,17 @@ def verify_valid_version(host):
         response = requests.get(f'{host}/{ENDPOINT_CLIENT_VERSION}')
         if not IS_CODE_FOR_RETRY(response.status_code):
             break
-        logging.warning(f'Got response code {response.status_code}; retrying')
+        logger.warning(f'Got response code {response.status_code}; retrying')
         time.sleep(DEFAULT_RETRY_SLEEP_TIME)
     else:
-        logging.warning('Could not get response from server for minimum client version. Assuming version is valid.')
+        logger.warning('Could not get response from server for minimum client version. Assuming version is valid.')
         return
 
-    logging.info(f'Got minimum client version response: {response.text}')
+    logger.info(f'Got minimum client version response: {response.text}')
     blob = json.loads(response.text)
     this_version = [int(i) for i in CLIENT_VERSION.split('.')]
     min_supported_version = [int(i) for i in blob['min_version'].split('.')]
-    logging.info(f'Minimum supported version: {min_supported_version}; this version: {this_version}')
+    logger.info(f'Minimum supported version: {min_supported_version}; this version: {this_version}')
 
     if this_version >= min_supported_version:
         return
@@ -882,7 +894,7 @@ def main():
     verify_valid_version(args.host)
 
     token = get_client_token()
-    logging.info(f'Using token {token}')
+    logger.info(f'Using token {token[:4]}...{token[-4:]}')
 
     filepaths = POSSIBLE_CURRENT_FILEPATHS
     if args.log_file is not None:
@@ -897,14 +909,14 @@ def main():
         # parse previous log once at startup to catch up on any missed events
         for filename in POSSIBLE_PREVIOUS_FILEPATHS:
             if os.path.exists(filename):
-                logging.info(f'Parsing the previous log {filename} once')
+                logger.info(f'Parsing the previous log {filename} once')
                 follower.parse_log(filename=filename, follow=False)
                 break
 
     # tail and parse current logfile to handle ongoing events
     for filename in filepaths:
         if os.path.exists(filename):
-            logging.info(f'Following along {filename}')
+            logger.info(f'Following along {filename}')
             follower.parse_log(filename=filename, follow=follow)
 
 if __name__ == '__main__':
