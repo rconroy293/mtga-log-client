@@ -183,7 +183,8 @@ class Follower:
         self.drawn_cards_by_instance_id = defaultdict(dict)
         self.cards_in_hand = defaultdict(list)
         self.history_enabled = history_enabled
-        self.game_history = []
+        self.screen_names = defaultdict(lambda: '')
+        self.game_history_events = []
 
     def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME, use_gzip=False):
         """
@@ -400,13 +401,16 @@ class Follower:
         if 'eventId' in game_room_config and 'matchId' in game_room_config:
             self.current_match_event_id = (game_room_config['matchId'], game_room_config['eventId'])
 
+        if 'reservedPlayers' in game_room_config:
+            for player in game_room_config['reservedPlayers']:
+                self.screen_names[player['systemSeatId']] = player['playerName'].split('#')[0]
 
     def __handle_gre_to_client_message(self, message_blob):
         """Handle messages in the 'greToClientEvent' field."""
         # Add to game history before processing the messsage, since we may submit the game right away.
         if self.history_enabled:
             if message_blob['type'] in ['GREMessageType_QueuedGameStateMessage', 'GREMessageType_GameStateMessage']:
-                self.game_history.append(message_blob)
+                self.game_history_events.append(message_blob)
 
         if message_blob['type'] == 'GREMessageType_SubmitDeckReq':
             deck = {
@@ -462,7 +466,7 @@ class Follower:
     def __handle_client_to_gre_message(self, payload):
         if self.history_enabled:
             if payload['type'] == 'ClientMessageType_SelectNResp':
-                self.game_history.append(payload)
+                self.game_history_events.append(payload)
 
     def __maybe_handle_game_over_stage(self, system_seat_ids, game_state_message):
         game_info = game_state_message.get('gameInfo', {})
@@ -513,7 +517,8 @@ class Follower:
         self.drawn_hands.clear()
         self.drawn_cards_by_instance_id.clear()
         self.starting_team_id = None
-        self.game_history.clear()
+        self.screen_names.clear()
+        self.game_history_events.clear()
 
     def __maybe_handle_account_info(self, line):
         match = ACCOUNT_INFO_REGEX.match(line)
@@ -603,10 +608,18 @@ class Follower:
             'opponent_rank': self.cur_opponent_level,
         }
         logger.info(f'Completed game: {game}')
+
         # Add the history to the blob after logging to avoid printing excessive logs
         if self.history_enabled:
-            logger.info(f'Adding game history ({len(self.game_history)} events)')
-            game['history'] = self.game_history
+            logger.info(f'Adding game history ({len(self.game_history_events)} events)')
+            game['history'] = {
+                'seat_id': seat_id,
+                'opponent_seat_id': opponent_id,
+                'screen_name': self.screen_names[seat_id],
+                'opponent_screen_name': self.screen_names[opponent_id],
+                'events': self.game_history_events,
+            }
+
         response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=game, use_gzip=True)
         self.__clear_game_data()
 
