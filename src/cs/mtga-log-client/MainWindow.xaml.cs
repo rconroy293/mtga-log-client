@@ -814,7 +814,7 @@ namespace mtga_log_client
             if (MaybeHandleSelfRankInfo(blob)) return;
             if (MaybeHandleMatchCreated(blob)) return;
             if (MaybeHandleCollection(fullLog, blob)) return;
-            // if (MaybeHandleHumanDraftPack(fullLog, blob)) return;
+            if (MaybeHandleHumanDraftPack(fullLog, blob)) return;
             if (MaybeHandleDraftNotification(fullLog, blob)) return;
         }
 
@@ -1262,6 +1262,7 @@ namespace mtga_log_client
             try
             {
                 HumanDraftPack pack = new HumanDraftPack();
+                pack.method = "Draft.Notify";
                 pack.token = apiToken;
                 pack.client_version = CLIENT_VERSION;
                 pack.player_id = currentUser;
@@ -1304,6 +1305,7 @@ namespace mtga_log_client
             {
                 var pickInfo = blob["PickInfo"].Value<JObject>();
                 HumanDraftPack pack = new HumanDraftPack();
+                pack.method = "Draft.Notification";
                 pack.token = apiToken;
                 pack.client_version = CLIENT_VERSION;
                 pack.player_id = currentUser;
@@ -2243,6 +2245,8 @@ namespace mtga_log_client
         internal string utc_time;
         [DataMember]
         internal string player_id;
+        [DataMember]
+        internal string method;
         [DataMember]
         internal string draft_id;
         [DataMember]
