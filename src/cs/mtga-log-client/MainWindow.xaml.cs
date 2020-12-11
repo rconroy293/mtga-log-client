@@ -198,7 +198,7 @@ namespace mtga_log_client
             StartMinimizedCheckbox.IsChecked = minimizeAtStartup;
             RunAtStartupCheckbox.IsChecked = runAtStartup;
             LogFileTextBox.Text = filePath;
-            ClientTokenTextBox.Text = userToken;
+            ClientTokenTextBox.Text = ObfuscateToken(userToken);
         }
 
         private string MaybeSwitchLogFile(string filePath)
@@ -247,6 +247,14 @@ namespace mtga_log_client
             return false;
         }
 
+        private void SetStatusButtonText(string status)
+        {
+            Application.Current.Dispatcher.Invoke((Action)delegate
+            {
+                StartButton.Content = status;
+            });
+        }
+
         private void StartParser()
         {
             if (worker != null && !worker.CancellationPending)
@@ -255,9 +263,9 @@ namespace mtga_log_client
             }
             isStarted = true;
             StartButton.IsEnabled = false;
-            StartButton.Content = "Parsing";
+            StartButton.Content = "Catching Up";
 
-            parser = new LogParser(client, userToken, filePath, LogMessage);
+            parser = new LogParser(client, userToken, filePath, LogMessage, SetStatusButtonText);
 
             worker = new BackgroundWorker();
             worker.DoWork += parser.ResumeParsing;
@@ -309,7 +317,7 @@ namespace mtga_log_client
 
         private bool ValidateTokenInput(bool promptForUpdate)
         {
-            if (IsValidToken(ClientTokenTextBox.Text)) return true;
+            if (IsValidToken(userToken)) return true;
 
             if (promptForUpdate)
             {
@@ -329,7 +337,6 @@ namespace mtga_log_client
             filePath = LogFileTextBox.Text;
 
             if (!ValidateTokenInput(promptForUpdate)) return false;
-            userToken = ClientTokenTextBox.Text;
 
             return true;
         }
@@ -362,9 +369,25 @@ namespace mtga_log_client
             }
         }
 
-        private void ClientTokenTextBox_onTextChanged(object sender, EventArgs e)
+        private void ClientTokenTextBox_onKeyDown(object sender, EventArgs e)
         {
             StopParser();
+        }
+
+        private void ClientTokenTextBox_onGotFocus(object sender, EventArgs e)
+        {
+            ClientTokenTextBox.Text = userToken;
+        }
+
+        private void ClientTokenTextBox_onLostFocus(object sender, EventArgs e)
+        {
+            userToken = ClientTokenTextBox.Text;
+            ClientTokenTextBox.Text = ObfuscateToken(userToken);
+        }
+
+        private string ObfuscateToken(string token)
+        {
+            return new String('*', token.Length);
         }
 
         private bool IsValidToken(string clientToken)
@@ -538,10 +561,11 @@ namespace mtga_log_client
     }
 
     delegate void LogMessageFunction(string message, Level logLevel);
+    delegate void UpdateStatusFunction(string status);
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.25";
+        public const string CLIENT_VERSION = "0.1.26";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -602,13 +626,15 @@ namespace mtga_log_client
         private readonly string apiToken;
         private readonly string filePath;
         private readonly LogMessageFunction messageFunction;
+        private readonly UpdateStatusFunction statusFunction;
 
-        public LogParser(ApiClient apiClient, string apiToken, string filePath, LogMessageFunction messageFunction)
+        public LogParser(ApiClient apiClient, string apiToken, string filePath, LogMessageFunction messageFunction, UpdateStatusFunction statusFunction)
         {
             this.apiClient = apiClient;
             this.apiToken = apiToken;
             this.filePath = filePath;
             this.messageFunction = messageFunction;
+            this.statusFunction = statusFunction;
         }
 
         public void ResumeParsing(object sender, DoWorkEventArgs e)
@@ -628,7 +654,8 @@ namespace mtga_log_client
             {
                 using (FileStream filestream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, BUFFER_SIZE))
                 {
-                    if (first || filestream.Length < farthestReadPosition)
+                    bool catchingUp = first || filestream.Length < farthestReadPosition;
+                    if (catchingUp)
                     {
                         filestream.Position = 0;
                         farthestReadPosition = filestream.Length;
@@ -647,6 +674,11 @@ namespace mtga_log_client
                             string line = line = reader.ReadLine();
                             if (line == null)
                             {
+                                if (catchingUp)
+                                {
+                                    LogMessage("Initial parsing has caught up to the end of the log file. It will continue to monitor for any new updates from MTGA.", Level.Info);
+                                    statusFunction("Monitoring");
+                                }
                                 break;
                             }
                             ProcessLine(line);
@@ -1962,6 +1994,8 @@ namespace mtga_log_client
 
         private const int ERROR_COOLDOWN_MINUTES = 2;
         private DateTime? lastErrorPosted = null;
+        private const int POST_TRIES = 3;
+        private const int POST_RETRY_INTERVAL_MILLIS = 10000;
 
         [DataContract]
         public class VersionValidationResponse
@@ -2015,11 +2049,24 @@ namespace mtga_log_client
         private void PostJson(string endpoint, String blob)
         {
             LogMessage(String.Format("Posting {0} of {1}", endpoint, blob), Level.Info);
-            var content = new StringContent(blob, Encoding.UTF8, "application/json");
-            var response = client.PostAsync(endpoint, content).Result;
-            if (!response.IsSuccessStatusCode)
+            for (int tryNumber = 0; tryNumber < POST_TRIES; tryNumber++)
             {
-                LogMessage(String.Format("Got error response {0} ({1})", (int)response.StatusCode, response.ReasonPhrase), Level.Warn);
+                var content = new StringContent(blob, Encoding.UTF8, "application/json");
+                var response = client.PostAsync(endpoint, content).Result;
+                if (response.IsSuccessStatusCode)
+                {
+                    break;
+                }
+                else 
+                {
+                    LogMessage(
+                        String.Format(
+                            "Got error response {0} ({1}) on try {2} of {3}",
+                            (int)response.StatusCode, response.ReasonPhrase, tryNumber + 1, POST_TRIES
+                        ),
+                        Level.Warn);
+                    Thread.Sleep(POST_RETRY_INTERVAL_MILLIS);
+                }
             }
         }
 

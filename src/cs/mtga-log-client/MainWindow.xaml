@@ -41,7 +41,7 @@
         <Button Grid.Row="0" Grid.Column="2" Margin="3" Content="Choose File..." Click="ChooseFile_onClick"/>
 
         <Label Grid.Row="1" Grid.Column="0" Content="Client Token:"/>
-        <TextBox Grid.Row="1" Grid.Column="1" Name="ClientTokenTextBox" Margin="3" TextChanged="ClientTokenTextBox_onTextChanged"/>
+        <TextBox Grid.Row="1" Grid.Column="1" Name="ClientTokenTextBox" Margin="3" KeyDown="ClientTokenTextBox_onKeyDown" GotFocus="ClientTokenTextBox_onGotFocus" LostFocus="ClientTokenTextBox_onLostFocus"/>
         <Button Grid.Row="1" Grid.Column="2" Margin="3" Content=" Find my token " Click="OpenAccountPageInBrowser"/>
 
         <!--<Button Grid.Row="2" Grid.Column="2" Name="ApplyButton" Margin="3" Content=" Apply Changes " Click="ApplyChanges_onClick" IsEnabled="False"/>-->
