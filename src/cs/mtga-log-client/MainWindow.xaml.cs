@@ -247,6 +247,14 @@ namespace mtga_log_client
             return false;
         }
 
+        private void SetStatusButtonText(string status)
+        {
+            Application.Current.Dispatcher.Invoke((Action)delegate
+            {
+                StartButton.Content = status;
+            });
+        }
+
         private void StartParser()
         {
             if (worker != null && !worker.CancellationPending)
@@ -255,9 +263,9 @@ namespace mtga_log_client
             }
             isStarted = true;
             StartButton.IsEnabled = false;
-            StartButton.Content = "Parsing";
+            StartButton.Content = "Catching Up";
 
-            parser = new LogParser(client, userToken, filePath, LogMessage);
+            parser = new LogParser(client, userToken, filePath, LogMessage, SetStatusButtonText);
 
             worker = new BackgroundWorker();
             worker.DoWork += parser.ResumeParsing;
@@ -361,7 +369,7 @@ namespace mtga_log_client
             }
         }
 
-        private void ClientTokenTextBox_onTextChanged(object sender, EventArgs e)
+        private void ClientTokenTextBox_onKeyDown(object sender, EventArgs e)
         {
             StopParser();
         }
@@ -553,6 +561,7 @@ namespace mtga_log_client
     }
 
     delegate void LogMessageFunction(string message, Level logLevel);
+    delegate void UpdateStatusFunction(string status);
 
     class LogParser
     {
@@ -617,13 +626,15 @@ namespace mtga_log_client
         private readonly string apiToken;
         private readonly string filePath;
         private readonly LogMessageFunction messageFunction;
+        private readonly UpdateStatusFunction statusFunction;
 
-        public LogParser(ApiClient apiClient, string apiToken, string filePath, LogMessageFunction messageFunction)
+        public LogParser(ApiClient apiClient, string apiToken, string filePath, LogMessageFunction messageFunction, UpdateStatusFunction statusFunction)
         {
             this.apiClient = apiClient;
             this.apiToken = apiToken;
             this.filePath = filePath;
             this.messageFunction = messageFunction;
+            this.statusFunction = statusFunction;
         }
 
         public void ResumeParsing(object sender, DoWorkEventArgs e)
@@ -666,6 +677,7 @@ namespace mtga_log_client
                                 if (catchingUp)
                                 {
                                     LogMessage("Initial parsing has caught up to the end of the log file. It will continue to monitor for any new updates from MTGA.", Level.Info);
+                                    statusFunction("Monitoring");
                                 }
                                 break;
                             }
