@@ -507,6 +507,9 @@ class Follower:
                 duration=-1,
             )
 
+            if game_info.get('matchState') == 'MatchState_MatchComplete':
+                self.__clear_match_data()
+
             return
 
 
@@ -517,8 +520,10 @@ class Follower:
         self.drawn_hands.clear()
         self.drawn_cards_by_instance_id.clear()
         self.starting_team_id = None
-        self.screen_names.clear()
         self.game_history_events.clear()
+
+    def __clear_match_data(self):
+        self.screen_names.clear()
 
     def __maybe_handle_account_info(self, line):
         match = ACCOUNT_INFO_REGEX.match(line)
