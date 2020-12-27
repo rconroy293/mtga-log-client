@@ -50,8 +50,9 @@
         <ListBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Name="MessageListBox" Margin="3" />
 
         <CheckBox Grid.Row="3" Grid.Column="0" Name="StartMinimizedCheckbox" Content="Start Minimized" Margin="3" Click="StartMinimizedCheckbox_onClick" IsChecked="False"/>
+        <CheckBox Grid.Row="3" Grid.Column="1" Name="RunAtStartupCheckbox" Content="Run at Startup" Margin="3" Click="RunAtStartupCheckbox_onClick" IsChecked="True"/>
 
-        <CheckBox Grid.Row="4" Grid.Column="0" Name="RunAtStartupCheckbox" Content="Run at Startup" Margin="3" Click="RunAtStartupCheckbox_onClick" IsChecked="True"/>
+        <CheckBox Grid.Row="4" Grid.Column="0" Name="GameHistoryCheckbox" Content="Game Details" Margin="3" Click="GameHistoryCheckbox_onClick" IsChecked="True"/>
         <Button Grid.Row="4" Grid.Column="1" HorizontalAlignment="Right" Margin="3" Content=" View My Data " Click="OpenUserPageInBrowser"/>
         <Button Grid.Row="4" Grid.Column="2" Name="StartButton" Margin="3" Content="Start Parsing" Click="StartButton_onClick"/>
     </Grid>

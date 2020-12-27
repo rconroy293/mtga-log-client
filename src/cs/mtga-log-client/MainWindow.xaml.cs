@@ -50,6 +50,7 @@ namespace mtga_log_client
         private string userToken;
         private bool runAtStartup;
         private bool minimizeAtStartup;
+        private bool gameHistoryEnabled;
 
         public MainWindow()
         {
@@ -175,6 +176,7 @@ namespace mtga_log_client
         {
             Properties.Settings.Default.do_not_ask_on_close = false;
             Properties.Settings.Default.minimized_at_startup = false;
+            Properties.Settings.Default.game_history_enabled = true;
             Properties.Settings.Default.Save();
 
             StartMinimizedCheckbox.IsChecked = false;
@@ -192,10 +194,12 @@ namespace mtga_log_client
             filePath = Properties.Settings.Default.mtga_log_filename;
             runAtStartup = Properties.Settings.Default.run_at_startup;
             minimizeAtStartup = Properties.Settings.Default.minimized_at_startup;
+            gameHistoryEnabled = Properties.Settings.Default.game_history_enabled;
 
             filePath = MaybeSwitchLogFile(filePath);
 
             StartMinimizedCheckbox.IsChecked = minimizeAtStartup;
+            GameHistoryCheckbox.IsChecked = gameHistoryEnabled;
             RunAtStartupCheckbox.IsChecked = runAtStartup;
             LogFileTextBox.Text = filePath;
             ClientTokenTextBox.Text = ObfuscateToken(userToken);
@@ -225,6 +229,7 @@ namespace mtga_log_client
             Properties.Settings.Default.mtga_log_filename = filePath;
             Properties.Settings.Default.run_at_startup = runAtStartup;
             Properties.Settings.Default.minimized_at_startup = minimizeAtStartup;
+            Properties.Settings.Default.game_history_enabled = gameHistoryEnabled;
             Properties.Settings.Default.Save();
         }
 
@@ -351,6 +356,12 @@ namespace mtga_log_client
         private void StartMinimizedCheckbox_onClick(object sender, EventArgs e)
         {
             minimizeAtStartup = StartMinimizedCheckbox.IsChecked.GetValueOrDefault(false);
+            SaveSettings();
+        }
+
+        private void GameHistoryCheckbox_onClick(object sender, EventArgs e)
+        {
+            gameHistoryEnabled = GameHistoryCheckbox.IsChecked.GetValueOrDefault(false);
             SaveSettings();
         }
 
