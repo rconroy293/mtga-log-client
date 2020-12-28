@@ -595,6 +595,11 @@ namespace mtga_log_client
         private static readonly Regex ACCOUNT_INFO_REGEX = new Regex(
             ".*Updated account\\. DisplayName:(.*), AccountID:(.*), Token:.*");
 
+        private static readonly HashSet<String> GAME_HISTORY_MESSAGE_TYPES = new HashSet<string> {
+            "GREMessageType_GameStateMessage",
+            "GREMessageType_QueuedGameStateMessage"
+        };
+
         private static readonly List<string> TIME_FORMATS = new List<string>() {
             "yyyy-MM-dd h:mm:ss tt",
             "yyyy-MM-dd HH:mm:ss",
@@ -629,7 +634,7 @@ namespace mtga_log_client
         private readonly Dictionary<int, List<List<int>>> drawnHands = new Dictionary<int, List<List<int>>>();
         private readonly Dictionary<int, Dictionary<int, int>> drawnCardsByInstanceId = new Dictionary<int, Dictionary<int, int>>();
         private readonly Dictionary<int, List<int>> openingHand = new Dictionary<int, List<int>>();
-        private readonly List<JObject> gameHistoryEvents = new List<JObject>();
+        private readonly List<JToken> gameHistoryEvents = new List<JToken>();
 
         private const int ERROR_LINES_RECENCY = 10;
         private LinkedList<string> recentLines = new LinkedList<string>();
@@ -859,6 +864,7 @@ namespace mtga_log_client
             if (MaybeHandleEventCourse(blob)) return;
             if (MaybeHandleGameRoomStateChanged(blob)) return;
             if (MaybeHandleGreToClientMessages(blob)) return;
+            if (MaybeHandleClientToGreMessage(blob)) return;
             if (MaybeHandleSelfRankInfo(blob)) return;
             if (MaybeHandleMatchCreated(blob)) return;
             if (MaybeHandleCollection(fullLog, blob)) return;
@@ -989,7 +995,13 @@ namespace mtga_log_client
             drawnHands.Clear();
             drawnCardsByInstanceId.Clear();
             openingHand.Clear();
+            gameHistoryEvents.Clear();
             startingTeamId = -1;
+        }
+
+        private void ClearMatchData()
+        {
+            screenNames.Clear();
         }
 
         private void MaybeHandleAccountInfo(String line)
@@ -1161,13 +1173,22 @@ namespace mtga_log_client
                 game.Add("duration", JToken.FromObject(duration));
                 game.Add("opponent_card_ids", JToken.FromObject(opponentCardIds));
 
+                LogMessage(String.Format("Posting game of {0}", game.ToString(Formatting.None)), Level.Info);
                 if (gameHistoryEnabled)
                 {
-                    game.Add("game_history_events", JToken.FromObject(gameHistoryEvents));
+                    LogMessage(String.Format("Including game history of {0} events", gameHistoryEvents.Count()), Level.Info);
+                    JObject history = new JObject();
+                    history.Add("seat_id", seatId);
+                    history.Add("opponent_seat_id", opponentId);
+                    history.Add("screen_name", screenNames[seatId]);
+                    history.Add("opponent_screen_name", screenNames[opponentId]);
+                    history.Add("events", JToken.FromObject(gameHistoryEvents));
+
+                    game.Add("history", history);
                 }
 
-                ClearGameData();
                 apiClient.PostGame(game);
+                ClearGameData();
 
                 return true;
             }
@@ -1752,7 +1773,14 @@ namespace mtga_log_client
                 var gameEndReason = result["reason"].Value<String>();
                 var duration = -1;
 
-                return SendHandleGameEnd(seatId, matchId, mulligans, eventName, onPlay, won, winType, gameEndReason, turnNumber, duration);
+                var success = SendHandleGameEnd(seatId, matchId, mulligans, eventName, onPlay, won, winType, gameEndReason, turnNumber, duration);
+
+                if (gameInfo.ContainsKey("matchState") && gameInfo["matchState"].Value<String>().Equals("MatchState_MatchComplete"))
+                {
+                    ClearMatchData();
+                }
+
+                return success;
             }
             return false;
         }
@@ -1768,6 +1796,15 @@ namespace mtga_log_client
             {
                 currentMatchEventId = gameRoomConfig["eventId"].Value<String>();
             }
+
+            if (gameRoomConfig.ContainsKey("reservedPlayers"))
+            {
+                foreach (JToken player in gameRoomConfig["reservedPlayers"])
+                {
+                    screenNames.Add(player["systemSeatId"].Value<int>(), player["playerName"].Value<String>().Split('#')[0]);
+                }
+            }
+
             return false;
         }
 
@@ -1780,6 +1817,7 @@ namespace mtga_log_client
             {
                 foreach (JToken message in blob["greToClientEvent"]["greToClientMessages"])
                 {
+                    AddGameHistoryEvents(message);
                     if (MaybeHandleGreMessage_DeckSubmission(message)) continue;
                     if (MaybeHandleGreMessage_GameState(message)) continue;
                 }
@@ -1787,7 +1825,42 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogError(String.Format("Error {0} parsing event completion from {1}", e, blob), e.StackTrace, Level.Warn);
+                LogError(String.Format("Error {0} parsing GRE to client messages from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private void AddGameHistoryEvents(JToken message)
+        {
+            if (!gameHistoryEnabled) return;
+
+            if (GAME_HISTORY_MESSAGE_TYPES.Contains(message["type"].Value<String>()))
+            {
+                gameHistoryEvents.Add(message);
+            }
+        }
+
+        private bool MaybeHandleClientToGreMessage(JObject blob)
+        {
+            if (!blob.ContainsKey("clientToMatchServiceMessageType")) return false;
+            if (!"ClientToMatchServiceMessageType_ClientToGREMessage".Equals(blob["clientToMatchServiceMessageType"].Value<String>())) return false;
+
+            if (!gameHistoryEnabled) return true;
+            try
+            {
+                if (blob.ContainsKey("payload"))
+                {
+                    var payload = blob["payload"].Value<JObject>();
+                    if (payload["type"].Value<String>().Equals("ClientMessageType_SelectNResp"))
+                    {
+                        gameHistoryEvents.Add(payload);
+                    }
+                }
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing GRE to client messages from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -2069,9 +2142,12 @@ namespace mtga_log_client
             }
         }
 
-        private void PostJson(string endpoint, String blob, bool useGzip = false)
+        private void PostJson(string endpoint, String blob, bool useGzip = false, bool skipLogging = false)
         {
-            LogMessage(String.Format("Posting {0} of {1}", endpoint, blob), Level.Info);
+            if (!skipLogging)
+            {
+                LogMessage(String.Format("Posting {0} of {1}", endpoint, blob), Level.Info);
+            }
             for (int tryNumber = 0; tryNumber < POST_TRIES; tryNumber++)
             {
                 HttpResponseMessage response;
@@ -2187,7 +2263,7 @@ namespace mtga_log_client
 
         public void PostGame(JObject game)
         {
-            PostJson(ENDPOINT_GAME, game.ToString(Formatting.None), useGzip: true);
+            PostJson(ENDPOINT_GAME, game.ToString(Formatting.None), useGzip: true, skipLogging: false);
         }
 
         public void PostEvent(Event event_)
