@@ -21,6 +21,7 @@ using System.Deployment.Application;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.Linq;
+using System.IO.Compression;
 
 namespace mtga_log_client
 {
@@ -270,7 +271,7 @@ namespace mtga_log_client
             StartButton.IsEnabled = false;
             StartButton.Content = "Catching Up";
 
-            parser = new LogParser(client, userToken, filePath, LogMessage, SetStatusButtonText);
+            parser = new LogParser(client, userToken, filePath, gameHistoryEnabled, LogMessage, SetStatusButtonText);
 
             worker = new BackgroundWorker();
             worker.DoWork += parser.ResumeParsing;
@@ -576,7 +577,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.27";
+        public const string CLIENT_VERSION = "0.1.28";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -622,11 +623,13 @@ namespace mtga_log_client
         private string currentMatchId = null;
         private string currentMatchEventId = null;
         private int startingTeamId = -1;
+        private readonly Dictionary<int, string> screenNames = new Dictionary<int, string>();
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
         private readonly Dictionary<int, List<int>> cardsInHand = new Dictionary<int, List<int>>();
         private readonly Dictionary<int, List<List<int>>> drawnHands = new Dictionary<int, List<List<int>>>();
         private readonly Dictionary<int, Dictionary<int, int>> drawnCardsByInstanceId = new Dictionary<int, Dictionary<int, int>>();
         private readonly Dictionary<int, List<int>> openingHand = new Dictionary<int, List<int>>();
+        private readonly List<JObject> gameHistoryEvents = new List<JObject>();
 
         private const int ERROR_LINES_RECENCY = 10;
         private LinkedList<string> recentLines = new LinkedList<string>();
@@ -636,14 +639,16 @@ namespace mtga_log_client
         private readonly ApiClient apiClient;
         private readonly string apiToken;
         private readonly string filePath;
+        private readonly bool gameHistoryEnabled;
         private readonly LogMessageFunction messageFunction;
         private readonly UpdateStatusFunction statusFunction;
 
-        public LogParser(ApiClient apiClient, string apiToken, string filePath, LogMessageFunction messageFunction, UpdateStatusFunction statusFunction)
+        public LogParser(ApiClient apiClient, string apiToken, string filePath, bool gameHistoryEnabled, LogMessageFunction messageFunction, UpdateStatusFunction statusFunction)
         {
             this.apiClient = apiClient;
             this.apiToken = apiToken;
             this.filePath = filePath;
+            this.gameHistoryEnabled = gameHistoryEnabled;
             this.messageFunction = messageFunction;
             this.statusFunction = statusFunction;
         }
@@ -1112,48 +1117,54 @@ namespace mtga_log_client
                     currentOpponentLevel = null;
                 }
 
-                Game game = new Game();
-                game.token = apiToken;
-                game.client_version = CLIENT_VERSION;
-                game.player_id = currentUser;
-                game.time = GetDatetimeString(currentLogTime.Value);
-                game.utc_time = GetDatetimeString(lastUtcTime.Value);
+                JObject game = new JObject();
 
-                game.event_name = eventName;
-                game.match_id = matchId;
-                game.on_play = onPlay;
-                game.won = won;
-                game.win_type = winType;
-                game.game_end_reason = gameEndReason;
+                game.Add("token", JToken.FromObject(apiToken));
+                game.Add("client_version", JToken.FromObject(CLIENT_VERSION));
+                game.Add("player_id", JToken.FromObject(currentUser));
+                game.Add("time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)));
+                game.Add("utc_time", JToken.FromObject(GetDatetimeString(lastUtcTime.Value)));
+
+                game.Add("event_name", JToken.FromObject(eventName));
+                game.Add("match_id", JToken.FromObject(matchId));
+                game.Add("on_play", JToken.FromObject(onPlay));
+                game.Add("won", JToken.FromObject(won));
+                game.Add("win_type", JToken.FromObject(winType));
+                game.Add("game_end_reason", JToken.FromObject(gameEndReason));
+
 
                 if (openingHand.ContainsKey(seatId) && openingHand[seatId].Count > 0)
                 {
-                    game.opening_hand = openingHand[seatId];
+                    game.Add("opening_hand", JToken.FromObject(openingHand[seatId]));
                 }
 
                 if (drawnHands.ContainsKey(opponentId) && drawnHands[opponentId].Count > 0)
                 {
-                    game.opponent_mulligan_count = drawnHands[opponentId].Count - 1;
+                    game.Add("opponent_mulligan_count", JToken.FromObject(drawnHands[opponentId].Count - 1));
                 }
 
                 if (drawnHands.ContainsKey(seatId) && drawnHands[seatId].Count > 0)
                 {
-                    game.drawn_hands = drawnHands[seatId];
+                    game.Add("drawn_hands", JToken.FromObject(drawnHands[seatId]));
                 }
 
                 if (drawnCardsByInstanceId.ContainsKey(seatId))
                 {
-                    game.drawn_cards = drawnCardsByInstanceId[seatId].Values.ToList();
+                    game.Add("drawn_cards", JToken.FromObject(drawnCardsByInstanceId[seatId].Values.ToList()));
                 }
 
-                game.mulligans = mulliganedHands;
-                game.turns = turnCount;
-                game.limited_rank = currentLimitedLevel;
-                game.constructed_rank = currentConstructedLevel;
-                game.opponent_rank = currentOpponentLevel;
-                game.duration = duration;
-                
-                game.opponent_card_ids = opponentCardIds;
+                game.Add("mulligans", JToken.FromObject(mulliganedHands));
+                game.Add("turns", JToken.FromObject(turnCount));
+                game.Add("limited_rank", JToken.FromObject(currentLimitedLevel));
+                game.Add("constructed_rank", JToken.FromObject(currentConstructedLevel));
+                game.Add("opponent_rank", JToken.FromObject(currentOpponentLevel));
+                game.Add("duration", JToken.FromObject(duration));
+                game.Add("opponent_card_ids", JToken.FromObject(opponentCardIds));
+
+                if (gameHistoryEnabled)
+                {
+                    game.Add("game_history_events", JToken.FromObject(gameHistoryEvents));
+                }
 
                 ClearGameData();
                 apiClient.PostGame(game);
@@ -1614,6 +1625,7 @@ namespace mtga_log_client
                 {
                     foreach (JObject zone in gameStateMessage["zones"].Value<JArray>())
                     {
+                        
                         if (!"ZoneType_Hand".Equals(zone["type"].Value<string>())) continue;
 
                         var owner = zone["ownerSeatId"].Value<int>();
@@ -2057,13 +2069,35 @@ namespace mtga_log_client
             }
         }
 
-        private void PostJson(string endpoint, String blob)
+        private void PostJson(string endpoint, String blob, bool useGzip = false)
         {
             LogMessage(String.Format("Posting {0} of {1}", endpoint, blob), Level.Info);
             for (int tryNumber = 0; tryNumber < POST_TRIES; tryNumber++)
             {
-                var content = new StringContent(blob, Encoding.UTF8, "application/json");
-                var response = client.PostAsync(endpoint, content).Result;
+                HttpResponseMessage response;
+                if (useGzip)
+                {
+                    using (var stream = new MemoryStream())
+                    {
+                        byte[] encoded = Encoding.UTF8.GetBytes(blob);
+                        using (var compressedStream = new GZipStream(stream, CompressionMode.Compress, true))
+                        {
+                            compressedStream.Write(encoded, 0, encoded.Length);
+                        }
+
+                        stream.Position = 0;
+                        var content = new StreamContent(stream);
+                        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+                        content.Headers.ContentEncoding.Add("gzip");
+                        content.Headers.ContentLength = stream.Length;
+                        response = client.PostAsync(endpoint, content).Result;
+                    }
+                }
+                else
+                {
+                    var content = new StringContent(blob, Encoding.UTF8, "application/json");
+                    response = client.PostAsync(endpoint, content).Result;
+                }
                 if (response.IsSuccessStatusCode)
                 {
                     break;
@@ -2151,12 +2185,9 @@ namespace mtga_log_client
             PostJson(ENDPOINT_DECK, jsonString);
         }
 
-        public void PostGame(Game game)
+        public void PostGame(JObject game)
         {
-            MemoryStream stream = new MemoryStream();
-            SERIALIZER_GAME.WriteObject(stream, game);
-            string jsonString = Encoding.UTF8.GetString(stream.ToArray());
-            PostJson(ENDPOINT_GAME, jsonString);
+            PostJson(ENDPOINT_GAME, game.ToString(Formatting.None), useGzip: true);
         }
 
         public void PostEvent(Event event_)
