@@ -14,6 +14,7 @@ details.
 import datetime
 import json
 import getpass
+import gzip
 import itertools
 import logging
 import logging.handlers
@@ -159,7 +160,7 @@ def get_rank_string(rank_class, level, percentile, place, step):
 class Follower:
     """Follows along a log, parses the messages, and passes along the parsed data to the API endpoint."""
 
-    def __init__(self, token, host):
+    def __init__(self, token, host, history_enabled):
         self.host = host
         self.token = token
         self.buffer = []
@@ -181,8 +182,11 @@ class Follower:
         self.drawn_hands = defaultdict(list)
         self.drawn_cards_by_instance_id = defaultdict(dict)
         self.cards_in_hand = defaultdict(list)
+        self.history_enabled = history_enabled
+        self.screen_names = defaultdict(lambda: '')
+        self.game_history_events = []
 
-    def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME):
+    def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME, use_gzip=False):
         """
         Add client version to a JSON blob and send the data to an endpoint via post
         request, retrying on server errors.
@@ -201,7 +205,14 @@ class Follower:
         tries_left = num_retries + 1
         while tries_left > 0:
             tries_left -= 1
-            response = requests.post(endpoint, json=blob)
+            if use_gzip:
+                data = gzip.compress(json.dumps(blob).encode('utf8'))
+                response = requests.post(endpoint, data=data, headers={
+                    'content-type': 'application/json',
+                    'content-encoding': 'gzip',
+                })
+            else:
+                response = requests.post(endpoint, json=blob)
             if not IS_CODE_FOR_RETRY(response.status_code):
                 break
             logger.warning(f'Got response code {response.status_code}; retrying {tries_left} more times')
@@ -348,6 +359,8 @@ class Follower:
         elif 'greToClientEvent' in json_obj and 'greToClientMessages' in json_obj['greToClientEvent']:
             for message in json_obj['greToClientEvent']['greToClientMessages']:
                 self.__handle_gre_to_client_message(message)
+        elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREMessage', ['clientToMatchServiceMessageType'], json_obj):
+            self.__handle_client_to_gre_message(json_obj.get('payload', {}))
         elif 'limitedStep' in json_obj:
             self.__handle_self_rank_info(json_obj)
         elif 'opponentRankingClass' in json_obj:
@@ -388,9 +401,17 @@ class Follower:
         if 'eventId' in game_room_config and 'matchId' in game_room_config:
             self.current_match_event_id = (game_room_config['matchId'], game_room_config['eventId'])
 
+        if 'reservedPlayers' in game_room_config:
+            for player in game_room_config['reservedPlayers']:
+                self.screen_names[player['systemSeatId']] = player['playerName'].split('#')[0]
 
     def __handle_gre_to_client_message(self, message_blob):
         """Handle messages in the 'greToClientEvent' field."""
+        # Add to game history before processing the messsage, since we may submit the game right away.
+        if self.history_enabled:
+            if message_blob['type'] in ['GREMessageType_QueuedGameStateMessage', 'GREMessageType_GameStateMessage']:
+                self.game_history_events.append(message_blob)
+
         if message_blob['type'] == 'GREMessageType_SubmitDeckReq':
             deck = {
                 'player_id': self.cur_user,
@@ -442,6 +463,11 @@ class Follower:
                 for (owner, hand) in self.cards_in_hand.items():
                     self.opening_hand[owner] = hand.copy()
 
+    def __handle_client_to_gre_message(self, payload):
+        if self.history_enabled:
+            if payload['type'] == 'ClientMessageType_SelectNResp':
+                self.game_history_events.append(payload)
+
     def __maybe_handle_game_over_stage(self, system_seat_ids, game_state_message):
         game_info = game_state_message.get('gameInfo', {})
         if game_info.get('stage') != 'GameStage_GameOver':
@@ -481,6 +507,9 @@ class Follower:
                 duration=-1,
             )
 
+            if game_info.get('matchState') == 'MatchState_MatchComplete':
+                self.__clear_match_data()
+
             return
 
 
@@ -491,6 +520,10 @@ class Follower:
         self.drawn_hands.clear()
         self.drawn_cards_by_instance_id.clear()
         self.starting_team_id = None
+        self.game_history_events.clear()
+
+    def __clear_match_data(self):
+        self.screen_names.clear()
 
     def __maybe_handle_account_info(self, line):
         match = ACCOUNT_INFO_REGEX.match(line)
@@ -579,9 +612,21 @@ class Follower:
             'constructed_rank': self.cur_constructed_level,
             'opponent_rank': self.cur_opponent_level,
         }
-        self.__clear_game_data()
         logger.info(f'Completed game: {game}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=game)
+
+        # Add the history to the blob after logging to avoid printing excessive logs
+        if self.history_enabled:
+            logger.info(f'Adding game history ({len(self.game_history_events)} events)')
+            game['history'] = {
+                'seat_id': seat_id,
+                'opponent_seat_id': opponent_id,
+                'screen_name': self.screen_names[seat_id],
+                'opponent_screen_name': self.screen_names[opponent_id],
+                'events': self.game_history_events,
+            }
+
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=game, use_gzip=True)
+        self.__clear_game_data()
 
     def __handle_login(self, json_obj):
         """Handle 'Client.Connected' messages."""
@@ -824,14 +869,16 @@ def get_client_token_cli():
         else:
             return token
 
-def get_client_token():
+def get_config():
     import configparser
     token = None
+    game_history = False
     config = configparser.ConfigParser()
     if os.path.exists(CONFIG_FILE):
         config.read(CONFIG_FILE)
         if 'client' in config:
             token = validate_uuid_v4(config['client'].get('token'))
+            game_history = config['client'].getboolean('game_history')
 
     if token is None or validate_uuid_v4(token) is None:
         try:
@@ -839,11 +886,13 @@ def get_client_token():
         except ModuleNotFoundError:
             token = get_client_token_cli()
 
-        config['client'] = {'token': token}
+        if 'client' not in config:
+            config['client'] = {}
+        config['client']['token'] = token
         with open(CONFIG_FILE, 'w') as f:
             config.write(f)
 
-    return token
+    return token, game_history
 
 def verify_valid_version(host):
     for i in range(3):
@@ -893,7 +942,7 @@ def main():
 
     verify_valid_version(args.host)
 
-    token = get_client_token()
+    token, history_enabled = get_config()
     logger.info(f'Using token {token[:4]}...{token[-4:]}')
 
     filepaths = POSSIBLE_CURRENT_FILEPATHS
@@ -902,7 +951,7 @@ def main():
 
     follow = not args.once
 
-    follower = Follower(token, host=args.host)
+    follower = Follower(token, host=args.host, history_enabled=history_enabled)
 
     # if running in "normal" mode...
     if args.log_file is None and args.host == API_ENDPOINT and follow:
