@@ -47,7 +47,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.15'
+CLIENT_VERSION = '0.1.16.p'
 
 OSX_LOG_ROOT = os.path.join('Library','Logs')
 WINDOWS_LOG_ROOT = os.path.join('users', getpass.getuser(), 'AppData', 'LocalLow')
@@ -872,13 +872,13 @@ def get_client_token_cli():
 def get_config():
     import configparser
     token = None
-    game_history = False
+    game_history = True
     config = configparser.ConfigParser()
     if os.path.exists(CONFIG_FILE):
         config.read(CONFIG_FILE)
         if 'client' in config:
             token = validate_uuid_v4(config['client'].get('token'))
-            game_history = config['client'].getboolean('game_history')
+            game_history = config['client'].getboolean('game_history', fallback=True)
 
     if token is None or validate_uuid_v4(token) is None:
         try:
@@ -907,7 +907,7 @@ def verify_valid_version(host):
 
     logger.info(f'Got minimum client version response: {response.text}')
     blob = json.loads(response.text)
-    this_version = [int(i) for i in CLIENT_VERSION.split('.')]
+    this_version = [int(i) for i in CLIENT_VERSION.split('.')[:-1]]
     min_supported_version = [int(i) for i in blob['min_version'].split('.')]
     logger.info(f'Minimum supported version: {min_supported_version}; this version: {this_version}')
 
