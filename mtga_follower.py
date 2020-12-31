@@ -104,10 +104,15 @@ ENDPOINT_HUMAN_DRAFT_PICK = 'human_draft_pick'
 ENDPOINT_HUMAN_DRAFT_PACK = 'human_draft_pack'
 ENDPOINT_COLLECTION = 'collection'
 ENDPOINT_CLIENT_VERSION = 'min_client_version'
+ENDPOINT_GAME_HISTORY_ENABLED = 'api/game_history_enabled'
 
 RETRIES = 2
 IS_CODE_FOR_RETRY = lambda code: code >= 500 and code < 600
+IS_SUCCESS_CODE = lambda code: code >= 200 and code < 300
 DEFAULT_RETRY_SLEEP_TIME = 1
+SERVER_SIDE_GAME_HISTORY_ENABLED_CHECK_INTERVAL = datetime.timedelta(minutes=30)
+
+GameHistoryConfig = namedtuple('GameHistoryConfig', ('last_checked', 'enabled'))
 
 def extract_time(time_str):
     """
@@ -185,6 +190,20 @@ class Follower:
         self.history_enabled = history_enabled
         self.screen_names = defaultdict(lambda: '')
         self.game_history_events = []
+        self.server_side_game_history_enabled = GameHistoryConfig(last_checked=None, enabled=False)
+
+
+    def __should_submit_game_history(self):
+        last_checked = self.server_side_game_history_enabled.last_checked
+        now = datetime.datetime.utcnow()
+        if last_checked is None or last_checked < now - SERVER_SIDE_GAME_HISTORY_ENABLED_CHECK_INTERVAL:
+            response = requests.get(f'{self.host}/{ENDPOINT_GAME_HISTORY_ENABLED}/{self.token}')
+            if IS_SUCCESS_CODE(response.status_code):
+                self.server_side_game_history_enabled = GameHistoryConfig(last_checked=now, enabled=response.text == 'true')
+            else:
+                self.server_side_game_history_enabled = GameHistoryConfig(last_checked=now, enabled=self.server_side_game_history_enabled.enabled)
+
+        return self.server_side_game_history_enabled.enabled
 
     def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME, use_gzip=False):
         """
@@ -615,7 +634,7 @@ class Follower:
         logger.info(f'Completed game: {game}')
 
         # Add the history to the blob after logging to avoid printing excessive logs
-        if self.history_enabled:
+        if self.history_enabled and self.__should_submit_game_history():
             logger.info(f'Adding game history ({len(self.game_history_events)} events)')
             game['history'] = {
                 'seat_id': seat_id,
@@ -943,7 +962,7 @@ def main():
     verify_valid_version(args.host)
 
     token, history_enabled = get_config()
-    logger.info(f'Using token {token[:4]}...{token[-4:]}')
+    logger.info(f'Using token {token[:4]}...{token[-4:]} with history_enabled: {history_enabled}')
 
     filepaths = POSSIBLE_CURRENT_FILEPATHS
     if args.log_file is not None:
