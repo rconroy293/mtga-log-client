@@ -812,7 +812,20 @@ namespace mtga_log_client
                 return;
             }
 
-            var fullLog = String.Join("", buffer);
+            String fullLog;
+            try
+            {
+                fullLog = String.Join("", buffer);
+            }
+            catch (OutOfMemoryException)
+            {
+                LogMessage("Ran out of memory trying to process the last blob. Arena may have been idle for too long. 17Lands should auto-recover.", Level.Warn);
+                ClearGameData();
+                ClearMatchData();
+                buffer.Clear();
+                return;
+            }
+
             currentDebugBlob = fullLog;
             try
             {
