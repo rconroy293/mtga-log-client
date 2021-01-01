@@ -577,7 +577,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.28";
+        public const string CLIENT_VERSION = "0.1.28.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -1174,7 +1174,7 @@ namespace mtga_log_client
                 game.Add("opponent_card_ids", JToken.FromObject(opponentCardIds));
 
                 LogMessage(String.Format("Posting game of {0}", game.ToString(Formatting.None)), Level.Info);
-                if (gameHistoryEnabled)
+                if (gameHistoryEnabled && apiClient.ShouldSubmitGameHistory(apiToken))
                 {
                     LogMessage(String.Format("Including game history of {0} events", gameHistoryEvents.Count()), Level.Info);
                     JObject history = new JObject();
@@ -2069,6 +2069,7 @@ namespace mtga_log_client
         private const string ENDPOINT_HUMAN_DRAFT_PACK = "human_draft_pack";
         private const string ENDPOINT_CLIENT_VERSION_VALIDATION = "api/version_validation";
         private const string ENDPOINT_TOKEN_VERSION_VALIDATION = "api/token_validation";
+        private const string ENDPOINT_GAME_HISTORY_ENABLED = "api/game_history_enabled";
         private const string ENDPOINT_ERROR_INFO = "api/client_errors";
 
         private static readonly DataContractJsonSerializerSettings SIMPLE_SERIALIZER_SETTINGS = new DataContractJsonSerializerSettings { UseSimpleDictionaryFormat = true };
@@ -2090,6 +2091,11 @@ namespace mtga_log_client
 
         private const int ERROR_COOLDOWN_MINUTES = 2;
         private DateTime? lastErrorPosted = null;
+
+        private const int SERVER_SIDE_GAME_HISTORY_ENABLED_CHECK_INTERVAL_MINUTES = 1;
+        private DateTime? lastGameHistoryEnableCheck = null;
+        private bool serverSideGameHistoryEnabled = true;
+
         private const int POST_TRIES = 3;
         private const int POST_RETRY_INTERVAL_MILLIS = 10000;
 
@@ -2193,7 +2199,9 @@ namespace mtga_log_client
 
         public VersionValidationResponse GetVersionValidation()
         {
-            var jsonResponse = GetJson(ENDPOINT_CLIENT_VERSION_VALIDATION + "?client=" + LogParser.CLIENT_TYPE + "&version=" + LogParser.CLIENT_VERSION);
+            var jsonResponse = GetJson(ENDPOINT_CLIENT_VERSION_VALIDATION
+                + "?client=" + LogParser.CLIENT_TYPE + "&version="
+                + LogParser.CLIENT_VERSION.TrimEnd(new char [] { '.', 'w'}));
             if (jsonResponse == null)
             {
                 return null;
@@ -2211,6 +2219,30 @@ namespace mtga_log_client
             }
             DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(TokenValidationResponse));
             return ((TokenValidationResponse)serializer.ReadObject(jsonResponse));
+        }
+
+        public bool ShouldSubmitGameHistory(string token)
+        {
+            DateTime now = DateTime.UtcNow;
+            if (lastGameHistoryEnableCheck == null || lastGameHistoryEnableCheck.GetValueOrDefault().AddMinutes(SERVER_SIDE_GAME_HISTORY_ENABLED_CHECK_INTERVAL_MINUTES) < now)
+            {
+                LogMessage(String.Format("Checking if enabled or not"), Level.Info);
+                HttpResponseMessage response = client.GetAsync(ENDPOINT_GAME_HISTORY_ENABLED + "/" + token).Result;
+                if (response.IsSuccessStatusCode)
+                {
+                    LogMessage(String.Format("Got success - enabled? {0}", response.Content.ReadAsStringAsync().Result), Level.Info);
+                    serverSideGameHistoryEnabled = response.Content.ReadAsStringAsync().Result == "true";
+                } else
+                {
+                    LogMessage(String.Format("Got bad response"), Level.Info);
+                }
+                lastGameHistoryEnableCheck = now;
+            } else
+            {
+                LogMessage(String.Format("Skipping check"), Level.Info);
+            }
+            LogMessage(String.Format("time? {0} enabled? {1}", lastGameHistoryEnableCheck, serverSideGameHistoryEnabled), Level.Info);
+            return serverSideGameHistoryEnabled;
         }
 
         public void PostMTGAAccount(MTGAAccount account)
