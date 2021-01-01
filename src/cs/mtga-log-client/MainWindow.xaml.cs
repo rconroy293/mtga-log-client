@@ -176,11 +176,19 @@ namespace mtga_log_client
         private void ClearPreferences(object Sender, EventArgs e)
         {
             Properties.Settings.Default.do_not_ask_on_close = false;
-            Properties.Settings.Default.minimized_at_startup = false;
-            Properties.Settings.Default.game_history_enabled = true;
-            Properties.Settings.Default.Save();
 
+            Properties.Settings.Default.minimized_at_startup = false;
             StartMinimizedCheckbox.IsChecked = false;
+
+            Properties.Settings.Default.game_history_enabled = true;
+            gameHistoryEnabled = true;
+            GameHistoryCheckbox.IsChecked = true;
+            if (parser != null)
+            {
+                parser.SetGameHistoryEnabled(true);
+            }
+
+            Properties.Settings.Default.Save();
         }
 
         protected override void OnStateChanged(EventArgs e)
@@ -363,6 +371,10 @@ namespace mtga_log_client
         private void GameHistoryCheckbox_onClick(object sender, EventArgs e)
         {
             gameHistoryEnabled = GameHistoryCheckbox.IsChecked.GetValueOrDefault(false);
+            if (parser != null)
+            {
+                parser.SetGameHistoryEnabled(gameHistoryEnabled);
+            }
             SaveSettings();
         }
 
@@ -644,7 +656,7 @@ namespace mtga_log_client
         private readonly ApiClient apiClient;
         private readonly string apiToken;
         private readonly string filePath;
-        private readonly bool gameHistoryEnabled;
+        private bool gameHistoryEnabled;
         private readonly LogMessageFunction messageFunction;
         private readonly UpdateStatusFunction statusFunction;
 
@@ -656,6 +668,11 @@ namespace mtga_log_client
             this.gameHistoryEnabled = gameHistoryEnabled;
             this.messageFunction = messageFunction;
             this.statusFunction = statusFunction;
+        }
+
+        public void SetGameHistoryEnabled(bool flag)
+        {
+            gameHistoryEnabled = flag;
         }
 
         public void ResumeParsing(object sender, DoWorkEventArgs e)
