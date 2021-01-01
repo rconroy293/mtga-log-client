@@ -2105,7 +2105,7 @@ namespace mtga_log_client
         private const int ERROR_COOLDOWN_MINUTES = 2;
         private DateTime? lastErrorPosted = null;
 
-        private const int SERVER_SIDE_GAME_HISTORY_ENABLED_CHECK_INTERVAL_MINUTES = 1;
+        private const int SERVER_SIDE_GAME_HISTORY_ENABLED_CHECK_INTERVAL_MINUTES = 30;
         private DateTime? lastGameHistoryEnableCheck = null;
         private bool serverSideGameHistoryEnabled = true;
 
@@ -2239,22 +2239,13 @@ namespace mtga_log_client
             DateTime now = DateTime.UtcNow;
             if (lastGameHistoryEnableCheck == null || lastGameHistoryEnableCheck.GetValueOrDefault().AddMinutes(SERVER_SIDE_GAME_HISTORY_ENABLED_CHECK_INTERVAL_MINUTES) < now)
             {
-                LogMessage(String.Format("Checking if enabled or not"), Level.Info);
                 HttpResponseMessage response = client.GetAsync(ENDPOINT_GAME_HISTORY_ENABLED + "/" + token).Result;
                 if (response.IsSuccessStatusCode)
                 {
-                    LogMessage(String.Format("Got success - enabled? {0}", response.Content.ReadAsStringAsync().Result), Level.Info);
                     serverSideGameHistoryEnabled = response.Content.ReadAsStringAsync().Result == "true";
-                } else
-                {
-                    LogMessage(String.Format("Got bad response"), Level.Info);
                 }
                 lastGameHistoryEnableCheck = now;
-            } else
-            {
-                LogMessage(String.Format("Skipping check"), Level.Info);
             }
-            LogMessage(String.Format("time? {0} enabled? {1}", lastGameHistoryEnableCheck, serverSideGameHistoryEnabled), Level.Info);
             return serverSideGameHistoryEnabled;
         }
 
