@@ -4,7 +4,7 @@ Simple client for passing relevant events from MTG Arena logs to the 17Lands RES
 
 ## Usage
 
-To run, simply enter `seventeelands` in your terminal. On first run, you will be prompted for your user token.
+To run, simply enter `seventeenlands` in your terminal. On first run, you will be prompted for your user token.
 
 ## Notes
 
