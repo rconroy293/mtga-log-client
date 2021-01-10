@@ -33,7 +33,7 @@ import requests
 LOG_FOLDER = os.path.join(os.path.expanduser('~'), '.seventeenlands')
 if not os.path.exists(LOG_FOLDER):
     os.makedirs(LOG_FOLDER)
-LOG_FILENAME = os.path.join(LOG_FOLDER, 'seveentenlands.log')
+LOG_FILENAME = os.path.join(LOG_FOLDER, 'seventeenlands.log')
 
 log_formatter = logging.Formatter('%(asctime)s,%(levelname)s,%(message)s', datefmt='%Y%m%d %H%M%S')
 handlers = {
