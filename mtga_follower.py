@@ -47,7 +47,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.16.p'
+CLIENT_VERSION = '0.1.17.p'
 
 OSX_LOG_ROOT = os.path.join('Library','Logs')
 WINDOWS_LOG_ROOT = os.path.join('users', getpass.getuser(), 'AppData', 'LocalLow')
@@ -89,6 +89,7 @@ TIME_FORMATS = (
     '%m/%d/%Y %H:%M:%S',
     '%Y/%m/%d %I:%M:%S %p',
     '%Y/%m/%d %H:%M:%S',
+    '%d/%m/%Y %H:%M:%S',
 )
 OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
 
