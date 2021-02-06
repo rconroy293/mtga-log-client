@@ -509,6 +509,9 @@ class Follower:
                 players = game_state_message.get('players', [])
                 if len(players) > 0:
                     maybe_turn_number = sum(p['turnNumber'] for p in players)
+                    # If one of the player structs is missing, double the turn number to acount for it
+                    if len(players) == 1:
+                        maybe_turn_number *= 2
                 else:
                     maybe_turn_number = -1
 
