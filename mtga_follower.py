@@ -432,17 +432,7 @@ class Follower:
             if message_blob['type'] in ['GREMessageType_QueuedGameStateMessage', 'GREMessageType_GameStateMessage']:
                 self.game_history_events.append(message_blob)
 
-        if message_blob['type'] == 'GREMessageType_SubmitDeckReq':
-            deck = {
-                'player_id': self.cur_user,
-                'time': self.cur_log_time.isoformat(),
-                'maindeck_card_ids': message_blob['submitDeckReq']['deck']['deckCards'],
-                'sideboard_card_ids': message_blob['submitDeckReq']['deck'].get('sideboardCards', []),
-                'is_during_match': True,
-            }
-            logger.info(f'Deck submission: {deck}')
-            response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
-        elif message_blob['type'] == 'GREMessageType_GameStateMessage':
+        if message_blob['type'] == 'GREMessageType_GameStateMessage':
             game_state_message = message_blob.get('gameStateMessage', {})
             self.__maybe_handle_game_over_stage(message_blob.get('systemSeatIds', []), game_state_message)
             for game_object in game_state_message.get('gameObjects', []):
@@ -487,6 +477,19 @@ class Follower:
         if self.history_enabled:
             if payload['type'] == 'ClientMessageType_SelectNResp':
                 self.game_history_events.append(payload)
+
+        if payload['type'] == 'ClientMessageType_SubmitDeckResp':
+            deck_info = payload['submitDeckResp']['deck']
+            deck = {
+                'player_id': self.cur_user,
+                'time': self.cur_log_time.isoformat(),
+                'maindeck_card_ids': deck_info['deckCards'],
+                'sideboard_card_ids': deck_info.get('sideboardCards', []),
+                'companion': deck_info.get('companionGRPId', deck_info.get('companion', deck_info.get('deckMessageFieldFour'))),
+                'is_during_match': True,
+            }
+            logger.info(f'Deck submission via __handle_client_to_gre_message: {deck}')
+            response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __maybe_handle_game_over_stage(self, system_seat_ids, game_state_message):
         game_info = game_state_message.get('gameInfo', {})
@@ -774,7 +777,7 @@ class Follower:
             'sideboard_card_ids': [d['Id'] for d in deck_info['sideboard'] for i in range(d['Quantity'])],
             'is_during_match': False,
         }
-        logger.info(f'Deck submission: {deck}')
+        logger.info(f'Deck submission via __handle_deck_submission: {deck}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __handle_deck_submission_v3(self, json_obj):
@@ -791,7 +794,7 @@ class Follower:
             'is_during_match': False,
             'companion': deck_info.get('companionGRPId'),
         }
-        logger.info(f'Deck submission: {deck}')
+        logger.info(f'Deck submission via __handle_deck_submission_v3: {deck}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __handle_self_rank_info(self, json_obj):

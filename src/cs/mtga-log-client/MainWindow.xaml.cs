@@ -251,10 +251,10 @@ namespace mtga_log_client
             }
 
             MessageBox.Show(
-                "This version of the client is no longer supported. Please update.",
-                "Outdated Client",
+                "This version of the 17Lands client is no longer supported. Please update.",
+                "Outdated 17Lands Client",
                 MessageBoxButton.OK,
-                MessageBoxImage.Error);
+                MessageBoxImage.Information);
 
             System.Diagnostics.Process.Start(DOWNLOAD_URL);
             Application.Current.Shutdown();
@@ -1608,7 +1608,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleGreMessage_DeckSubmission(JToken blob)
         {
-            if (!"GREMessageType_SubmitDeckReq".Equals(blob["type"].Value<string>())) return false;
+            if (!"ClientMessageType_SubmitDeckResp".Equals(blob["type"].Value<string>())) return false;
 
             try
             {
@@ -1622,13 +1622,28 @@ namespace mtga_log_client
                 deck.utc_time = GetDatetimeString(lastUtcTime.Value);
 
                 deck.event_name = null;
-                deck.maindeck_card_ids = JArrayToIntList(blob["submitDeckReq"]["deck"]["deckCards"].Value<JArray>());
-                if (blob["submitDeckReq"]["deck"]["sideboardCards"] == null) {
+                JToken deckInfo = blob["submitDeckResp"]["deck"];
+                deck.maindeck_card_ids = JArrayToIntList(deckInfo["deckCards"].Value<JArray>());
+                if (deckInfo["sideboardCards"] == null) {
                     deck.sideboard_card_ids = new List<int>();
                 }
                 else
                 {
-                    deck.sideboard_card_ids = JArrayToIntList(blob["submitDeckReq"]["deck"]["sideboardCards"].Value<JArray>());
+                    deck.sideboard_card_ids = JArrayToIntList(blob["submitDeckResp"]["deck"]["sideboardCards"].Value<JArray>());
+                }
+
+                if (deckInfo["companionGRPId"] != null)
+                {
+                    deck.companion = deckInfo["companionGRPId"].Value<int>();
+                }
+                else if (deckInfo["companion"] != null)
+                {
+                    deck.companion = deckInfo["companion"].Value<int>();
+                }
+                else if (deckInfo["deckMessageFieldFour"] != null)
+                {
+                    deck.companion = deckInfo["deckMessageFieldFour"].Value<int>();
+
                 }
                 deck.is_during_match = true;
 
@@ -1853,7 +1868,6 @@ namespace mtga_log_client
                 foreach (JToken message in blob["greToClientEvent"]["greToClientMessages"])
                 {
                     AddGameHistoryEvents(message);
-                    if (MaybeHandleGreMessage_DeckSubmission(message)) continue;
                     if (MaybeHandleGreMessage_GameState(message)) continue;
                 }
                 return true;
@@ -1880,17 +1894,18 @@ namespace mtga_log_client
             if (!blob.ContainsKey("clientToMatchServiceMessageType")) return false;
             if (!"ClientToMatchServiceMessageType_ClientToGREMessage".Equals(blob["clientToMatchServiceMessageType"].Value<String>())) return false;
 
-            if (!gameHistoryEnabled) return true;
             try
             {
                 if (blob.ContainsKey("payload"))
                 {
                     var payload = blob["payload"].Value<JObject>();
-                    if (payload["type"].Value<String>().Equals("ClientMessageType_SelectNResp"))
+                    if (gameHistoryEnabled && payload["type"].Value<String>().Equals("ClientMessageType_SelectNResp"))
                     {
                         gameHistoryEvents.Add(payload);
                     }
+                    if (MaybeHandleGreMessage_DeckSubmission(payload)) return true;
                 }
+
                 return true;
             }
             catch (Exception e)
