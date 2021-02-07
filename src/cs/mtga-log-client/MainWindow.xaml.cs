@@ -251,10 +251,10 @@ namespace mtga_log_client
             }
 
             MessageBox.Show(
-                "This version of the client is no longer supported. Please update.",
-                "Outdated Client",
+                "This version of the 17Lands client is no longer supported. Please update.",
+                "Outdated 17Lands Client",
                 MessageBoxButton.OK,
-                MessageBoxImage.Error);
+                MessageBoxImage.Information);
 
             System.Diagnostics.Process.Start(DOWNLOAD_URL);
             Application.Current.Shutdown();
