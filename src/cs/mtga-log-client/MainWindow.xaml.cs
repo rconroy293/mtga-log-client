@@ -87,7 +87,7 @@ namespace mtga_log_client
             if (!isStarted)
             {
                 MessageBox.Show(
-                    "Welcome to the 17Lands MTGA client. Please locate your log file and user token, then click 'Start Parsing' to begin.",
+                    "Welcome to the 17Lands MTGA client. Please input your user token then click 'Start Parsing' to begin.",
                     "Welcome",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
@@ -216,7 +216,17 @@ namespace mtga_log_client
 
         private string MaybeSwitchLogFile(string filePath)
         {
-            if (filePath.EndsWith(@"\output_log.txt"))
+            if (filePath == null || filePath.Length == 0)
+            {
+                filePath = Path.Combine(
+                    Path.GetDirectoryName(Environment.GetFolderPath(Environment.SpecialFolder.Personal)),
+                    "AppData",
+                    "LocalLow",
+                    "Wizards of the Coast",
+                    "MTGA",
+                    "Player.log");
+            }
+            else if (filePath.EndsWith(@"\output_log.txt"))
             {
                 filePath = filePath.Replace(@"\output_log.txt", @"\Player.log");
                 Properties.Settings.Default.mtga_log_filename = filePath;
@@ -307,11 +317,23 @@ namespace mtga_log_client
 
             if (promptForUpdate)
             {
-                MessageBox.Show(
-                    "You must choose a valid log file name from " + String.Join(", ", REQUIRED_FILENAMES),
-                    "Choose Filename",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                if (!File.Exists(LogFileTextBox.Text))
+                {
+                    MessageBox.Show(
+                        "Your Arena Player.log file is not in a standard location. You may need to search for it.",
+                        "Choose Filename",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "You must choose a valid log file name from " + String.Join(", ", REQUIRED_FILENAMES),
+                        "Choose Filename",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
 
                 filePath = ChooseLogFile();
                 if (filePath != null)
@@ -434,7 +456,7 @@ namespace mtga_log_client
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Filter = "Log files (*.log)|*.log";
-            openFileDialog.InitialDirectory = filePath;
+            openFileDialog.InitialDirectory = Path.GetDirectoryName(filePath);
 
             if (openFileDialog.ShowDialog() == true)
             {
@@ -1643,8 +1665,8 @@ namespace mtga_log_client
                 else if (deckInfo["deckMessageFieldFour"] != null)
                 {
                     deck.companion = deckInfo["deckMessageFieldFour"].Value<int>();
-
                 }
+
                 deck.is_during_match = true;
 
                 apiClient.PostDeck(deck);
