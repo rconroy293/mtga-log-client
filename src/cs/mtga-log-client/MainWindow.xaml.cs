@@ -1801,9 +1801,14 @@ namespace mtga_log_client
                 else if (gameStateMessage.ContainsKey("players"))
                 {
                     turnNumber = 0;
-                    foreach (JToken turnToken in gameStateMessage["players"].Value<JArray>())
+                    var players = gameStateMessage["players"].Value<JArray>();
+                    foreach (JToken turnToken in players)
                     {
                         turnNumber += turnToken.Value<JObject>()["turnNumber"].Value<int>();
+                    }
+                    if (players.Count == 1)
+                    {
+                        turnNumber *= 2;
                     }
                 }
 
