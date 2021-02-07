@@ -47,7 +47,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.17.p'
+CLIENT_VERSION = '0.1.18.p'
 
 OSX_LOG_ROOT = os.path.join('Library','Logs')
 WINDOWS_LOG_ROOT = os.path.join('users', getpass.getuser(), 'AppData', 'LocalLow')
@@ -485,7 +485,7 @@ class Follower:
                 'time': self.cur_log_time.isoformat(),
                 'maindeck_card_ids': deck_info['deckCards'],
                 'sideboard_card_ids': deck_info.get('sideboardCards', []),
-                'companion': deck_info.get('companionGRPId', deck_info.get('companion', deck_info.get('deckMessageFieldFour'))),
+                'companion': deck_info.get('companionGRPId', deck_info.get('companion', deck_info.get('deckMessageFieldFour', 0))),
                 'is_during_match': True,
             }
             logger.info(f'Deck submission via __handle_client_to_gre_message: {deck}')
