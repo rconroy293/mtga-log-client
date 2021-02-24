@@ -249,7 +249,6 @@ class Follower:
         :param follow:   Whether or not to continue looking for updates to the file after parsing
                          all the initial lines.
         """
-        last_read_time = time.time()
         last_file_size = 0
         while True:
             try:
@@ -259,13 +258,9 @@ class Follower:
                         file_size = pathlib.Path(filename).stat().st_size
                         if line:
                             self.__append_line(line)
-                            last_read_time = time.time()
                             last_file_size = file_size
                         else:
                             self.__handle_complete_log_entry()
-                            last_modified_time = os.stat(filename).st_mtime
-                            if last_modified_time > last_read_time:
-                                logger.info(f'Old logic would restart (last_modified_time = {last_modified_time}; last_read_time = {last_read_time})')
                             if file_size < last_file_size:
                                 logger.info(f'Starting from beginning of file as file is smaller than before (previous = {last_file_size}; current = {file_size})')
                                 break
