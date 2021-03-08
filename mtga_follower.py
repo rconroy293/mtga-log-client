@@ -859,7 +859,7 @@ class Follower:
         self.__retry_post(f'{self.host}/{ENDPOINT_INVENTORY}', blob=blob)
 
     def __handle_player_progress(self, json_obj):
-        """Handle 'PlayerInventory.GetPlayerInventory' messages."""
+        """Handle 'Progression.GetPlayerProgress' messages."""
         blob = {
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
