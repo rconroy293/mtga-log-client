@@ -917,6 +917,7 @@ namespace mtga_log_client
             if (MaybeHandleGameRoomStateChanged(blob)) return;
             if (MaybeHandleGreToClientMessages(blob)) return;
             if (MaybeHandleClientToGreMessage(blob)) return;
+            if (MaybeHandleClientToGreUiMessage(blob)) return;
             if (MaybeHandleSelfRankInfo(blob)) return;
             if (MaybeHandleMatchCreated(blob)) return;
             if (MaybeHandleCollection(fullLog, blob)) return;
@@ -1909,6 +1910,17 @@ namespace mtga_log_client
             {
                 gameHistoryEvents.Add(message);
             }
+            else if (message["type"].Value<String>() == "GREMessageType_UIMessage")
+            {
+                if (message.ContainsKey("uiMessage"))
+                {
+                    var uiMessage = message["uiMessage"].Value<JObject>();
+                    if (uiMessage.ContainsKey("onChat"))
+                    {
+                        gameHistoryEvents.Add(message);
+                    }
+                }
+            }
         }
 
         private bool MaybeHandleClientToGreMessage(JObject blob)
@@ -1933,6 +1945,38 @@ namespace mtga_log_client
             catch (Exception e)
             {
                 LogError(String.Format("Error {0} parsing GRE to client messages from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandleClientToGreUiMessage(JObject blob)
+        {
+            if (!blob.ContainsKey("clientToMatchServiceMessageType")) return false;
+            if (!"ClientToMatchServiceMessageType_ClientToGREUIMessage".Equals(blob["clientToMatchServiceMessageType"].Value<String>())) return false;
+
+            try
+            {
+                if (gameHistoryEnabled)
+                {
+                    if (blob.ContainsKey("payload"))
+                    {
+                        var payload = blob["payload"].Value<JObject>();
+                        if (payload.ContainsKey("uiMessage"))
+                        {
+                            var uiMessage = payload["uiMessage"].Value<JObject>();
+                            if (uiMessage.ContainsKey("onChat"))
+                            {
+                                gameHistoryEvents.Add(payload);
+                            }
+                        }
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing GRE to client UI messages from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
