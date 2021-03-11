@@ -847,6 +847,9 @@ class Follower:
 
     def __handle_inventory(self, json_obj):
         """Handle 'PlayerInventory.GetPlayerInventory' messages."""
+        # Opportunistically update playerId if available
+        self.cur_user = json_obj.get('playerId', self.cur_user)
+
         json_obj.pop('vanityItems', None)
         json_obj.pop('vanitySelections', None)
         json_obj.pop('starterDecks', None)

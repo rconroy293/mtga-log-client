@@ -2041,6 +2041,11 @@ namespace mtga_log_client
             if (!fullLog.Contains(" PlayerInventory.GetPlayerInventory ")) return false;
             if (blob.ContainsKey("method")) return false;
 
+            if (blob.ContainsKey("playerId"))
+            {
+                currentUser = blob["playerId"].Value<String>();
+            }
+
             try
             {
                 JObject inventory = new JObject();
