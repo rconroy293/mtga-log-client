@@ -104,6 +104,8 @@ ENDPOINT_DRAFT_PICK = 'pick'
 ENDPOINT_HUMAN_DRAFT_PICK = 'human_draft_pick'
 ENDPOINT_HUMAN_DRAFT_PACK = 'human_draft_pack'
 ENDPOINT_COLLECTION = 'collection'
+ENDPOINT_INVENTORY = 'inventory'
+ENDPOINT_PLAYER_PROGRESS = 'player_progress'
 ENDPOINT_CLIENT_VERSION = 'min_client_version'
 ENDPOINT_GAME_HISTORY_ENABLED = 'api/game_history_enabled'
 
@@ -387,6 +389,10 @@ class Follower:
             self.__handle_match_created(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj:
             self.__handle_collection(json_obj)
+        elif ' PlayerInventory.GetPlayerInventory ' in full_log and 'method' not in json_obj:
+            self.__handle_inventory(json_obj)
+        elif ' Progression.GetPlayerProgress ' in full_log and 'method' not in json_obj:
+            self.__handle_player_progress(json_obj)
         elif 'Draft.Notify ' in full_log and 'method' not in json_obj:
             self.__handle_human_draft_pack(json_obj)
         elif 'Draft.Notification ' in full_log and 'method' not in json_obj:
@@ -837,7 +843,33 @@ class Follower:
             'card_counts': json_obj,
         }
         logger.info(f'Collection submission of {len(json_obj)} cards')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_COLLECTION}', blob=collection)
+        self.__retry_post(f'{self.host}/{ENDPOINT_COLLECTION}', blob=collection)
+
+    def __handle_inventory(self, json_obj):
+        """Handle 'PlayerInventory.GetPlayerInventory' messages."""
+        # Opportunistically update playerId if available
+        self.cur_user = json_obj.get('playerId', self.cur_user)
+
+        json_obj.pop('vanityItems', None)
+        json_obj.pop('vanitySelections', None)
+        json_obj.pop('starterDecks', None)
+        blob = {
+            'player_id': self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'inventory': json_obj,
+        }
+        logger.info(f'Submitting inventory')
+        self.__retry_post(f'{self.host}/{ENDPOINT_INVENTORY}', blob=blob)
+
+    def __handle_player_progress(self, json_obj):
+        """Handle 'Progression.GetPlayerProgress' messages."""
+        blob = {
+            'player_id': self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'progress': json_obj,
+        }
+        logger.info(f'Submitting mastery progress')
+        self.__retry_post(f'{self.host}/{ENDPOINT_PLAYER_PROGRESS}', blob=blob)
 
     def __get_card_ids_from_decklist_v3(self, decklist):
         """Parse a list of [card_id_1, count_1, card_id_2, count_2, ...] elements."""
