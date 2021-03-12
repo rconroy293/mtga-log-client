@@ -20,6 +20,7 @@ import logging
 import logging.handlers
 import os
 import os.path
+import pathlib
 import re
 import time
 import traceback
@@ -48,6 +49,8 @@ logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
 CLIENT_VERSION = '0.1.18.p'
+
+FILE_UPDATED_FORCE_REFRESH_SECONDS = 60
 
 OSX_LOG_ROOT = os.path.join('Library','Logs')
 WINDOWS_LOG_ROOT = os.path.join('users', getpass.getuser(), 'AppData', 'LocalLow')
@@ -250,19 +253,26 @@ class Follower:
         :param follow:   Whether or not to continue looking for updates to the file after parsing
                          all the initial lines.
         """
-        last_read_time = time.time()
         while True:
+            last_read_time = time.time()
+            last_file_size = 0
             try:
                 with open(filename) as f:
                     while True:
                         line = f.readline()
+                        file_size = pathlib.Path(filename).stat().st_size
                         if line:
                             self.__append_line(line)
                             last_read_time = time.time()
+                            last_file_size = file_size
                         else:
                             self.__handle_complete_log_entry()
                             last_modified_time = os.stat(filename).st_mtime
-                            if last_modified_time > last_read_time:
+                            if file_size < last_file_size:
+                                logger.info(f'Starting from beginning of file as file is smaller than before (previous = {last_file_size}; current = {file_size})')
+                                break
+                            elif last_modified_time > last_read_time + FILE_UPDATED_FORCE_REFRESH_SECONDS:
+                                logger.info(f'Starting from beginning of file as file has been updated much more recently than the last read (previous = {last_read_time}; current = {last_modified_time})')
                                 break
                             elif follow:
                                 time.sleep(SLEEP_TIME)
