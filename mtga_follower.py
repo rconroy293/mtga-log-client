@@ -393,6 +393,8 @@ class Follower:
                 self.__handle_gre_to_client_message(message)
         elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREMessage', ['clientToMatchServiceMessageType'], json_obj):
             self.__handle_client_to_gre_message(json_obj.get('payload', {}))
+        elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREUIMessage', ['clientToMatchServiceMessageType'], json_obj):
+            self.__handle_client_to_gre_ui_message(json_obj.get('payload', {}))
         elif 'limitedStep' in json_obj:
             self.__handle_self_rank_info(json_obj)
         elif 'opponentRankingClass' in json_obj:
@@ -446,6 +448,8 @@ class Follower:
         # Add to game history before processing the messsage, since we may submit the game right away.
         if self.history_enabled:
             if message_blob['type'] in ['GREMessageType_QueuedGameStateMessage', 'GREMessageType_GameStateMessage']:
+                self.game_history_events.append(message_blob)
+            elif message_blob['type'] == 'GREMessageType_UIMessage' and 'onChat' in message_blob['uiMessage']:
                 self.game_history_events.append(message_blob)
 
         if message_blob['type'] == 'GREMessageType_GameStateMessage':
@@ -506,6 +510,11 @@ class Follower:
             }
             logger.info(f'Deck submission via __handle_client_to_gre_message: {deck}')
             response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+
+    def __handle_client_to_gre_ui_message(self, payload):
+        if self.history_enabled:
+            if 'onChat' in payload['uiMessage']:
+                self.game_history_events.append(payload)
 
     def __maybe_handle_game_over_stage(self, system_seat_ids, game_state_message):
         game_info = game_state_message.get('gameInfo', {})
