@@ -191,6 +191,7 @@ class Follower:
         self.drawn_cards_by_instance_id = defaultdict(dict)
         self.cards_in_hand = defaultdict(list)
         self.history_enabled = history_enabled
+        self.user_screen_name = None
         self.screen_names = defaultdict(lambda: '')
         self.game_history_events = []
         self.server_side_game_history_enabled = GameHistoryConfig(last_checked=None, enabled=False)
@@ -277,7 +278,7 @@ class Follower:
 
     def __append_line(self, line):
         """Add a complete line (not necessarily a complete message) from the log."""
-        self.__maybe_handle_account_info(line)
+        # self.__maybe_handle_account_info(line)
 
         timestamp_match = TIMESTAMP_REGEX.match(line)
         if timestamp_match:
@@ -356,11 +357,11 @@ class Follower:
         except:
             pass
 
-        if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj):
-            self.__handle_login(json_obj)
+        # if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj):
+        #     self.__handle_login(json_obj)
         # elif json_value_matches('DuelScene.GameStop', ['params', 'messageName'], json_obj):
         #     self.__handle_game_end(json_obj)
-        elif 'DraftStatus' in json_obj:
+        if 'DraftStatus' in json_obj:
             self.__handle_draft_log(json_obj)
         elif json_value_matches('Draft.MakePick', ['method'], json_obj):
             self.__handle_draft_pick(json_obj)
@@ -415,6 +416,19 @@ class Follower:
 
         return blob
 
+    def __update_screen_name(self, screen_name):
+        if self.user_screen_name:
+            return
+
+        self.user_screen_name = screen_name
+        user_info = {
+            'player_id': self.cur_user,
+            'screen_name': self.user_screen_name,
+            'raw_time': self.last_raw_time,
+        }
+        logger.info(f'Updating user info: {user_info}')
+        self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
+
     def __handle_match_started(self, blob):
         game_room_config = blob.get(
             'matchGameRoomStateChangedEvent', {}
@@ -430,6 +444,9 @@ class Follower:
         if 'reservedPlayers' in game_room_config:
             for player in game_room_config['reservedPlayers']:
                 self.screen_names[player['systemSeatId']] = player['playerName'].split('#')[0]
+                # Backfill the current user's screen name when possible
+                if player['userId'] == self.cur_user:
+                    self.__update_screen_name(player['playerName'])
 
     def __handle_gre_to_client_message(self, message_blob):
         """Handle messages in the 'greToClientEvent' field."""
@@ -557,19 +574,19 @@ class Follower:
     def __clear_match_data(self):
         self.screen_names.clear()
 
-    def __maybe_handle_account_info(self, line):
-        match = ACCOUNT_INFO_REGEX.match(line)
-        if match:
-            screen_name = match.group(1)
-            self.cur_user = match.group(2)
+    # def __maybe_handle_account_info(self, line):
+    #     match = ACCOUNT_INFO_REGEX.match(line)
+    #     if match:
+    #         screen_name = match.group(1)
+    #         self.cur_user = match.group(2)
 
-            user_info = {
-                'player_id': self.cur_user,
-                'screen_name': screen_name,
-                'raw_time': self.last_raw_time,
-            }
-            logger.info(f'Adding user: {user_info}')
-            response = self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
+    #         user_info = {
+    #             'player_id': self.cur_user,
+    #             'screen_name': screen_name,
+    #             'raw_time': self.last_raw_time,
+    #         }
+    #         logger.info(f'Adding user: {user_info}')
+    #         response = self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
 
     def __handle_event_completion(self, json_obj):
         """Handle messages upon event completion."""
@@ -660,20 +677,20 @@ class Follower:
         response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=game, use_gzip=True)
         self.__clear_game_data()
 
-    def __handle_login(self, json_obj):
-        """Handle 'Client.Connected' messages."""
-        self.__clear_game_data()
+    # def __handle_login(self, json_obj):
+    #     """Handle 'Client.Connected' messages."""
+    #     self.__clear_game_data()
 
-        self.cur_user = json_obj['params']['payloadObject']['playerId']
-        screen_name = json_obj['params']['payloadObject']['screenName']
+    #     self.cur_user = json_obj['params']['payloadObject']['playerId']
+    #     screen_name = json_obj['params']['payloadObject']['screenName']
 
-        user_info = {
-            'player_id': self.cur_user,
-            'screen_name': screen_name,
-            'raw_time': self.last_raw_time,
-        }
-        logger.info(f'Adding user: {user_info}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
+    #     user_info = {
+    #         'player_id': self.cur_user,
+    #         'screen_name': screen_name,
+    #         'raw_time': self.last_raw_time,
+    #     }
+    #     logger.info(f'Adding user: {user_info}')
+    #     response = self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
 
     def __handle_draft_log(self, json_obj):
         """Handle 'draftStatus' messages."""
