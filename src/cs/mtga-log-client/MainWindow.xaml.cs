@@ -2011,6 +2011,15 @@ namespace mtga_log_client
 
                 LogMessage(String.Format("Parsed rank info for {0} as limited {1} and constructed {2}", currentUser, currentLimitedLevel, currentConstructedLevel), Level.Info);
 
+                JObject rankBlob = new JObject();
+                rankBlob.Add("token", JToken.FromObject(apiToken));
+                rankBlob.Add("client_version", JToken.FromObject(CLIENT_VERSION));
+                rankBlob.Add("player_id", JToken.FromObject(currentUser));
+                rankBlob.Add("time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)));
+                rankBlob.Add("limited_rank", JToken.FromObject(currentLimitedLevel));
+                rankBlob.Add("constructed_rank", JToken.FromObject(currentConstructedLevel));
+                apiClient.PostRank(rankBlob);
+
                 return true;
             }
             catch (Exception e)
@@ -2256,6 +2265,7 @@ namespace mtga_log_client
         private const string ENDPOINT_TOKEN_VERSION_VALIDATION = "api/token_validation";
         private const string ENDPOINT_GAME_HISTORY_ENABLED = "api/game_history_enabled";
         private const string ENDPOINT_ERROR_INFO = "api/client_errors";
+        private const string ENDPOINT_RANK = "api/rank";
 
         private static readonly DataContractJsonSerializerSettings SIMPLE_SERIALIZER_SETTINGS = new DataContractJsonSerializerSettings { UseSimpleDictionaryFormat = true };
 
@@ -2506,6 +2516,11 @@ namespace mtga_log_client
         public void PostPlayerProgress(JObject playerProgress)
         {
             PostJson(ENDPOINT_PLAYER_PROGRESS, playerProgress.ToString(Formatting.None));
+        }
+
+        public void PostRank(JObject inventory)
+        {
+            PostJson(ENDPOINT_RANK, inventory.ToString(Formatting.None));
         }
 
         public void PostErrorInfo(ErrorInfo errorInfo)
