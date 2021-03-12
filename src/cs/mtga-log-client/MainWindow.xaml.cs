@@ -655,6 +655,7 @@ namespace mtga_log_client
         private Nullable<DateTime> lastUtcTime = new DateTime(0);
         private string lastRawTime = "";
         private string currentUser = null;
+        private string currentScreenName = null;
         private string currentDraftEvent = null;
         private string currentConstructedLevel = null;
         private string currentLimitedLevel = null;
@@ -1068,16 +1069,27 @@ namespace mtga_log_client
                 var screenName = match.Groups[1].Value;
                 currentUser = match.Groups[2].Value;
 
-                MTGAAccount account = new MTGAAccount();
-                account.token = apiToken;
-                account.client_version = CLIENT_VERSION;
-                account.player_id = currentUser;
-                account.raw_time = lastRawTime;
-                account.screen_name = screenName;
-                apiClient.PostMTGAAccount(account);
+                UpdateScreenName(screenName);
+            }
+        }
+
+        private void UpdateScreenName(String newScreenName)
+        {
+            if (newScreenName.Equals(currentScreenName))
+            {
+                return;
             }
 
-        }
+            currentScreenName = newScreenName;
+
+            MTGAAccount account = new MTGAAccount();
+            account.token = apiToken;
+            account.client_version = CLIENT_VERSION;
+            account.player_id = currentUser;
+            account.raw_time = lastRawTime;
+            account.screen_name = currentScreenName;
+            apiClient.PostMTGAAccount(account);
+        } 
 
         private bool MaybeHandleLogin(JObject blob)
         {
@@ -1095,14 +1107,7 @@ namespace mtga_log_client
                 currentUser = payload["playerId"].Value<String>();
                 var screenName = payload["screenName"].Value<String>();
 
-                MTGAAccount account = new MTGAAccount();
-                account.token = apiToken;
-                account.client_version = CLIENT_VERSION;
-                account.player_id = currentUser;
-                account.raw_time = lastRawTime;
-
-                account.screen_name = screenName;
-                apiClient.PostMTGAAccount(account);
+                UpdateScreenName(screenName);
 
                 return true;
             }
@@ -1619,9 +1624,13 @@ namespace mtga_log_client
                 event_.player_id = currentUser;
 
                 event_.event_name = blob["InternalEventName"].Value<String>();
-                event_.draft_id = blob["ModuleInstanceData"].Value<JObject>()["HumanDraft._internalState"].Value<JObject>()["DraftId"].Value<String>();
+                var internalState = blob["ModuleInstanceData"].Value<JObject>()["HumanDraft._internalState"].Value<JObject>();
+                event_.draft_id = internalState["DraftId"].Value<String>();
 
                 apiClient.PostEventCourse(event_);
+
+                UpdateScreenName(internalState["ScreenName"].Value<String>());
+
                 return true;
             }
             catch (Exception e)
@@ -1877,6 +1886,11 @@ namespace mtga_log_client
                 foreach (JToken player in gameRoomConfig["reservedPlayers"])
                 {
                     screenNames.Add(player["systemSeatId"].Value<int>(), player["playerName"].Value<String>().Split('#')[0]);
+
+                    if (player["userId"].Value<String>().Equals(currentUser))
+                    {
+                        UpdateScreenName(player["playerName"].Value<String>());
+                    }
                 }
             }
 
