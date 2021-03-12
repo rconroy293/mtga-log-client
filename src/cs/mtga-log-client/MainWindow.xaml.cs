@@ -2080,6 +2080,12 @@ namespace mtga_log_client
             if (!fullLog.Contains(" PlayerInventory.GetPlayerCardsV3 ")) return false;
             if (blob.ContainsKey("method")) return false;
 
+            if (currentUser == null)
+            {
+                LogMessage("Skipping collection submission while player id is unknown", Level.Info);
+                return true;
+            }
+
             try
             {
                 Collection collection = new Collection();

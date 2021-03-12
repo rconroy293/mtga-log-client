@@ -870,6 +870,10 @@ class Follower:
 
     def __handle_collection(self, json_obj):
         """Handle 'PlayerInventory.GetPlayerCardsV3' messages."""
+        if self.cur_user is None:
+            logger.info(f'Skipping collection submission because player id is still unknown')
+            return
+
         collection = {
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
