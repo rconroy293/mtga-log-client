@@ -921,6 +921,8 @@ namespace mtga_log_client
             if (MaybeHandleSelfRankInfo(blob)) return;
             if (MaybeHandleMatchCreated(blob)) return;
             if (MaybeHandleCollection(fullLog, blob)) return;
+            if (MaybeHandleInventory(fullLog, blob)) return;
+            if (MaybeHandlePlayerProgress(fullLog, blob)) return;
             if (MaybeHandleHumanDraftPack(fullLog, blob)) return;
             if (MaybeHandleDraftNotification(fullLog, blob)) return;
         }
@@ -2067,13 +2069,78 @@ namespace mtga_log_client
 
                 apiClient.PostCollection(collection);
 
-                LogMessage(String.Format("Parsed opponent rank info as {0} in match {1}", currentOpponentLevel, currentMatchId), Level.Info);
+                LogMessage(String.Format("Parsed collection"), Level.Info);
 
                 return true;
             }
             catch (Exception e)
             {
                 LogError(String.Format("Error {0} parsing collection from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandleInventory(String fullLog, JObject blob)
+        {
+            if (!fullLog.Contains(" PlayerInventory.GetPlayerInventory ")) return false;
+            if (blob.ContainsKey("method")) return false;
+
+            if (blob.ContainsKey("playerId"))
+            {
+                currentUser = blob["playerId"].Value<String>();
+            }
+
+            try
+            {
+                JObject inventory = new JObject();
+                inventory.Add("token", JToken.FromObject(apiToken));
+                inventory.Add("client_version", JToken.FromObject(CLIENT_VERSION));
+                inventory.Add("player_id", JToken.FromObject(currentUser));
+                inventory.Add("time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)));
+                inventory.Add("utc_time", JToken.FromObject(GetDatetimeString(lastUtcTime.Value)));
+
+                blob.Remove("vanityItems");
+                blob.Remove("vanitySelections");
+                blob.Remove("starterDecks");
+                inventory.Add("inventory", JToken.FromObject(blob));
+
+                apiClient.PostInventory(inventory);
+
+                LogMessage(String.Format("Parsed inventory"), Level.Info);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing inventory from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandlePlayerProgress(String fullLog, JObject blob)
+        {
+            if (!fullLog.Contains(" Progression.GetPlayerProgress ")) return false;
+            if (blob.ContainsKey("method")) return false;
+
+            try
+            {
+                JObject progress = new JObject();
+                progress.Add("token", JToken.FromObject(apiToken));
+                progress.Add("client_version", JToken.FromObject(CLIENT_VERSION));
+                progress.Add("player_id", JToken.FromObject(currentUser));
+                progress.Add("time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)));
+                progress.Add("utc_time", JToken.FromObject(GetDatetimeString(lastUtcTime.Value)));
+                progress.Add("progress", JToken.FromObject(blob));
+
+                apiClient.PostPlayerProgress(progress);
+
+                LogMessage(String.Format("Parsed mastery progress"), Level.Info);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing mastery progress from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -2179,8 +2246,10 @@ namespace mtga_log_client
         private const string ENDPOINT_EVENT = "event";
         private const string ENDPOINT_EVENT_COURSE = "event_course";
         private const string ENDPOINT_GAME = "game";
+        private const string ENDPOINT_INVENTORY = "inventory";
         private const string ENDPOINT_PACK = "pack";
         private const string ENDPOINT_PICK = "pick";
+        private const string ENDPOINT_PLAYER_PROGRESS = "player_progress";
         private const string ENDPOINT_HUMAN_DRAFT_PICK = "human_draft_pick";
         private const string ENDPOINT_HUMAN_DRAFT_PACK = "human_draft_pack";
         private const string ENDPOINT_CLIENT_VERSION_VALIDATION = "api/version_validation";
@@ -2427,6 +2496,16 @@ namespace mtga_log_client
             SERIALIZER_COLLECTION.WriteObject(stream, collection);
             string jsonString = Encoding.UTF8.GetString(stream.ToArray());
             PostJson(ENDPOINT_COLLECTION, jsonString);
+        }
+
+        public void PostInventory(JObject inventory)
+        {
+            PostJson(ENDPOINT_INVENTORY, inventory.ToString(Formatting.None));
+        }
+
+        public void PostPlayerProgress(JObject playerProgress)
+        {
+            PostJson(ENDPOINT_PLAYER_PROGRESS, playerProgress.ToString(Formatting.None));
         }
 
         public void PostErrorInfo(ErrorInfo errorInfo)
