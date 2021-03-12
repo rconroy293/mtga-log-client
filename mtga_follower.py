@@ -603,7 +603,8 @@ class Follower:
             'draft_id': json_obj['ModuleInstanceData']['HumanDraft._internalState']['DraftId'],
         }
         logger.info(f'Event course: {event}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_COURSE_SUBMISSION}', blob=event)
+        self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_COURSE_SUBMISSION}', blob=event)
+        self.__update_screen_name(json_obj['ModuleInstanceData']['HumanDraft._internalState']['ScreenName'])
 
     def __handle_game_end(self, json_obj):
         """Handle 'DuelScene.GameStop' messages."""
