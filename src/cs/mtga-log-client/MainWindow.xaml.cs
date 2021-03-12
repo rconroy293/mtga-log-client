@@ -1624,9 +1624,13 @@ namespace mtga_log_client
                 event_.player_id = currentUser;
 
                 event_.event_name = blob["InternalEventName"].Value<String>();
-                event_.draft_id = blob["ModuleInstanceData"].Value<JObject>()["HumanDraft._internalState"].Value<JObject>()["DraftId"].Value<String>();
+                var internalState = blob["ModuleInstanceData"].Value<JObject>()["HumanDraft._internalState"].Value<JObject>();
+                event_.draft_id = internalState["DraftId"].Value<String>();
 
                 apiClient.PostEventCourse(event_);
+
+                UpdateScreenName(internalState["ScreenName"].Value<String>());
+
                 return true;
             }
             catch (Exception e)
