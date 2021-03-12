@@ -111,6 +111,7 @@ ENDPOINT_INVENTORY = 'inventory'
 ENDPOINT_PLAYER_PROGRESS = 'player_progress'
 ENDPOINT_CLIENT_VERSION = 'min_client_version'
 ENDPOINT_GAME_HISTORY_ENABLED = 'api/game_history_enabled'
+ENDPOINT_RANK = 'api/rank'
 
 RETRIES = 2
 IS_CODE_FOR_RETRY = lambda code: code >= 500 and code < 600
@@ -831,6 +832,12 @@ class Follower:
         )
         self.cur_user = json_obj.get('playerId', self.cur_user)
         logger.info(f'Parsed rank info for {self.cur_user} as limited {self.cur_limited_level} and constructed {self.cur_constructed_level}')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_RANK}', blob={
+            'player_id':self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'limited_rank': self.cur_limited_level,
+            'constructed_rank': self.cur_constructed_level,
+        })
 
     def __handle_match_created(self, json_obj):
         """Handle 'Event.MatchCreated' messages."""
