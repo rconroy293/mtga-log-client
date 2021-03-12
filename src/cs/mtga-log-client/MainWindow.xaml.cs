@@ -1914,7 +1914,7 @@ namespace mtga_log_client
             }
             else if (message["type"].Value<String>() == "GREMessageType_UIMessage")
             {
-                if (message.ContainsKey("uiMessage"))
+                if (message.Value<JObject>().ContainsKey("uiMessage"))
                 {
                     var uiMessage = message["uiMessage"].Value<JObject>();
                     if (uiMessage.ContainsKey("onChat"))
