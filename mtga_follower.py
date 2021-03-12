@@ -131,6 +131,9 @@ def extract_time(time_str):
     :raises ValueError: Raises an exception if it cannot interpret the string.
     """
     time_str = STRIPPED_TIMESTAMP_REGEX.match(time_str).group(1)
+    if ': ' in time_str:
+        time_str = time_str.split(': ')[0]
+
     for possible_format in TIME_FORMATS:
         try:
             return datetime.datetime.strptime(time_str, possible_format)
