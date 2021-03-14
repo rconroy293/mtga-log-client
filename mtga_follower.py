@@ -433,7 +433,7 @@ class Follower:
         return blob
 
     def __update_screen_name(self, screen_name):
-        if self.user_screen_name == screen_name:
+        if self.user_screen_name == screen_name or '#' not in screen_name:
             return
 
         self.user_screen_name = screen_name
