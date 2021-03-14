@@ -414,6 +414,8 @@ class Follower:
             self.__handle_human_draft_pack(json_obj)
         elif 'Draft.Notification ' in full_log and 'method' not in json_obj:
             self.__handle_draft_notification(json_obj)
+        elif 'FrontDoorConnection.Close ' in full_log:
+            self.__reset_current_user()
 
     def __extract_payload(self, blob):
         if 'id' not in blob: return blob
@@ -918,6 +920,11 @@ class Follower:
             for j in range(count):
                 result.append(card_id)
         return result
+
+    def __reset_current_user(self):
+        logger.info('User logged out')
+        self.cur_user = None
+        self.user_screen_name = None
 
 def validate_uuid_v4(maybe_uuid):
     try:
