@@ -11,6 +11,7 @@ Coast LLC. See https://company.wizards.com/fancontentpolicy for more
 details.
 """
 
+import argparse
 import datetime
 import json
 import getpass
@@ -30,6 +31,7 @@ from collections import defaultdict, namedtuple
 
 import dateutil.parser
 import requests
+import wx
 
 LOG_FOLDER = os.path.join(os.path.expanduser('~'), '.seventeenlands')
 if not os.path.exists(LOG_FOLDER):
@@ -996,7 +998,7 @@ def get_config():
 
     return token, game_history
 
-def verify_valid_version(host):
+def verify_version(host):
     for i in range(3):
         response = requests.get(f'{host}/{ENDPOINT_CLIENT_VERSION}')
         if not IS_CODE_FOR_RETRY(response.status_code):
@@ -1016,22 +1018,19 @@ def verify_valid_version(host):
     if this_version >= min_supported_version:
         return
 
-    import tkinter
-    import tkinter.messagebox
-    window = tkinter.Tk()
-    window.wm_withdraw()
-    tkinter.messagebox.showerror(
-        'MTGA Log Client Error: Client Update Needed',
-        (f'The minimum supported version for the client is {blob["min_version"]}. '
-            + f'Your current version is {CLIENT_VERSION}. Please download the latest '
-            + 'version of the client from https://github.com/rconroy293/mtga-log-client')
+    wx.MessageBox(
+        (f'17Lands update required! The minimum supported version for the client is {blob["min_version"]}. '
+            + f'Your current version is {CLIENT_VERSION}. Please update with one of the following '
+            + 'commands in the terminal, depending on your installation method:\n'
+            + 'brew update && brew upgrade seventeenlands\n'
+            + 'pip3 install --user --upgrade seventeenlands'),
+        '17Lands',
+        wx.OK | wx.ICON_WARNING,
     )
     exit(1)
 
 
 def main():
-    import argparse
-
     parser = argparse.ArgumentParser(description='MTGA log follower')
     parser.add_argument('-l', '--log_file',
         help=f'Log filename to process. If not specified, will try one of {POSSIBLE_CURRENT_FILEPATHS}')
@@ -1042,7 +1041,8 @@ def main():
 
     args = parser.parse_args()
 
-    verify_valid_version(args.host)
+    app = wx.App()
+    verify_version(args.host)
 
     token, history_enabled = get_config()
     logger.info(f'Using token {token[:4]}...{token[-4:]} with history_enabled: {history_enabled}')
