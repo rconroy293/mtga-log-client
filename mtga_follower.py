@@ -908,35 +908,69 @@ class Follower:
         self.user_screen_name = None
 
 def validate_uuid_v4(maybe_uuid):
+    if maybe_uuid is None:
+        return None
     try:
         uuid.UUID(maybe_uuid, version=4)
         return maybe_uuid
     except ValueError:
         return None
 
+
+class TokenEntryApp(wx.App):
+
+    def __init__(self, token, *args, **kwargs):
+        self.token = token
+        super().__init__(*args, **kwargs)
+
+    def OnInit(self):
+        entry_dialog = wx.TextEntryDialog(
+            None,
+            'Please enter your client token from 17lands.com/account:',
+            '17Lands: Enter Token',
+        )
+        token = None
+        while True:
+            result = entry_dialog.ShowModal()
+            if result != wx.ID_OK:
+                logger.warning('Cancelled from token entry')
+                entry_dialog.Destroy()
+                wx.MessageBox(
+                    '17Lands cannot continue without specifying a client token. Exiting.',
+                    '17Lands',
+                    wx.OK | wx.ICON_WARNING,
+                )
+                return True
+
+            token = entry_dialog.GetValue()
+            if validate_uuid_v4(token) is None:
+                logger.warning(f'Invalid token entered: {token}')
+                entry_dialog.SetLabel('Try Again - Invalid 17Lands Token')
+            else:
+                self.token.set(token)
+                logger.info(f'Token entered successfully')
+                break
+
+        entry_dialog.Destroy()
+        return True
+
 def get_client_token_visual():
-    import tkinter
-    import tkinter.simpledialog
-    import tkinter.messagebox
+    class Settable:
+        def __init__(self):
+            self.value = None
+        def set(self, value):
+            self.value = value
 
-    window = tkinter.Tk()
-    window.wm_withdraw()
+    token = Settable()
+    app = TokenEntryApp(token, 0)
+    app.MainLoop()
+    if token.value is None:
+        logger.warning(f'No token entered. Exiting.')
+        exit(1)
 
-    message = 'Please enter your client token from 17lands.com/account:'
-    while True:
-        token = tkinter.simpledialog.askstring('MTGA Log Client Token', message)
+    logger.info(f'Got token: {token.value}')
+    return token.value
 
-        if token is None:
-            tkinter.messagebox.showerror(
-                'Error: Client Token Needed',
-                'The program cannot continue without specifying a client token. Exiting.'
-            )
-            exit(1)
-
-        if validate_uuid_v4(token) is None:
-            message = 'That token is invalid. Please specify a valid client token. See 17lands.com/getting_started for more details.'
-        else:
-            return token
 
 def get_client_token_cli():
     message = 'Please enter your client token from 17lands.com/account: '
