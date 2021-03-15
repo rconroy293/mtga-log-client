@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="seventeenlands",
-    version="0.1.19",
+    version="0.1.20",
     author="Robert Conroy",
     author_email="seventeenlands@gmail.com",
     description="Utility to upload MTG Arena data to 17Lands.com",
@@ -23,6 +23,9 @@ setuptools.setup(
             'seventeenlands=seventeenlands.mtga_follower:main',
         ],
     },
-    install_requires=["requests", "python-dateutil"]
-
+    install_requires=[
+        "requests",
+        "python-dateutil",
+        "wxPython",
+    ],
 )
