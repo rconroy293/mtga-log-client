@@ -11,7 +11,6 @@ Coast LLC. See https://company.wizards.com/fancontentpolicy for more
 details.
 """
 
-import argparse
 import datetime
 import json
 import getpass
@@ -31,7 +30,6 @@ from collections import defaultdict, namedtuple
 
 import dateutil.parser
 import requests
-import wx
 
 LOG_FOLDER = os.path.join(os.path.expanduser('~'), '.seventeenlands')
 if not os.path.exists(LOG_FOLDER):
@@ -50,7 +48,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.20.p'
+CLIENT_VERSION = '0.1.21.p'
 
 FILE_UPDATED_FORCE_REFRESH_SECONDS = 60
 
@@ -112,13 +110,16 @@ ENDPOINT_COLLECTION = 'collection'
 ENDPOINT_INVENTORY = 'inventory'
 ENDPOINT_PLAYER_PROGRESS = 'player_progress'
 ENDPOINT_CLIENT_VERSION = 'min_client_version'
+ENDPOINT_GAME_HISTORY_ENABLED = 'api/game_history_enabled'
 ENDPOINT_RANK = 'api/rank'
 
 RETRIES = 2
 IS_CODE_FOR_RETRY = lambda code: code >= 500 and code < 600
 IS_SUCCESS_CODE = lambda code: code >= 200 and code < 300
 DEFAULT_RETRY_SLEEP_TIME = 1
+SERVER_SIDE_GAME_HISTORY_ENABLED_CHECK_INTERVAL = datetime.timedelta(minutes=30)
 
+GameHistoryConfig = namedtuple('GameHistoryConfig', ('last_checked', 'enabled'))
 
 def extract_time(time_str):
     """
@@ -174,7 +175,7 @@ def get_rank_string(rank_class, level, percentile, place, step):
 class Follower:
     """Follows along a log, parses the messages, and passes along the parsed data to the API endpoint."""
 
-    def __init__(self, token, host):
+    def __init__(self, token, host, history_enabled):
         self.host = host
         self.token = token
         self.buffer = []
@@ -196,10 +197,24 @@ class Follower:
         self.drawn_hands = defaultdict(list)
         self.drawn_cards_by_instance_id = defaultdict(dict)
         self.cards_in_hand = defaultdict(list)
+        self.history_enabled = history_enabled
         self.user_screen_name = None
         self.screen_names = defaultdict(lambda: '')
         self.game_history_events = []
+        self.server_side_game_history_enabled = GameHistoryConfig(last_checked=None, enabled=False)
 
+
+    def __should_submit_game_history(self):
+        last_checked = self.server_side_game_history_enabled.last_checked
+        now = datetime.datetime.utcnow()
+        if last_checked is None or last_checked < now - SERVER_SIDE_GAME_HISTORY_ENABLED_CHECK_INTERVAL:
+            response = requests.get(f'{self.host}/{ENDPOINT_GAME_HISTORY_ENABLED}/{self.token}')
+            if IS_SUCCESS_CODE(response.status_code):
+                self.server_side_game_history_enabled = GameHistoryConfig(last_checked=now, enabled=response.text == 'true')
+            else:
+                self.server_side_game_history_enabled = GameHistoryConfig(last_checked=now, enabled=self.server_side_game_history_enabled.enabled)
+
+        return self.server_side_game_history_enabled.enabled
 
     def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME, use_gzip=False):
         """
@@ -454,10 +469,11 @@ class Follower:
     def __handle_gre_to_client_message(self, message_blob):
         """Handle messages in the 'greToClientEvent' field."""
         # Add to game history before processing the messsage, since we may submit the game right away.
-        if message_blob['type'] in ['GREMessageType_QueuedGameStateMessage', 'GREMessageType_GameStateMessage']:
-            self.game_history_events.append(message_blob)
-        elif message_blob['type'] == 'GREMessageType_UIMessage' and 'onChat' in message_blob['uiMessage']:
-            self.game_history_events.append(message_blob)
+        if self.history_enabled:
+            if message_blob['type'] in ['GREMessageType_QueuedGameStateMessage', 'GREMessageType_GameStateMessage']:
+                self.game_history_events.append(message_blob)
+            elif message_blob['type'] == 'GREMessageType_UIMessage' and 'onChat' in message_blob['uiMessage']:
+                self.game_history_events.append(message_blob)
 
         if message_blob['type'] == 'GREMessageType_GameStateMessage':
             game_state_message = message_blob.get('gameStateMessage', {})
@@ -501,8 +517,9 @@ class Follower:
                     self.opening_hand[owner] = hand.copy()
 
     def __handle_client_to_gre_message(self, payload):
-        if payload['type'] == 'ClientMessageType_SelectNResp':
-            self.game_history_events.append(payload)
+        if self.history_enabled:
+            if payload['type'] == 'ClientMessageType_SelectNResp':
+                self.game_history_events.append(payload)
 
         if payload['type'] == 'ClientMessageType_SubmitDeckResp':
             deck_info = payload['submitDeckResp']['deck']
@@ -518,8 +535,9 @@ class Follower:
             response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __handle_client_to_gre_ui_message(self, payload):
-        if 'onChat' in payload['uiMessage']:
-            self.game_history_events.append(payload)
+        if self.history_enabled:
+            if 'onChat' in payload['uiMessage']:
+                self.game_history_events.append(payload)
 
     def __maybe_handle_game_over_stage(self, system_seat_ids, game_state_message):
         game_info = game_state_message.get('gameInfo', {})
@@ -665,14 +683,15 @@ class Follower:
         logger.info(f'Completed game: {game}')
 
         # Add the history to the blob after logging to avoid printing excessive logs
-        logger.info(f'Adding game history ({len(self.game_history_events)} events)')
-        game['history'] = {
-            'seat_id': seat_id,
-            'opponent_seat_id': opponent_id,
-            'screen_name': self.screen_names[seat_id],
-            'opponent_screen_name': self.screen_names[opponent_id],
-            'events': self.game_history_events,
-        }
+        if self.history_enabled and self.__should_submit_game_history():
+            logger.info(f'Adding game history ({len(self.game_history_events)} events)')
+            game['history'] = {
+                'seat_id': seat_id,
+                'opponent_seat_id': opponent_id,
+                'screen_name': self.screen_names[seat_id],
+                'opponent_screen_name': self.screen_names[opponent_id],
+                'events': self.game_history_events,
+            }
 
         response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=game, use_gzip=True)
         self.__clear_game_data()
@@ -908,69 +927,35 @@ class Follower:
         self.user_screen_name = None
 
 def validate_uuid_v4(maybe_uuid):
-    if maybe_uuid is None:
-        return None
     try:
         uuid.UUID(maybe_uuid, version=4)
         return maybe_uuid
     except ValueError:
         return None
 
-
-class TokenEntryApp(wx.App):
-
-    def __init__(self, token, *args, **kwargs):
-        self.token = token
-        super().__init__(*args, **kwargs)
-
-    def OnInit(self):
-        entry_dialog = wx.TextEntryDialog(
-            None,
-            'Please enter your client token from 17lands.com/account:',
-            '17Lands: Enter Token',
-        )
-        token = None
-        while True:
-            result = entry_dialog.ShowModal()
-            if result != wx.ID_OK:
-                logger.warning('Cancelled from token entry')
-                entry_dialog.Destroy()
-                wx.MessageBox(
-                    '17Lands cannot continue without specifying a client token. Exiting.',
-                    '17Lands',
-                    wx.OK | wx.ICON_WARNING,
-                )
-                return True
-
-            token = entry_dialog.GetValue()
-            if validate_uuid_v4(token) is None:
-                logger.warning(f'Invalid token entered: {token}')
-                entry_dialog.SetLabel('Try Again - Invalid 17Lands Token')
-            else:
-                self.token.set(token)
-                logger.info(f'Token entered successfully')
-                break
-
-        entry_dialog.Destroy()
-        return True
-
 def get_client_token_visual():
-    class Settable:
-        def __init__(self):
-            self.value = None
-        def set(self, value):
-            self.value = value
+    import tkinter
+    import tkinter.simpledialog
+    import tkinter.messagebox
 
-    token = Settable()
-    app = TokenEntryApp(token, 0)
-    app.MainLoop()
-    if token.value is None:
-        logger.warning(f'No token entered. Exiting.')
-        exit(1)
+    window = tkinter.Tk()
+    window.wm_withdraw()
 
-    logger.info(f'Got token: {token.value}')
-    return token.value
+    message = 'Please enter your client token from 17lands.com/account:'
+    while True:
+        token = tkinter.simpledialog.askstring('MTGA Log Client Token', message)
 
+        if token is None:
+            tkinter.messagebox.showerror(
+                'Error: Client Token Needed',
+                'The program cannot continue without specifying a client token. Exiting.'
+            )
+            exit(1)
+
+        if validate_uuid_v4(token) is None:
+            message = 'That token is invalid. Please specify a valid client token. See 17lands.com/getting_started for more details.'
+        else:
+            return token
 
 def get_client_token_cli():
     message = 'Please enter your client token from 17lands.com/account: '
@@ -989,11 +974,13 @@ def get_client_token_cli():
 def get_config():
     import configparser
     token = None
+    game_history = True
     config = configparser.ConfigParser()
     if os.path.exists(CONFIG_FILE):
         config.read(CONFIG_FILE)
         if 'client' in config:
             token = validate_uuid_v4(config['client'].get('token'))
+            game_history = config['client'].getboolean('game_history', fallback=True)
 
     if token is None or validate_uuid_v4(token) is None:
         try:
@@ -1007,9 +994,9 @@ def get_config():
         with open(CONFIG_FILE, 'w') as f:
             config.write(f)
 
-    return token
+    return token, game_history
 
-def verify_version(host):
+def verify_valid_version(host):
     for i in range(3):
         response = requests.get(f'{host}/{ENDPOINT_CLIENT_VERSION}')
         if not IS_CODE_FOR_RETRY(response.status_code):
@@ -1029,26 +1016,44 @@ def verify_version(host):
     if this_version >= min_supported_version:
         return
 
-    wx.MessageBox(
-        (f'17Lands update required! The minimum supported version for the client is {blob["min_version"]}. '
-            + f'Your current version is {CLIENT_VERSION}. Please update with one of the following '
-            + 'commands in the terminal, depending on your installation method:\n'
-            + 'brew update && brew upgrade seventeenlands\n'
-            + 'pip3 install --user --upgrade seventeenlands'),
-        '17Lands',
-        wx.OK | wx.ICON_WARNING,
+    import tkinter
+    import tkinter.messagebox
+    window = tkinter.Tk()
+    window.wm_withdraw()
+    tkinter.messagebox.showerror(
+        'MTGA Log Client Error: Client Update Needed',
+        (f'The minimum supported version for the client is {blob["min_version"]}. '
+            + f'Your current version is {CLIENT_VERSION}. Please download the latest '
+            + 'version of the client from https://github.com/rconroy293/mtga-log-client')
     )
     exit(1)
 
 
-def processing_loop(args, token):
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description='MTGA log follower')
+    parser.add_argument('-l', '--log_file',
+        help=f'Log filename to process. If not specified, will try one of {POSSIBLE_CURRENT_FILEPATHS}')
+    parser.add_argument('--host', default=API_ENDPOINT,
+        help=f'Host to submit requests to. If not specified, will use {API_ENDPOINT}')
+    parser.add_argument('--once', action='store_true',
+        help='Whether to stop after parsing the file once (default is to continue waiting for updates to the file)')
+
+    args = parser.parse_args()
+
+    verify_valid_version(args.host)
+
+    token, history_enabled = get_config()
+    logger.info(f'Using token {token[:4]}...{token[-4:]} with history_enabled: {history_enabled}')
+
     filepaths = POSSIBLE_CURRENT_FILEPATHS
     if args.log_file is not None:
         filepaths = (args.log_file, )
 
     follow = not args.once
 
-    follower = Follower(token, host=args.host)
+    follower = Follower(token, host=args.host, history_enabled=history_enabled)
 
     # if running in "normal" mode...
     if args.log_file is None and args.host == API_ENDPOINT and follow:
@@ -1064,29 +1069,6 @@ def processing_loop(args, token):
         if os.path.exists(filename):
             logger.info(f'Following along {filename}')
             follower.parse_log(filename=filename, follow=follow)
-
-    logger.info(f'Exiting')
-
-
-def main():
-    parser = argparse.ArgumentParser(description='MTGA log follower')
-    parser.add_argument('-l', '--log_file',
-        help=f'Log filename to process. If not specified, will try one of {POSSIBLE_CURRENT_FILEPATHS}')
-    parser.add_argument('--host', default=API_ENDPOINT,
-        help=f'Host to submit requests to. If not specified, will use {API_ENDPOINT}')
-    parser.add_argument('--once', action='store_true',
-        help='Whether to stop after parsing the file once (default is to continue waiting for updates to the file)')
-
-    args = parser.parse_args()
-
-    app = wx.App()
-    verify_version(args.host)
-
-    token = get_config()
-    logger.info(f'Using token {token[:4]}...{token[-4:]}')
-
-    processing_loop(args, token)
-
 
 if __name__ == '__main__':
     main()
