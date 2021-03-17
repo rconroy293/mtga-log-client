@@ -1007,6 +1007,9 @@ def get_config():
         with open(CONFIG_FILE, 'w') as f:
             config.write(f)
 
+        logger.info('Token updated successfully. Please restart 17Lands.')
+        exit(0)
+
     return token
 
 def verify_version(host):
@@ -1079,7 +1082,6 @@ def main():
 
     args = parser.parse_args()
 
-    app = wx.App()
     verify_version(args.host)
 
     token = get_config()
