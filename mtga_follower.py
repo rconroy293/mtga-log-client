@@ -50,7 +50,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.20.p'
+CLIENT_VERSION = '0.1.22.p'
 
 FILE_UPDATED_FORCE_REFRESH_SECONDS = 60
 
