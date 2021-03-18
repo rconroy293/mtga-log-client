@@ -23,6 +23,8 @@ import os
 import os.path
 import pathlib
 import re
+import subprocess
+import sys
 import time
 import traceback
 import uuid
@@ -31,7 +33,6 @@ from collections import defaultdict, namedtuple
 
 import dateutil.parser
 import requests
-import wx
 
 LOG_FOLDER = os.path.join(os.path.expanduser('~'), '.seventeenlands')
 if not os.path.exists(LOG_FOLDER):
@@ -51,6 +52,12 @@ logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
 CLIENT_VERSION = '0.1.22.p'
+
+TOKEN_ENTRY_TITLE = 'MTGA Log Client Token'
+TOKEN_ENTRY_MESSAGE = 'Please enter your client token from 17lands.com/account: '
+TOKEN_MISSING_TITLE = 'Error: Client Token Needed'
+TOKEN_MISSING_MESSAGE = 'Error: The program cannot continue without specifying a client token. Exiting.'
+TOKEN_INVALID_MESSAGE = 'That token is invalid. Please specify a valid client token. See 17lands.com/getting_started for more details.'
 
 FILE_UPDATED_FORCE_REFRESH_SECONDS = 60
 
@@ -916,73 +923,59 @@ def validate_uuid_v4(maybe_uuid):
     except ValueError:
         return None
 
+def get_client_token_mac():
+    message = TOKEN_ENTRY_MESSAGE
+    while True:
+        token = subprocess.run(['osascript', '-e', f'text returned of (display dialog "{message}" default answer "" with title "{TOKEN_ENTRY_TITLE}")'],
+            capture_output=True, text=True).stdout.strip()
 
-class TokenEntryApp(wx.App):
+        if token == '':
+            show_dialog_mac(TOKEN_MISSING_TITLE, TOKEN_MISSING_MESSAGE)
+            exit(1)
 
-    def __init__(self, token, *args, **kwargs):
-        self.token = token
-        super().__init__(*args, **kwargs)
+        if validate_uuid_v4(token) is None:
+            message = TOKEN_INVALID_MESSAGE
+        else:
+            return token
 
-    def OnInit(self):
-        entry_dialog = wx.TextEntryDialog(
-            None,
-            'Please enter your client token from 17lands.com/account:',
-            '17Lands: Enter Token',
-        )
-        token = None
-        while True:
-            result = entry_dialog.ShowModal()
-            if result != wx.ID_OK:
-                logger.warning('Cancelled from token entry')
-                entry_dialog.Destroy()
-                wx.MessageBox(
-                    '17Lands cannot continue without specifying a client token. Exiting.',
-                    '17Lands',
-                    wx.OK | wx.ICON_WARNING,
-                )
-                return True
+def get_client_token_tkinter():
+    import tkinter
+    import tkinter.simpledialog
+    import tkinter.messagebox
 
-            token = entry_dialog.GetValue()
-            if validate_uuid_v4(token) is None:
-                logger.warning(f'Invalid token entered: {token}')
-                entry_dialog.SetLabel('Try Again - Invalid 17Lands Token')
-            else:
-                self.token.set(token)
-                logger.info(f'Token entered successfully')
-                break
+    window = tkinter.Tk()
+    window.wm_withdraw()
 
-        entry_dialog.Destroy()
-        return True
+    message = TOKEN_ENTRY_MESSAGE
+    while True:
+        token = tkinter.simpledialog.askstring(TOKEN_ENTRY_TITLE, message)
+
+        if token is None:
+            tkinter.messagebox.showerror(TOKEN_MISSING_TITLE, TOKEN_MISSING_MESSAGE)
+            exit(1)
+
+        if validate_uuid_v4(token) is None:
+            message = TOKEN_INVALID_MESSAGE
+        else:
+            return token
 
 def get_client_token_visual():
-    class Settable:
-        def __init__(self):
-            self.value = None
-        def set(self, value):
-            self.value = value
-
-    token = Settable()
-    app = TokenEntryApp(token, 0)
-    app.MainLoop()
-    if token.value is None:
-        logger.warning(f'No token entered. Exiting.')
-        exit(1)
-
-    logger.info(f'Got token: {token.value}')
-    return token.value
-
+    if sys.platform == 'darwin':
+        return get_client_token_mac()
+    else:
+        return get_client_token_tkinter()
 
 def get_client_token_cli():
-    message = 'Please enter your client token from 17lands.com/account: '
+    message = TOKEN_ENTRY_MESSAGE
     while True:
         token = input(message)
 
         if token is None:
-            print('Error: The program cannot continue without specifying a client token. Exiting.')
+            print(TOKEN_MISSING_MESSAGE)
             exit(1)
 
         if validate_uuid_v4(token) is None:
-            message = 'That token is invalid. Please specify a valid client token. See 17lands.com/getting_started for more details. Token: '
+            message = f'{TOKEN_INVALID_MESSAGE} Token: '
         else:
             return token
 
@@ -1007,10 +1000,33 @@ def get_config():
         with open(CONFIG_FILE, 'w') as f:
             config.write(f)
 
-        logger.info('Token updated successfully. Please restart 17Lands.')
-        exit(0)
-
     return token
+
+def show_dialog_mac(title, message):
+    subprocess.run(['osascript', '-e', f'display dialog "{message}" with title "{title}" buttons {{"OK"}} default button "OK"'], capture_output=True)
+
+def show_dialog_tkinter(title, message):
+    import tkinter
+    import tkinter.messagebox
+    window = tkinter.Tk()
+    window.wm_withdraw()
+    tkinter.messagebox.showerror(title, message)
+
+def show_update_message(min_version):
+    title = '17Lands'
+    message = (f'17Lands update required! The minimum supported version for the client is {min_version}. '
+        + f'Your current version is {CLIENT_VERSION}. Please update with one of the following '
+        + 'commands in the terminal, depending on your installation method:\n'
+        + 'brew update && brew upgrade seventeenlands\n'
+        + 'pip3 install --user --upgrade seventeenlands')
+
+    try:
+        if sys.platform == 'darwin':
+            return show_dialog_mac(title, message)
+        else:
+            return show_dialog_tkinter(title, message)
+    except ModuleNotFoundError:
+        print(message)
 
 def verify_version(host):
     for i in range(3):
@@ -1032,15 +1048,7 @@ def verify_version(host):
     if this_version >= min_supported_version:
         return
 
-    wx.MessageBox(
-        (f'17Lands update required! The minimum supported version for the client is {blob["min_version"]}. '
-            + f'Your current version is {CLIENT_VERSION}. Please update with one of the following '
-            + 'commands in the terminal, depending on your installation method:\n'
-            + 'brew update && brew upgrade seventeenlands\n'
-            + 'pip3 install --user --upgrade seventeenlands'),
-        '17Lands',
-        wx.OK | wx.ICON_WARNING,
-    )
+    show_update_message(blob['min_version'])
     exit(1)
 
 
