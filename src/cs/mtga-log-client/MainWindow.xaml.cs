@@ -654,6 +654,8 @@ namespace mtga_log_client
         private Nullable<DateTime> currentLogTime = new DateTime(0);
         private Nullable<DateTime> lastUtcTime = new DateTime(0);
         private string lastRawTime = "";
+        private string disconnectedUser = null;
+        private string disconnectedScreenName = null;
         private string currentUser = null;
         private string currentScreenName = null;
         private string currentDraftEvent = null;
@@ -926,6 +928,8 @@ namespace mtga_log_client
             if (MaybeHandlePlayerProgress(fullLog, blob)) return;
             if (MaybeHandleHumanDraftPack(fullLog, blob)) return;
             if (MaybeHandleDraftNotification(fullLog, blob)) return;
+            if (MaybeHandleFrontDoorConnectionClose(fullLog, blob)) return;
+            if (MaybeHandleReconnectResult(fullLog, blob)) return;
         }
 
         private JObject ExtractPayload(JObject blob)
@@ -1058,6 +1062,13 @@ namespace mtga_log_client
         private void ClearMatchData()
         {
             screenNames.Clear();
+        }
+
+        private void ResetCurrentUser()
+        {
+            LogMessage("User logged out from MTGA", Level.Info);
+            currentUser = null;
+            currentScreenName = null;
         }
 
         private void MaybeHandleAccountInfo(String line)
@@ -1468,6 +1479,32 @@ namespace mtga_log_client
                 LogError(String.Format("Error {0} parsing human draft pack from notification {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
+        }
+        
+        private bool MaybeHandleFrontDoorConnectionClose(String fullLog, JObject blob)
+        {
+            if (!fullLog.Contains("FrontDoorConnection.Close ")) return false;
+
+            if (currentUser != null)
+            {
+                disconnectedUser = currentUser;
+                disconnectedScreenName = currentScreenName;
+            }
+
+            ResetCurrentUser();
+
+            return true;
+        }
+
+        private bool MaybeHandleReconnectResult(String fullLog, JObject blob)
+        {
+            if (!fullLog.Contains("Reconnect result : Connected")) return false;
+
+            LogMessage("Reconnected - restoring prior user info", Level.Info);
+            currentUser = disconnectedUser;
+            currentScreenName = disconnectedScreenName;
+
+            return true;
         }
 
         private bool MaybeHandleDeckSubmission(JObject blob)
