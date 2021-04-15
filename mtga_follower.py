@@ -189,6 +189,8 @@ class Follower:
         self.last_utc_time = datetime.datetime.fromtimestamp(0)
         self.last_raw_time = ''
         self.json_decoder = json.JSONDecoder()
+        self.disconnected_user = None
+        self.disconnected_screen_name = None
         self.cur_user = None
         self.cur_draft_event = None
         self.cur_constructed_level = None
@@ -408,6 +410,8 @@ class Follower:
             self.__handle_draft_notification(json_obj)
         elif 'FrontDoorConnection.Close ' in full_log:
             self.__reset_current_user()
+        elif 'Reconnect result : Connected' in full_log:
+            self.__handle_reconnect_result()
 
     def __extract_payload(self, blob):
         if 'id' not in blob: return blob
@@ -910,9 +914,20 @@ class Follower:
         return result
 
     def __reset_current_user(self):
-        logger.info('User logged out')
+        logger.info('User logged out from MTGA')
+        if self.cur_user is not None:
+            self.disconnected_user = self.cur_user
+            self.disconnected_screen_name = self.user_screen_name
+
         self.cur_user = None
         self.user_screen_name = None
+
+    def __handle_reconnect_result(self):
+        logger.info('Reconnected - restoring prior user info')
+
+        self.cur_user = self.disconnected_user
+        self.user_screen_name = self.disconnected_screen_name
+
 
 def validate_uuid_v4(maybe_uuid):
     if maybe_uuid is None:
