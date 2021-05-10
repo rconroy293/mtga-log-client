@@ -77,6 +77,8 @@ POSSIBLE_ROOTS = (
     os.path.join(os.path.expanduser('~'), 'Games', 'magic-the-gathering-arena', 'drive_c', WINDOWS_LOG_ROOT),
     # Wine
     os.path.join(os.path.expanduser('~'), '.wine', 'drive_c', WINDOWS_LOG_ROOT),
+    # WINEPREFIX
+    os.path.join(os.environ.get('WINEPREFIX'), 'drive_c', WINDOWS_LOG_ROOT),
     # OSX
     os.path.join(os.path.expanduser('~'), OSX_LOG_ROOT),
 )
