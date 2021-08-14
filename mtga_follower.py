@@ -257,7 +257,7 @@ class Follower:
             last_read_time = time.time()
             last_file_size = 0
             try:
-                with open(filename) as f:
+                with open(filename, errors='replace') as f:
                     while True:
                         line = f.readline()
                         file_size = pathlib.Path(filename).stat().st_size
@@ -334,7 +334,7 @@ class Follower:
             timestamp = blob['payloadObject']['timestamp']
         elif 'timestamp' in blob.get('params', {}).get('payloadObject', {}):
             timestamp = blob['params']['payloadObject']['timestamp']
-        
+
         if timestamp is None:
             return None
 
@@ -482,7 +482,7 @@ class Follower:
                 card_id = game_object['overlayGrpId']
 
                 self.objects_by_owner[owner][instance_id] = card_id
-                
+
             for zone in game_state_message.get('zones', []):
                 if zone['type'] == 'ZoneType_Hand':
                     owner = zone['ownerSeatId']
