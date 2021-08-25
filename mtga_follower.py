@@ -92,6 +92,7 @@ TIMESTAMP_REGEX = re.compile('^([\\d/.-]+[ T][\\d]+:[\\d]+:[\\d]+( AM| PM)?)')
 STRIPPED_TIMESTAMP_REGEX = re.compile('^(.*?)[: /]*$')
 JSON_START_REGEX = re.compile(r'[\[\{]')
 ACCOUNT_INFO_REGEX = re.compile(r'.*Updated account\. DisplayName:(.*), AccountID:(.*), Token:.*')
+MATCH_ACCOUNT_INFO_REGEX = re.compile(r'.*: ((\w+) to Match|Match to (\w+)):')
 SLEEP_TIME = 0.5
 
 TIME_FORMATS = (
@@ -596,6 +597,11 @@ class Follower:
             screen_name = match.group(1)
             self.cur_user = match.group(2)
             self.__update_screen_name(screen_name)
+            return
+
+        match = MATCH_ACCOUNT_INFO_REGEX.match(line)
+        if match:
+            self.cur_user = match.group(2) or match.group(3)
 
     def __handle_event_completion(self, json_obj):
         """Handle messages upon event completion."""
