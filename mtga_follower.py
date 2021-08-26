@@ -368,20 +368,20 @@ class Follower:
 
         if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj):
             self.__handle_login(json_obj)
-        # elif json_value_matches('DuelScene.GameStop', ['params', 'messageName'], json_obj):
-        #     self.__handle_game_end(json_obj)
-        elif 'DraftStatus' in json_obj:
-            self.__handle_draft_log(json_obj)
-        elif json_value_matches('Draft.MakePick', ['method'], json_obj):
-            self.__handle_draft_pick(json_obj)
-        elif json_value_matches('Draft.MakeHumanDraftPick', ['method'], json_obj):
-            self.__handle_human_draft_pick(json_obj)
-        elif json_value_matches('Event.JoinPodmaking', ['method'], json_obj):
+        elif 'Event_Join' in full_log and 'EventName' in json_obj:
             self.__handle_joined_pod(json_obj)
-        elif json_value_matches('Event.DeckSubmit', ['method'], json_obj):
+        elif 'DraftStatus' in json_obj:
+            self.__handle_bot_draft_pack(json_obj)
+        elif 'BotDraft_DraftPick' in full_log and 'PickInfo' in json_obj:
+            self.__handle_bot_draft_pick(json_obj['PickInfo'])
+        elif 'Draft.Notify' in full_log:
+            self.__handle_human_draft_pack(json_obj)
+        elif 'Event_PlayerDraftMakePick' in full_log and 'GrpId' in json_obj:
+            self.__handle_human_draft_pick(json_obj)
+        elif 'LogBusinessEvents' in full_log and 'PickGrpId' in json_obj:
+            self.__handle_human_draft_combined(json_obj)
+        elif 'Event_SetDeck' in full_log and 'EventName' in json_obj:
             self.__handle_deck_submission(json_obj)
-        elif json_value_matches('Event.DeckSubmitV3', ['method'], json_obj):
-            self.__handle_deck_submission_v3(json_obj)
         elif json_value_matches('DoneWithMatches', ['CurrentEventState'], json_obj):
             self.__handle_event_completion(json_obj)
         elif json_obj.get('ModuleInstanceData', {}).get('HumanDraft._internalState', {}).get('DraftId') is not None:
@@ -405,29 +405,26 @@ class Follower:
             self.__handle_inventory(json_obj)
         elif ' Progression.GetPlayerProgress ' in full_log and 'method' not in json_obj:
             self.__handle_player_progress(json_obj)
-        elif 'Draft.Notify ' in full_log and 'method' not in json_obj:
-            self.__handle_human_draft_pack(json_obj)
-        elif 'Draft.Notification ' in full_log and 'method' not in json_obj:
-            self.__handle_draft_notification(json_obj)
         elif 'FrontDoorConnection.Close ' in full_log:
             self.__reset_current_user()
         elif 'Reconnect result : Connected' in full_log:
             self.__handle_reconnect_result()
 
+    def __try_decode(self, blob, key):
+        try:
+            json_obj, _ = self.json_decoder.raw_decode(blob[key])
+            return json_obj
+        except Exception:
+            return blob[key]
+
     def __extract_payload(self, blob):
-        if 'id' not in blob: return blob
-        if 'payload' in blob:
-            try:
-                json_obj, end = self.json_decoder.raw_decode(blob['payload'])
-                return json_obj
-            except Exception as e:
-                return blob['payload']
-        if 'request' in blob:
-            try:
-                json_obj, end = self.json_decoder.raw_decode(blob['request'])
-                return json_obj
-            except Exception as e:
-                pass
+        if type(blob) != dict: return blob
+        if 'clientToMatchServiceMessageType' in blob: return blob
+
+        for key in ('payload', 'Payload', 'request'):
+            if key in blob:
+                # Some messages are recursively serialized
+                return self.__extract_payload(self.__try_decode(blob, key))
 
         return blob
 
@@ -526,7 +523,7 @@ class Follower:
                 'companion': deck_info.get('companionGRPId', deck_info.get('companion', deck_info.get('deckMessageFieldFour', 0))),
                 'is_during_match': True,
             }
-            logger.info(f'Deck submission via __handle_client_to_gre_message: {deck}')
+            logger.info(f'Deck submission (ClientMessageType_SubmitDeckResp): {deck}')
             response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __handle_client_to_gre_ui_message(self, payload):
@@ -697,14 +694,13 @@ class Follower:
         screen_name = json_obj['params']['payloadObject']['screenName']
         self.__update_screen_name(screen_name)
 
-    def __handle_draft_log(self, json_obj):
-        """Handle 'draftStatus' messages."""
-        if json_obj['DraftStatus'] == 'Draft.PickNext':
+    def __handle_bot_draft_pack(self, json_obj):
+        """Handle 'DraftStatus' messages."""
+        if json_obj['DraftStatus'] == 'PickNext':
             self.__clear_game_data()
-            (user, event_name, other) = json_obj['DraftId'].rsplit(':', 2)
             pack = {
                 'player_id': self.cur_user,
-                'event_name': event_name,
+                'event_name': json_obj['EventName'],
                 'time': self.cur_log_time.isoformat(),
                 'pack_number': int(json_obj['PackNumber']),
                 'pick_number': int(json_obj['PickNumber']),
@@ -713,52 +709,30 @@ class Follower:
             logger.info(f'Draft pack: {pack}')
             response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PACK}', blob=pack)
 
-    def __handle_draft_pick(self, json_obj):
+    def __handle_bot_draft_pick(self, json_obj):
         """Handle 'Draft.MakePick messages."""
         self.__clear_game_data()
-        inner_obj = json_obj['params']
-        (user, event_name, other) = inner_obj['draftId'].rsplit(':', 2)
-
         pick = {
             'player_id': self.cur_user,
-            'event_name': event_name,
+            'event_name': json_obj['EventName'],
             'time': self.cur_log_time.isoformat(),
-            'pack_number': int(inner_obj['packNumber']),
-            'pick_number': int(inner_obj['pickNumber']),
-            'card_id': int(inner_obj['cardId']),
+            'pack_number': int(json_obj['PackNumber']),
+            'pick_number': int(json_obj['PickNumber']),
+            'card_id': int(json_obj['CardId']),
         }
         logger.info(f'Draft pick: {pick}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PICK}', blob=pick)
 
     def __handle_joined_pod(self, json_obj):
-        """Handle 'Event.JoinPodmaking messages."""
+        """Handle 'Event_Join' messages."""
         self.__clear_game_data()
-        inner_obj = json_obj['params']
-        self.cur_draft_event = inner_obj['queueId']
+        self.cur_draft_event = json_obj['EventName']
 
         logger.info(f'Joined draft pod: {self.cur_draft_event}')
 
-    def __handle_human_draft_pick(self, json_obj):
-        """Handle 'Draft.MakeHumanDraftPick messages."""
-        self.__clear_game_data()
-        inner_obj = json_obj['params']
-
-        pick = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
-            'draft_id': inner_obj['draftId'],
-            'event_name': self.cur_draft_event,
-            'pack_number': int(inner_obj['packNumber']),
-            'pick_number': int(inner_obj['pickNumber']),
-            'card_id': int(inner_obj['cardId']),
-        }
-        logger.info(f'Human draft pick: {pick}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
-
     def __handle_human_draft_pack(self, json_obj):
-        """Handle 'Draft.Notify messages."""
+        """Handle 'Draft.Notify' messages."""
         self.__clear_game_data()
-
         pack = {
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
@@ -768,61 +742,65 @@ class Follower:
             'pick_number': int(json_obj['SelfPick']),
             'card_ids': [int(x) for x in json_obj['PackCards'].split(',')],
         }
-        logger.info(f'Human draft pack: {pack}')
+        logger.info(f'Human draft pack (Draft.Notify): {pack}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
 
-    def __handle_draft_notification(self, json_obj):
-        """Handle 'Draft.Notification messages."""
-        if json_obj.get('PickInfo') is None:
-            return
-
+    def __handle_human_draft_pick(self, json_obj):
+        """Handle 'Event_PlayerDraftMakePick' messages."""
         self.__clear_game_data()
-
-        pick_info = json_obj['PickInfo']
-
-        pack = {
+        pick = {
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
             'draft_id': json_obj['DraftId'],
             'event_name': self.cur_draft_event,
-            'pack_number': int(pick_info['SelfPack']),
-            'pick_number': int(pick_info['SelfPick']),
-            'card_ids': pick_info['PackCards'],
+            'pack_number': int(json_obj['Pack']),
+            'pick_number': int(json_obj['Pick']),
+            'card_id': int(json_obj['GrpId']),
         }
-        logger.info(f'Human draft pack via notification: {pack}')
+        logger.info(f'Human draft pick (Event_PlayerDraftMakePick): {pick}')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
+
+    def __handle_human_draft_combined(self, json_obj):
+        """Handle combined human draft pack/pick messages."""
+        self.__clear_game_data()
+        pack = {
+            'player_id': self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'draft_id': json_obj['DraftId'],
+            'event_name': json_obj['EventId'],
+            'pack_number': int(json_obj['PackNumber']),
+            'pick_number': int(json_obj['PickNumber']),
+            'card_ids': json_obj['CardsInPack'],
+            'auto_pick': json_obj['AutoPick'],
+            'time_remaining': json_obj['TimeRemainingOnPick'],
+        }
+        logger.info(f'Human draft pack (combined): {pack}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
+        pick = {
+            'player_id': self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'draft_id': json_obj['DraftId'],
+            'event_name': json_obj['EventId'],
+            'pack_number': int(json_obj['PackNumber']),
+            'pick_number': int(json_obj['PickNumber']),
+            'card_id': int(json_obj['PickGrpId']),
+        }
+        logger.info(f'Human draft pick (combined): {pick}')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
 
     def __handle_deck_submission(self, json_obj):
-        """Handle 'Event.DeckSubmit' messages."""
+        """Handle 'Event_SetDeck' messages."""
         self.__clear_game_data()
-        inner_obj = json_obj['params']
-        deck_info = json.loads(inner_obj['deck'])
+        decks = json_obj['Deck']
         deck = {
             'player_id': self.cur_user,
-            'event_name': inner_obj['eventName'],
+            'event_name': json_obj['EventName'],
             'time': self.cur_log_time.isoformat(),
-            'maindeck_card_ids': [d['Id'] for d in deck_info['mainDeck'] for i in range(d['Quantity'])],
-            'sideboard_card_ids': [d['Id'] for d in deck_info['sideboard'] for i in range(d['Quantity'])],
+            'maindeck_card_ids': [d['cardId'] for d in decks['MainDeck'] for i in range(d['quantity'])],
+            'sideboard_card_ids': [d['cardId'] for d in decks['Sideboard'] for i in range(d['quantity'])],
             'is_during_match': False,
         }
-        logger.info(f'Deck submission via __handle_deck_submission: {deck}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
-
-    def __handle_deck_submission_v3(self, json_obj):
-        """Handle 'Event.DeckSubmitV3' messages."""
-        self.__clear_game_data()
-        inner_obj = json_obj['params']
-        deck_info = json.loads(inner_obj['deck'])
-        deck = {
-            'player_id': self.cur_user,
-            'event_name': inner_obj['eventName'],
-            'time': self.cur_log_time.isoformat(),
-            'maindeck_card_ids': self.__get_card_ids_from_decklist_v3(deck_info['mainDeck']),
-            'sideboard_card_ids': self.__get_card_ids_from_decklist_v3(deck_info['sideboard']),
-            'is_during_match': False,
-            'companion': deck_info.get('companionGRPId'),
-        }
-        logger.info(f'Deck submission via __handle_deck_submission_v3: {deck}')
+        logger.info(f'Deck submission (Event_SetDeck): {deck}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __handle_self_rank_info(self, json_obj):
@@ -902,17 +880,6 @@ class Follower:
         }
         logger.info(f'Submitting mastery progress')
         self.__retry_post(f'{self.host}/{ENDPOINT_PLAYER_PROGRESS}', blob=blob)
-
-    def __get_card_ids_from_decklist_v3(self, decklist):
-        """Parse a list of [card_id_1, count_1, card_id_2, count_2, ...] elements."""
-        assert len(decklist) % 2 == 0
-        result = []
-        for i in range(len(decklist) // 2):
-            card_id = decklist[2 * i]
-            count = decklist[2 * i + 1]
-            for j in range(count):
-                result.append(card_id)
-        return result
 
     def __reset_current_user(self):
         logger.info('User logged out from MTGA')
