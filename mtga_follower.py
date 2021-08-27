@@ -385,8 +385,10 @@ class Follower:
             self.__handle_deck_submission(json_obj)
         elif json_value_matches('DoneWithMatches', ['CurrentEventState'], json_obj):
             self.__handle_event_completion(json_obj)
-        elif json_obj.get('ModuleInstanceData', {}).get('HumanDraft._internalState', {}).get('DraftId') is not None:
+        elif 'Draft_CompleteDraft' in full_log and 'DraftId' in json_obj:
             self.__handle_event_course(json_obj)
+        elif 'authenticateResponse' in json_obj:
+            self.__update_screen_name(json_obj['authenticateResponse']['screenName'])
         elif 'matchGameRoomStateChangedEvent' in json_obj:
             self.__handle_match_started(json_obj)
         elif 'greToClientEvent' in json_obj and 'greToClientMessages' in json_obj['greToClientEvent']:
@@ -622,11 +624,10 @@ class Follower:
             'player_id': self.cur_user,
             'event_name': json_obj['InternalEventName'],
             'time': self.cur_log_time.isoformat(),
-            'draft_id': json_obj['ModuleInstanceData']['HumanDraft._internalState']['DraftId'],
+            'draft_id': json_obj['DraftId'],
         }
         logger.info(f'Event course: {event}')
         self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_COURSE_SUBMISSION}', blob=event)
-        self.__update_screen_name(json_obj['ModuleInstanceData']['HumanDraft._internalState']['ScreenName'])
 
     def __handle_game_end(self, json_obj):
         """Handle 'DuelScene.GameStop' messages."""
