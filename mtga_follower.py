@@ -398,7 +398,7 @@ class Follower:
             self.__handle_client_to_gre_message(json_obj.get('payload', {}))
         elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREUIMessage', ['clientToMatchServiceMessageType'], json_obj):
             self.__handle_client_to_gre_ui_message(json_obj.get('payload', {}))
-        elif 'limitedStep' in json_obj:
+        elif 'Rank_GetCombinedRankInfo' in full_log and 'limitedClass' in json_obj:
             self.__handle_self_rank_info(json_obj)
         elif 'opponentRankingClass' in json_obj:
             self.__handle_match_created(json_obj)
@@ -811,7 +811,7 @@ class Follower:
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __handle_self_rank_info(self, json_obj):
-        """Handle 'Event.GetCombinedRankInfo' messages."""
+        """Handle 'Rank_GetCombinedRankInfo' messages."""
         self.cur_limited_level = get_rank_string(
             rank_class=json_obj.get('limitedClass'),
             level=json_obj.get('limitedLevel'),
