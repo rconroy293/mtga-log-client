@@ -367,7 +367,7 @@ class Follower:
         except:
             pass
 
-        if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj):
+        if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj): # Doesn't exist any more
             self.__handle_login(json_obj)
         elif 'Event_Join' in full_log and 'EventName' in json_obj:
             self.__handle_joined_pod(json_obj)
@@ -379,7 +379,7 @@ class Follower:
             self.__handle_human_draft_combined(json_obj)
         elif 'Event_SetDeck' in full_log and 'EventName' in json_obj:
             self.__handle_deck_submission(json_obj)
-        elif json_value_matches('DoneWithMatches', ['CurrentEventState'], json_obj):
+        elif json_value_matches('DoneWithMatches', ['CurrentEventState'], json_obj): # TODO update this
             self.__handle_event_completion(json_obj)
         elif 'Draft_CompleteDraft' in full_log and 'DraftId' in json_obj:
             self.__handle_event_course(json_obj)
@@ -396,9 +396,9 @@ class Follower:
             self.__handle_client_to_gre_ui_message(json_obj.get('payload', {}))
         elif 'Rank_GetCombinedRankInfo' in full_log and 'limitedClass' in json_obj:
             self.__handle_self_rank_info(json_obj)
-        elif 'opponentRankingClass' in json_obj:
+        elif 'opponentRankingClass' in json_obj: # TODO update this
             self.__handle_match_created(json_obj)
-        elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj:
+        elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj: # Doesn't exist any more
             self.__handle_collection(json_obj)
         elif 'InventoryInfo' in json_obj:
             self.__handle_inventory(json_obj['InventoryInfo'])
