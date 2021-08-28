@@ -402,7 +402,7 @@ class Follower:
             self.__handle_collection(json_obj)
         elif 'InventoryInfo' in json_obj:
             self.__handle_inventory(json_obj['InventoryInfo'])
-        elif ' Progression.GetPlayerProgress ' in full_log and 'method' not in json_obj:
+        elif 'NodeStates' in json_obj and 'RewardTierUpgrade' in json_obj['NodeStates']:
             self.__handle_player_progress(json_obj)
         elif 'FrontDoorConnection.Close ' in full_log:
             self.__reset_current_user()
@@ -852,7 +852,7 @@ class Follower:
         self.__retry_post(f'{self.host}/{ENDPOINT_INVENTORY}', blob=blob)
 
     def __handle_player_progress(self, json_obj):
-        """Handle 'Progression.GetPlayerProgress' messages."""
+        """Handle mastery pass messages."""
         blob = {
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
