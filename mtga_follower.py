@@ -400,8 +400,8 @@ class Follower:
             self.__handle_match_created(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj:
             self.__handle_collection(json_obj)
-        elif ' PlayerInventory.GetPlayerInventory ' in full_log and 'method' not in json_obj:
-            self.__handle_inventory(json_obj)
+        elif 'InventoryInfo' in json_obj:
+            self.__handle_inventory(json_obj['InventoryInfo'])
         elif ' Progression.GetPlayerProgress ' in full_log and 'method' not in json_obj:
             self.__handle_player_progress(json_obj)
         elif 'FrontDoorConnection.Close ' in full_log:
@@ -829,19 +829,26 @@ class Follower:
         self.__retry_post(f'{self.host}/{ENDPOINT_COLLECTION}', blob=collection)
 
     def __handle_inventory(self, json_obj):
-        """Handle 'PlayerInventory.GetPlayerInventory' messages."""
-        # Opportunistically update playerId if available
-        self.cur_user = json_obj.get('playerId', self.cur_user)
-
-        json_obj.pop('vanityItems', None)
-        json_obj.pop('vanitySelections', None)
-        json_obj.pop('starterDecks', None)
+        """Handle 'InventoryInfo' messages."""
+        json_obj = {k: v for k, v in json_obj.items() if k in (
+            'Gems',
+            'Gold',
+            'TotalVaultProgress',
+            'wcTrackPosition',
+            'WildCardCommons',
+            'WildCardUnCommons',
+            'WildCardRares',
+            'WildCardMythics',
+            'DraftTokens',
+            'SealedTokens',
+            'Boosters',
+        )}
         blob = {
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
             'inventory': json_obj,
         }
-        logger.info(f'Submitting inventory')
+        logger.info(f'Submitting inventory: {blob}')
         self.__retry_post(f'{self.host}/{ENDPOINT_INVENTORY}', blob=blob)
 
     def __handle_player_progress(self, json_obj):
