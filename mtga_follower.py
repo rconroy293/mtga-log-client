@@ -375,10 +375,6 @@ class Follower:
             self.__handle_bot_draft_pack(json_obj)
         elif 'BotDraft_DraftPick' in full_log and 'PickInfo' in json_obj:
             self.__handle_bot_draft_pick(json_obj['PickInfo'])
-        elif 'Draft.Notify' in full_log:
-            self.__handle_human_draft_pack(json_obj)
-        elif 'Event_PlayerDraftMakePick' in full_log and 'GrpId' in json_obj:
-            self.__handle_human_draft_pick(json_obj)
         elif 'LogBusinessEvents' in full_log and 'PickGrpId' in json_obj:
             self.__handle_human_draft_combined(json_obj)
         elif 'Event_SetDeck' in full_log and 'EventName' in json_obj:
@@ -736,36 +732,6 @@ class Follower:
         self.cur_draft_event = json_obj['EventName']
 
         logger.info(f'Joined draft pod: {self.cur_draft_event}')
-
-    def __handle_human_draft_pack(self, json_obj):
-        """Handle 'Draft.Notify' messages."""
-        self.__clear_game_data()
-        pack = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
-            'draft_id': json_obj['draftId'],
-            'event_name': self.cur_draft_event,
-            'pack_number': int(json_obj['SelfPack']),
-            'pick_number': int(json_obj['SelfPick']),
-            'card_ids': [int(x) for x in json_obj['PackCards'].split(',')],
-        }
-        logger.info(f'Human draft pack (Draft.Notify): {pack}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
-
-    def __handle_human_draft_pick(self, json_obj):
-        """Handle 'Event_PlayerDraftMakePick' messages."""
-        self.__clear_game_data()
-        pick = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
-            'draft_id': json_obj['DraftId'],
-            'event_name': self.cur_draft_event,
-            'pack_number': int(json_obj['Pack']),
-            'pick_number': int(json_obj['Pick']),
-            'card_id': int(json_obj['GrpId']),
-        }
-        logger.info(f'Human draft pick (Event_PlayerDraftMakePick): {pick}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
 
     def __handle_human_draft_combined(self, json_obj):
         """Handle combined human draft pack/pick messages."""
