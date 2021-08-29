@@ -611,7 +611,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.31.w";
+        public const string CLIENT_VERSION = "0.1.32.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -626,8 +626,9 @@ namespace mtga_log_client
             "^\\(Filename:");
         private static readonly Regex JSON_DICT_REGEX = new Regex("\\{.+\\}");
         private static readonly Regex JSON_LIST_REGEX = new Regex("\\[.+\\]");
+
         private static readonly Regex ACCOUNT_INFO_REGEX = new Regex(
-            ".*Updated account\\. DisplayName:(.*), AccountID:(.*), Token:.*");
+            ".*Updated account\\. DisplayName:(.{1,1000}), AccountID:(.{1,1000}), Token:.*");
         private static readonly Regex MATCH_ACCOUNT_INFO_REGEX = new Regex(
             ".*: ((\\w+) to Match|Match to (\\w+)):");
 
@@ -645,6 +646,28 @@ namespace mtga_log_client
             "yyyy/MM/dd HH:mm:ss",
             "dd/MM/yyyy HH:mm:ss",
             "dd.MM.yyyy HH:mm:ss"
+        };
+
+        private static readonly List<String> SUB_PAYLOAD_KEYS = new List<String>()
+        {
+            "payload",
+            "Payload",
+            "request"
+        };
+
+        private static readonly List<String> INVENTORY_KEYS = new List<String>()
+        {
+            "Gems",
+            "Gold",
+            "TotalVaultProgress",
+            "wcTrackPosition",
+            "WildCardCommons",
+            "WildCardUnCommons",
+            "WildCardRares",
+            "WildCardMythics",
+            "DraftTokens",
+            "SealedTokens",
+            "Boosters"
         };
 
         private static long SECONDS_AT_YEAR_2000 = 63082281600L;
@@ -911,58 +934,68 @@ namespace mtga_log_client
 
             if (MaybeHandleLogin(blob)) return;
             // if (MaybeHandleGameEnd(blob)) return;
-            if (MaybeHandleDraftLog(blob)) return;
-            if (MaybeHandleDraftPick(blob)) return;
-            if (MaybeHandleJoinPod(blob)) return;
-            if (MaybeHandleHumanDraftPick(blob)) return;
-            if (MaybeHandleDeckSubmission(blob)) return;
-            if (MaybeHandleDeckSubmissionV3(blob)) return;
-            if (MaybeHandleEventCompletion(blob)) return;
-            if (MaybeHandleEventCourse(blob)) return;
-            if (MaybeHandleGameRoomStateChanged(blob)) return;
+            if (MaybeHandleJoinPod(fullLog, blob)) return;
+            if (MaybeHandleBotDraftPack(blob)) return;
+            if (MaybeHandleBotDraftPick(fullLog, blob)) return;
+            if (MaybeHandleHumanDraftCombined(fullLog, blob)) return;
+            if (MaybeHandleHumanDraftPack(fullLog, blob)) return;
+            if (MaybeHandleDeckSubmission(fullLog, blob)) return;
+            if (MaybeHandleOngoingEvents(fullLog, blob)) return;
+            if (MaybeHandleClaimPrize(fullLog, blob)) return;
+            // if (MaybeHandleEventCompletion(blob)) return;
+            if (MaybeHandleEventCourse(fullLog, blob)) return;
+            if (MaybeHandleScreenNameUpdate(fullLog, blob)) return;
+            if (MaybeHandleMatchStarted(blob)) return;
             if (MaybeHandleGreToClientMessages(blob)) return;
             if (MaybeHandleClientToGreMessage(blob)) return;
             if (MaybeHandleClientToGreUiMessage(blob)) return;
-            if (MaybeHandleSelfRankInfo(blob)) return;
-            if (MaybeHandleMatchCreated(blob)) return;
-            if (MaybeHandleCollection(fullLog, blob)) return;
+            if (MaybeHandleSelfRankInfo(fullLog, blob)) return;
+            if (MaybeHandleMatchCreated(blob)) return; // TODO update this
+            // if (MaybeHandleCollection(fullLog, blob)) return;
             if (MaybeHandleInventory(fullLog, blob)) return;
             if (MaybeHandlePlayerProgress(fullLog, blob)) return;
-            if (MaybeHandleHumanDraftPack(fullLog, blob)) return;
-            if (MaybeHandleDraftNotification(fullLog, blob)) return;
+            // if (MaybeHandleDraftNotification(fullLog, blob)) return;
             if (MaybeHandleFrontDoorConnectionClose(fullLog, blob)) return;
             if (MaybeHandleReconnectResult(fullLog, blob)) return;
         }
 
+        private JObject TryDecode(JObject blob, String key)
+        {
+            try
+            {
+                var subBlob = blob[key].Value<String>();
+                if (subBlob == null)
+                {
+                    return null;
+                }
+                return ParseBlob(subBlob);
+            }
+            catch (Exception)
+            {
+                return blob[key].Value<JObject>();
+            }
+        }
+
         private JObject ExtractPayload(JObject blob)
         {
-            if (!blob.ContainsKey("id"))
+            if (blob == null || blob.ContainsKey("clientToMatchServiceMessageType"))
             {
                 return blob;
             }
 
-            try
+            foreach (String key in SUB_PAYLOAD_KEYS)
             {
-                if (blob.ContainsKey("payload"))
+                if (blob.ContainsKey(key))
                 {
                     try
                     {
-                        return ParseBlob(blob["payload"].Value<String>());
+                        return ExtractPayload(TryDecode(blob, key));
                     }
                     catch (Exception)
                     {
-                        return blob["payload"].Value<JObject>();
+                        // pass
                     }
                 }
-
-                if (blob.ContainsKey("request"))
-                {
-                    return ParseBlob(blob["request"].Value<String>());
-                }
-            }
-            catch (Exception)
-            {
-                // pass
             }
 
             return blob;
@@ -1075,22 +1108,29 @@ namespace mtga_log_client
 
         private void MaybeHandleAccountInfo(String line)
         {
-            var match = ACCOUNT_INFO_REGEX.Match(line);
-            if (match.Success)
+            if (line.Contains("Updated account. DisplayName:"))
             {
-                var screenName = match.Groups[1].Value;
-                currentUser = match.Groups[2].Value;
+                var match = ACCOUNT_INFO_REGEX.Match(line);
+                if (match.Success)
+                {
+                    var screenName = match.Groups[1].Value;
+                    currentUser = match.Groups[2].Value;
 
-                UpdateScreenName(screenName);
-                return
+                    UpdateScreenName(screenName);
+                    return;
+                }
             }
 
-            match = MATCH_ACCOUNT_INFO_REGEX.Match(line);
-            if (match.Success)
+            if (line.Contains(" to Match") || line.Contains("Match to "))
             {
-                currentUser = match.Groups[2].Value;
-                if (String.IsNullOrEmpty(currentUser)) {
-                    currentUser = match.Groups[3].Value;
+                var match = MATCH_ACCOUNT_INFO_REGEX.Match(line);
+                if (match.Success)
+                {
+                    currentUser = match.Groups[2].Value;
+                    if (String.IsNullOrEmpty(currentUser))
+                    {
+                        currentUser = match.Groups[3].Value;
+                    }
                 }
             }
         }
@@ -1249,9 +1289,18 @@ namespace mtga_log_client
 
                 game.Add("mulligans", JToken.FromObject(mulliganedHands));
                 game.Add("turns", JToken.FromObject(turnCount));
-                game.Add("limited_rank", JToken.FromObject(currentLimitedLevel));
-                game.Add("constructed_rank", JToken.FromObject(currentConstructedLevel));
-                game.Add("opponent_rank", JToken.FromObject(currentOpponentLevel));
+                if (currentLimitedLevel != null)
+                {
+                    game.Add("limited_rank", JToken.FromObject(currentLimitedLevel));
+                }
+                if (currentConstructedLevel != null)
+                {
+                    game.Add("constructed_rank", JToken.FromObject(currentConstructedLevel));
+                }
+                if (currentOpponentLevel != null)
+                {
+                    game.Add("opponent_rank", JToken.FromObject(currentOpponentLevel));
+                }
                 game.Add("duration", JToken.FromObject(duration));
                 game.Add("opponent_card_ids", JToken.FromObject(opponentCardIds));
 
@@ -1281,15 +1330,16 @@ namespace mtga_log_client
             }
         }
 
-        private bool MaybeHandleDraftLog(JObject blob)
+        private bool MaybeHandleBotDraftPack(JObject blob)
         {
             if (!blob.ContainsKey("DraftStatus")) return false;
-            if (!"Draft.PickNext".Equals(blob["DraftStatus"].Value<String>())) return false;
+            if (!"PickNext".Equals(blob["DraftStatus"].Value<String>())) return false;
 
             ClearGameData();
 
             try
             {
+                currentDraftEvent = blob["EventName"].Value<String>();
                 Pack pack = new Pack();
                 pack.token = apiToken;
                 pack.client_version = CLIENT_VERSION;
@@ -1303,7 +1353,7 @@ namespace mtga_log_client
                     cardIds.Add(int.Parse(cardString.Value<String>()));
                 }
 
-                pack.event_name = blob["DraftId"].Value<String>().Split(':')[1];
+                pack.event_name = currentDraftEvent;
                 pack.pack_number = blob["PackNumber"].Value<int>();
                 pack.pick_number = blob["PickNumber"].Value<int>();
                 pack.card_ids = cardIds;
@@ -1318,17 +1368,17 @@ namespace mtga_log_client
             }
         }
 
-        private bool MaybeHandleDraftPick(JObject blob)
+        private bool MaybeHandleBotDraftPick(String fullLog, JObject blob)
         {
-            if (!blob.ContainsKey("method")) return false;
-            if (!"Draft.MakePick".Equals(blob["method"].Value<String>())) return false;
+            if (!fullLog.Contains("BotDraft_DraftPick")) return false;
+            if (!blob.ContainsKey("PickInfo")) return false;
 
             ClearGameData();
 
             try
             {
-                var parameters = blob["params"].Value<JObject>();
-                var draftIdComponents = parameters["draftId"].Value<String>().Split(':');
+                var pickInfo = blob["PickInfo"].Value<JObject>();
+                currentDraftEvent = pickInfo["EventName"].Value<String>();
 
                 Pick pick = new Pick();
                 pick.token = apiToken;
@@ -1337,10 +1387,10 @@ namespace mtga_log_client
                 pick.time = GetDatetimeString(currentLogTime.Value);
                 pick.utc_time = GetDatetimeString(lastUtcTime.Value);
 
-                pick.event_name = draftIdComponents[1];
-                pick.pack_number = parameters["packNumber"].Value<int>();
-                pick.pick_number = parameters["pickNumber"].Value<int>();
-                pick.card_id = parameters["cardId"].Value<int>();
+                pick.event_name = currentDraftEvent;
+                pick.pack_number = pickInfo["PackNumber"].Value<int>();
+                pick.pick_number = pickInfo["PickNumber"].Value<int>();
+                pick.card_id = pickInfo["CardId"].Value<int>();
 
                 apiClient.PostPick(pick);
 
@@ -1353,18 +1403,16 @@ namespace mtga_log_client
             }
         }
 
-        private bool MaybeHandleJoinPod(JObject blob)
+        private bool MaybeHandleJoinPod(String fullLog, JObject blob)
         {
-            if (!blob.ContainsKey("method")) return false;
-            if (!"Event.JoinPodmaking".Equals(blob["method"].Value<String>())) return false;
+            if (!fullLog.Contains("Event_Join")) return false;
+            if (!blob.ContainsKey("EventName")) return false;
 
             ClearGameData();
 
             try
             {
-                var parameters = blob["params"].Value<JObject>();
-                currentDraftEvent = parameters["queueId"].Value<String>();
-
+                currentDraftEvent = blob["EventName"].Value<String>();
                 return true;
             }
             catch (Exception e)
@@ -1374,17 +1422,47 @@ namespace mtga_log_client
             }
         }
 
-        private bool MaybeHandleHumanDraftPick(JObject blob)
+        private bool MaybeHandleHumanDraftCombined(String fullLog, JObject blob)
         {
-            if (!blob.ContainsKey("method")) return false;
-            if (!"Draft.MakeHumanDraftPick".Equals(blob["method"].Value<String>())) return false;
+            if (!fullLog.Contains("LogBusinessEvents")) return false;
+            if (!blob.ContainsKey("PickGrpId")) return false;
 
             ClearGameData();
 
             try
             {
-                var parameters = blob["params"].Value<JObject>();
+                currentDraftEvent = blob["EventId"].Value<String>();
 
+                HumanDraftPack pack = new HumanDraftPack();
+                pack.method = "LogBusinessEvents";
+                pack.token = apiToken;
+                pack.client_version = CLIENT_VERSION;
+                pack.player_id = currentUser;
+                pack.time = GetDatetimeString(currentLogTime.Value);
+                pack.utc_time = GetDatetimeString(lastUtcTime.Value);
+
+                var cardIds = new List<int>();
+                foreach (JToken cardId in blob["CardsInPack"].Value<JArray>())
+                {
+                    cardIds.Add(cardId.Value<int>());
+                }
+
+                pack.draft_id = blob["DraftId"].Value<String>();
+                pack.pack_number = blob["PackNumber"].Value<int>();
+                pack.pick_number = blob["PickNumber"].Value<int>();
+                pack.card_ids = cardIds;
+                pack.event_name = currentDraftEvent;
+
+                apiClient.PostHumanDraftPack(pack);
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing combined human draft pack from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+
+            try
+            {
                 HumanDraftPick pick = new HumanDraftPick();
                 pick.token = apiToken;
                 pick.client_version = CLIENT_VERSION;
@@ -1392,23 +1470,24 @@ namespace mtga_log_client
                 pick.time = GetDatetimeString(currentLogTime.Value);
                 pick.utc_time = GetDatetimeString(lastUtcTime.Value);
 
-                pick.draft_id = parameters["draftId"].Value<String>();
-                pick.pack_number = parameters["packNumber"].Value<int>();
-                pick.pick_number = parameters["pickNumber"].Value<int>();
-                pick.card_id = parameters["cardId"].Value<int>();
-                pick.event_name = currentDraftEvent;
+                pick.draft_id = currentDraftEvent;
+                pick.pack_number = blob["PackNumber"].Value<int>();
+                pick.pick_number = blob["PickNumber"].Value<int>();
+                pick.card_id = blob["PickGrpId"].Value<int>();
+                pick.event_name = blob["EventId"].Value<String>();
+                pick.auto_pick = blob["AutoPick"].Value<bool>();
+                pick.time_remaining = blob["TimeRemainingOnPick"].Value<float>();
 
                 apiClient.PostHumanDraftPick(pick);
-
-                return true;
             }
             catch (Exception e)
             {
-                LogError(String.Format("Error {0} parsing human draft pick from {1}", e, blob), e.StackTrace, Level.Warn);
+                LogError(String.Format("Error {0} parsing combined human draft pick from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
-        }
 
+            return true;
+        }
         private bool MaybeHandleHumanDraftPack(String fullLog, JObject blob)
         {
             if (!fullLog.Contains("Draft.Notify ")) return false;
@@ -1518,16 +1597,15 @@ namespace mtga_log_client
             return true;
         }
 
-        private bool MaybeHandleDeckSubmission(JObject blob)
+        private bool MaybeHandleDeckSubmission(String fullLog, JObject blob)
         {
-            if (!blob.ContainsKey("method")) return false;
-            if (!"Event.DeckSubmit".Equals(blob["method"].Value<String>())) return false;
+            if (!fullLog.Contains("Event_SetDeck")) return false;
+            if (!blob.ContainsKey("EventName")) return false;
 
             ClearGameData();
 
             try
             {
-                objectsByOwner.Clear();
 
                 Deck deck = new Deck();
                 deck.token = apiToken;
@@ -1536,28 +1614,17 @@ namespace mtga_log_client
                 deck.time = GetDatetimeString(currentLogTime.Value);
                 deck.utc_time = GetDatetimeString(lastUtcTime.Value);
 
-                var parameters = blob["params"].Value<JObject>();
-                var deckInfo = JObject.Parse(parameters["deck"].Value<String>());
+                var deckInfo = blob["Deck"].Value<JObject>();
 
-                var maindeckCardIds = GetCardIdsFromDeck(deckInfo["mainDeck"].Value<JArray>());
-
-                if (deckInfo["sideboard"] == null)
+                deck.maindeck_card_ids = GetCardIdsFromDeck(deckInfo["MainDeck"].Value<JArray>());
+                deck.sideboard_card_ids = GetCardIdsFromDeck(deckInfo["Sideboard"].Value<JArray>());
+                foreach (int companion in GetCardIdsFromDeck(deckInfo["Companions"].Value<JArray>()))
                 {
-                    deck.sideboard_card_ids = new List<int>();
-                }
-                else
-                {
-                    deck.sideboard_card_ids = GetCardIdsFromDeck(deckInfo["sideboard"].Value<JArray>());
+                    deck.companion = companion;
                 }
 
-                deck.event_name = parameters["eventName"].Value<String>();
-                deck.maindeck_card_ids = maindeckCardIds;
+                deck.event_name = blob["EventName"].Value<String>();
                 deck.is_during_match = false;
-
-                if (deckInfo.ContainsKey("companionGRPId"))
-                {
-                    deck.companion = deckInfo["companionGRPId"].Value<int>();
-                }
 
                 apiClient.PostDeck(deck);
                 return true;
@@ -1569,53 +1636,83 @@ namespace mtga_log_client
             }
         }
 
-        private bool MaybeHandleDeckSubmissionV3(JObject blob)
+        private bool MaybeHandleOngoingEvents(String fullLog, JObject blob)
         {
-            if (!blob.ContainsKey("method")) return false;
-            if (!"Event.DeckSubmitV3".Equals(blob["method"].Value<String>())) return false;
-
-            ClearGameData();
+            if (!fullLog.Contains("Event_GetCourses")) return false;
+            if (!blob.ContainsKey("Courses")) return false;
 
             try
             {
-                objectsByOwner.Clear();
-
-                Deck deck = new Deck();
-                deck.token = apiToken;
-                deck.client_version = CLIENT_VERSION;
-                deck.player_id = currentUser;
-                deck.time = GetDatetimeString(currentLogTime.Value);
-                deck.utc_time = GetDatetimeString(lastUtcTime.Value);
-
-                var parameters = blob["params"].Value<JObject>();
-                var deckInfo = JObject.Parse(parameters["deck"].Value<String>());
-
-                var maindeckCardIds = GetCardIdsFromDecklistV3(deckInfo["mainDeck"].Value<JArray>());
-
-                if (deckInfo["sideboard"] == null)
+                JObject event_ = new JObject();
+                event_.Add("token", JToken.FromObject(apiToken));
+                event_.Add("client_version", JToken.FromObject(CLIENT_VERSION));
+                if (currentUser != null)
                 {
-                    deck.sideboard_card_ids = new List<int>();
+                    event_.Add("player_id", JToken.FromObject(currentUser));
                 }
-                else
-                {
-                    deck.sideboard_card_ids = GetCardIdsFromDecklistV3(deckInfo["sideboard"].Value<JArray>());
-                }
+                event_.Add("time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)));
+                event_.Add("utc_time", JToken.FromObject(GetDatetimeString(lastUtcTime.Value)));
 
-                deck.event_name = parameters["eventName"].Value<String>();
-                deck.maindeck_card_ids = maindeckCardIds;
-                deck.is_during_match = false;
+                // event_.Add("courses", JArray.FromObject(blob["Courses"].Value<JObject>()));
+                event_.Add("courses", JArray.FromObject(blob["Courses"]));
 
-                if (deckInfo.ContainsKey("companionGRPId"))
-                {
-                    deck.companion = deckInfo["companionGRPId"].Value<int>();
-                }
+                apiClient.PostOngoingEvents(event_);
 
-                apiClient.PostDeck(deck);
+                LogMessage(String.Format("Parsed ongoing event"), Level.Info);
+
                 return true;
             }
             catch (Exception e)
             {
-                LogError(String.Format("Error {0} parsing v3 deck submission from {1}", e, blob), e.StackTrace, Level.Warn);
+                LogError(String.Format("Error {0} parsing ongoing event from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandleClaimPrize(String fullLog, JObject blob)
+        {
+            if (!fullLog.Contains("Event_ClaimPrize")) return false;
+            if (!blob.ContainsKey("EventName")) return false;
+
+            try
+            {
+                JObject event_ = new JObject();
+                event_.Add("token", JToken.FromObject(apiToken));
+                event_.Add("client_version", JToken.FromObject(CLIENT_VERSION));
+                if (currentUser != null)
+                {
+                    event_.Add("player_id", JToken.FromObject(currentUser));
+                }
+                event_.Add("time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)));
+                event_.Add("utc_time", JToken.FromObject(GetDatetimeString(lastUtcTime.Value)));
+
+                event_.Add("event_name", blob["EventName"].Value<String>());
+
+                apiClient.PostEventEnded(event_);
+
+                LogMessage(String.Format("Parsed claim prize event"), Level.Info);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing claim prize event from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandleScreenNameUpdate(String fullLog, JObject blob)
+        {
+            if (!blob.ContainsKey("authenticateResponse")) return false;
+
+            try
+            {
+                UpdateScreenName(blob["authenticateResponse"].Value<JObject>()["screenName"].Value<String>());
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing screen name from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -1656,11 +1753,10 @@ namespace mtga_log_client
             }
         }
 
-        private bool MaybeHandleEventCourse(JObject blob)
+        private bool MaybeHandleEventCourse(String fullLog, JObject blob)
         {
-            if (!blob.ContainsKey("ModuleInstanceData")) return false;
-            if (!blob["ModuleInstanceData"].Value<JObject>().ContainsKey("HumanDraft._internalState")) return false;
-            if (!blob["ModuleInstanceData"].Value<JObject>()["HumanDraft._internalState"].Value<JObject>().ContainsKey("DraftId")) return false;
+            if (!fullLog.Contains("Draft_CompleteDraft")) return false;
+            if (!blob.ContainsKey("DraftId")) return false;
 
             try
             {
@@ -1672,12 +1768,9 @@ namespace mtga_log_client
                 event_.player_id = currentUser;
 
                 event_.event_name = blob["InternalEventName"].Value<String>();
-                var internalState = blob["ModuleInstanceData"].Value<JObject>()["HumanDraft._internalState"].Value<JObject>();
-                event_.draft_id = internalState["DraftId"].Value<String>();
+                event_.draft_id = blob["DraftId"].Value<String>();
 
                 apiClient.PostEventCourse(event_);
-
-                UpdateScreenName(internalState["ScreenName"].Value<String>());
 
                 return true;
             }
@@ -1917,7 +2010,7 @@ namespace mtga_log_client
             return false;
         }
 
-        private bool MaybeHandleGameRoomStateChanged(JObject blob)
+        private bool MaybeHandleMatchStarted(JObject blob)
         {
             if (!blob.ContainsKey("matchGameRoomStateChangedEvent")) return false;
             if (!blob["matchGameRoomStateChangedEvent"].Value<JObject>().ContainsKey("gameRoomInfo")) return false;
@@ -2045,25 +2138,35 @@ namespace mtga_log_client
             }
         }
 
-        private bool MaybeHandleSelfRankInfo(JObject blob)
+        private String GetOrEmpty(JObject blob, String key)
         {
-            if (!blob.ContainsKey("limitedStep")) return false;
+            if (blob.ContainsKey(key))
+            {
+                return blob[key].Value<String>();
+            }
+            return "None";
+        }
+
+        private bool MaybeHandleSelfRankInfo(String fullLog, JObject blob)
+        {
+            if (!fullLog.Contains("Rank_GetCombinedRankInfo")) return false;
+            if (!blob.ContainsKey("limitedClass")) return false;
 
             try
             {
                 currentLimitedLevel = GetRankString(
-                    blob["limitedClass"].Value<String>(),
-                    blob["limitedLevel"].Value<String>(),
-                    blob["limitedPercentile"].Value<String>(),
-                    blob["limitedLeaderboardPlace"].Value<String>(),
-                    blob["limitedStep"].Value<String>()
+                    GetOrEmpty(blob, "limitedClass"),
+                    GetOrEmpty(blob, "limitedLevel"),
+                    GetOrEmpty(blob, "limitedPercentile"),
+                    GetOrEmpty(blob, "limitedLeaderboardPlace"),
+                    GetOrEmpty(blob, "limitedStep")
                 );
                 currentConstructedLevel = GetRankString(
-                    blob["constructedClass"].Value<String>(),
-                    blob["constructedLevel"].Value<String>(),
-                    blob["constructedPercentile"].Value<String>(),
-                    blob["constructedLeaderboardPlace"].Value<String>(),
-                    blob["constructedStep"].Value<String>()
+                    GetOrEmpty(blob, "constructedClass"),
+                    GetOrEmpty(blob, "constructedLevel"),
+                    GetOrEmpty(blob, "constructedPercentile"),
+                    GetOrEmpty(blob, "constructedLeaderboardPlace"),
+                    GetOrEmpty(blob, "constructedStep")
                 );
 
                 if (blob.ContainsKey("playerId"))
@@ -2076,7 +2179,10 @@ namespace mtga_log_client
                 JObject rankBlob = new JObject();
                 rankBlob.Add("token", JToken.FromObject(apiToken));
                 rankBlob.Add("client_version", JToken.FromObject(CLIENT_VERSION));
-                rankBlob.Add("player_id", JToken.FromObject(currentUser));
+                if (currentUser != null)
+                {
+                    rankBlob.Add("player_id", JToken.FromObject(currentUser));
+                }
                 rankBlob.Add("time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)));
                 rankBlob.Add("limited_rank", JToken.FromObject(currentLimitedLevel));
                 rankBlob.Add("constructed_rank", JToken.FromObject(currentConstructedLevel));
@@ -2100,10 +2206,10 @@ namespace mtga_log_client
             try
             {
                 currentOpponentLevel = GetRankString(
-                    blob["opponentRankingClass"].Value<String>(),
-                    blob["opponentRankingTier"].Value<String>(),
-                    blob["opponentMythicPercentile"].Value<String>(),
-                    blob["opponentMythicLeaderboardPlace"].Value<String>(),
+                    GetOrEmpty(blob, "opponentRankingClass"),
+                    GetOrEmpty(blob, "opponentRankingTier"),
+                    GetOrEmpty(blob, "opponentMythicPercentile"),
+                    GetOrEmpty(blob, "opponentMythicLeaderboardPlace"),
                     null
                 );
 
@@ -2159,27 +2265,29 @@ namespace mtga_log_client
 
         private bool MaybeHandleInventory(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains(" PlayerInventory.GetPlayerInventory ")) return false;
-            if (blob.ContainsKey("method")) return false;
-
-            if (blob.ContainsKey("playerId"))
-            {
-                currentUser = blob["playerId"].Value<String>();
-            }
+            if (!blob.ContainsKey("InventoryInfo")) return false;
 
             try
             {
+                var inventoryInfo = blob["InventoryInfo"].Value<JObject>();
+
                 JObject inventory = new JObject();
                 inventory.Add("token", JToken.FromObject(apiToken));
                 inventory.Add("client_version", JToken.FromObject(CLIENT_VERSION));
-                inventory.Add("player_id", JToken.FromObject(currentUser));
+                if (currentUser != null)
+                {
+                    inventory.Add("player_id", JToken.FromObject(currentUser));
+                }
                 inventory.Add("time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)));
                 inventory.Add("utc_time", JToken.FromObject(GetDatetimeString(lastUtcTime.Value)));
 
-                blob.Remove("vanityItems");
-                blob.Remove("vanitySelections");
-                blob.Remove("starterDecks");
-                inventory.Add("inventory", JToken.FromObject(blob));
+                JObject contents = new JObject();
+                foreach (String key in INVENTORY_KEYS)
+                {
+                    // contents.Add(key, JToken.FromObject(inventoryInfo[key].Value<JObject>()));
+                    contents.Add(key, JToken.FromObject(inventoryInfo[key]));
+                }
+                inventory.Add("inventory", JToken.FromObject(contents));
 
                 apiClient.PostInventory(inventory);
 
@@ -2196,15 +2304,18 @@ namespace mtga_log_client
 
         private bool MaybeHandlePlayerProgress(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains(" Progression.GetPlayerProgress ")) return false;
-            if (blob.ContainsKey("method")) return false;
+            if (!blob.ContainsKey("NodeStates")) return false;
+            if (!blob["NodeStates"].Value<JObject>().ContainsKey("RewardTierUpgrade")) return false;
 
             try
             {
                 JObject progress = new JObject();
                 progress.Add("token", JToken.FromObject(apiToken));
                 progress.Add("client_version", JToken.FromObject(CLIENT_VERSION));
-                progress.Add("player_id", JToken.FromObject(currentUser));
+                if (currentUser != null)
+                {
+                    progress.Add("player_id", JToken.FromObject(currentUser));
+                }
                 progress.Add("time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)));
                 progress.Add("utc_time", JToken.FromObject(GetDatetimeString(lastUtcTime.Value)));
                 progress.Add("progress", JToken.FromObject(blob));
@@ -2268,32 +2379,8 @@ namespace mtga_log_client
             var cardIds = new List<int>();
             foreach (JObject cardInfo in decklist)
             {
-                int cardId;
-                if (cardInfo.ContainsKey("id"))
-                {
-                    cardId = cardInfo["id"].Value<int>();
-                }
-                else
-                {
-                    cardId = cardInfo["Id"].Value<int>();
-                }
-
-                for (int i = 0; i < cardInfo["Quantity"].Value<int>(); i++)
-                {
-                    cardIds.Add(cardId);
-                }
-            }
-            return cardIds;
-        }
-
-        private List<int> GetCardIdsFromDecklistV3(JArray decklist)
-        {
-            var cardIds = new List<int>();
-            for (int i = 0; i < decklist.Count / 2; i++)
-            {
-                var cardId = decklist[2 * i].Value<int>();
-                var count = decklist[2 * i + 1].Value<int>();
-                for (int j = 0; j < count; j++)
+                int cardId = cardInfo["cardId"].Value<int>();
+                for (int i = 0; i < cardInfo["quantity"].Value<int>(); i++)
                 {
                     cardIds.Add(cardId);
                 }
@@ -2334,6 +2421,8 @@ namespace mtga_log_client
         private const string ENDPOINT_GAME_HISTORY_ENABLED = "api/game_history_enabled";
         private const string ENDPOINT_ERROR_INFO = "api/client_errors";
         private const string ENDPOINT_RANK = "api/rank";
+        private const string ENDPOINT_ONGOING_EVENTS = "ongoing_events";
+        private const string ENDPOINT_EVENT_ENDED = "event_ended";
 
         private static readonly DataContractJsonSerializerSettings SIMPLE_SERIALIZER_SETTINGS = new DataContractJsonSerializerSettings { UseSimpleDictionaryFormat = true };
 
@@ -2343,11 +2432,10 @@ namespace mtga_log_client
         private static readonly DataContractJsonSerializer SERIALIZER_HUMAN_DRAFT_PICK = new DataContractJsonSerializer(typeof(HumanDraftPick));
         private static readonly DataContractJsonSerializer SERIALIZER_HUMAN_DRAFT_PACK = new DataContractJsonSerializer(typeof(HumanDraftPack));
         private static readonly DataContractJsonSerializer SERIALIZER_DECK = new DataContractJsonSerializer(typeof(Deck));
-        private static readonly DataContractJsonSerializer SERIALIZER_GAME = new DataContractJsonSerializer(typeof(Game));
         private static readonly DataContractJsonSerializer SERIALIZER_EVENT = new DataContractJsonSerializer(typeof(Event));
         private static readonly DataContractJsonSerializer SERIALIZER_EVENT_COURSE = new DataContractJsonSerializer(typeof(EventCourse));
         private static readonly DataContractJsonSerializer SERIALIZER_COLLECTION = new DataContractJsonSerializer(typeof(Collection), SIMPLE_SERIALIZER_SETTINGS);
-        private static readonly DataContractJsonSerializer SERIALIZER_ERROR_INFO= new DataContractJsonSerializer(typeof(ErrorInfo));
+        private static readonly DataContractJsonSerializer SERIALIZER_ERROR_INFO = new DataContractJsonSerializer(typeof(ErrorInfo));
 
         private HttpClient client;
         private readonly LogMessageFunction messageFunction;
@@ -2610,6 +2698,16 @@ namespace mtga_log_client
 
         }
 
+        public void PostOngoingEvents(JObject info)
+        {
+            PostJson(ENDPOINT_ONGOING_EVENTS, info.ToString(Formatting.None));
+        }
+
+        public void PostEventEnded(JObject info)
+        {
+            PostJson(ENDPOINT_EVENT_ENDED, info.ToString(Formatting.None));
+        }
+
         private void LogMessage(string message, Level logLevel)
         {
             messageFunction(message, logLevel);
@@ -2697,6 +2795,10 @@ namespace mtga_log_client
         internal int pick_number;
         [DataMember]
         internal int card_id;
+        [DataMember]
+        internal bool auto_pick;
+        [DataMember]
+        internal float time_remaining;
     }
     [DataContract]
     internal class HumanDraftPack
@@ -2747,54 +2849,6 @@ namespace mtga_log_client
         internal bool is_during_match;
         [DataMember]
         internal string utc_time;
-    }
-    [DataContract]
-    internal class Game
-    {
-        [DataMember]
-        internal string client_version;
-        [DataMember]
-        internal string token;
-        [DataMember]
-        internal string player_id;
-        [DataMember]
-        internal string event_name;
-        [DataMember]
-        internal string match_id;
-        [DataMember]
-        internal string time;
-        [DataMember]
-        internal bool on_play;
-        [DataMember]
-        internal bool won;
-        [DataMember]
-        internal string win_type;
-        [DataMember]
-        internal string game_end_reason;
-        [DataMember]
-        internal List<int> opening_hand;
-        [DataMember]
-        internal List<List<int>> mulligans;
-        [DataMember]
-        internal List<List<int>> drawn_hands;
-        [DataMember]
-        internal List<int> drawn_cards;
-        [DataMember]
-        internal int opponent_mulligan_count;
-        [DataMember]
-        internal int turns;
-        [DataMember]
-        internal int duration;
-        [DataMember]
-        internal List<int> opponent_card_ids;
-        [DataMember]
-        internal string utc_time;
-        [DataMember]
-        internal string limited_rank;
-        [DataMember]
-        internal string constructed_rank;
-        [DataMember]
-        internal string opponent_rank;
     }
     [DataContract]
     internal class Event
