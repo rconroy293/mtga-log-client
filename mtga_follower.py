@@ -51,7 +51,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.26.p'
+CLIENT_VERSION = '0.1.27.p'
 
 TOKEN_ENTRY_TITLE = 'MTGA Log Client Token'
 TOKEN_ENTRY_MESSAGE = 'Please enter your client token from 17lands.com/account: '
