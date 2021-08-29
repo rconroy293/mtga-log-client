@@ -122,6 +122,8 @@ ENDPOINT_INVENTORY = 'inventory'
 ENDPOINT_PLAYER_PROGRESS = 'player_progress'
 ENDPOINT_CLIENT_VERSION = 'min_client_version'
 ENDPOINT_RANK = 'api/rank'
+ENDPOINT_ONGOING_EVENTS = 'ongoing_events'
+ENDPOINT_EVENT_ENDED = 'event_ended'
 
 RETRIES = 2
 IS_CODE_FOR_RETRY = lambda code: code >= 500 and code < 600
@@ -379,8 +381,10 @@ class Follower:
             self.__handle_human_draft_combined(json_obj)
         elif 'Event_SetDeck' in full_log and 'EventName' in json_obj:
             self.__handle_deck_submission(json_obj)
-        elif json_value_matches('DoneWithMatches', ['CurrentEventState'], json_obj): # TODO update this
-            self.__handle_event_completion(json_obj)
+        elif 'Event_GetCourses' in full_log and 'Courses' in json_obj:
+            self.__handle_ongoing_events(json_obj)
+        elif 'Event_ClaimPrize' in full_log and 'EventName' in json_obj:
+            self.__handle_claim_prize(json_obj)
         elif 'Draft_CompleteDraft' in full_log and 'DraftId' in json_obj:
             self.__handle_event_course(json_obj)
         elif 'authenticateResponse' in json_obj:
@@ -601,18 +605,25 @@ class Follower:
         if match:
             self.cur_user = match.group(2) or match.group(3)
 
-    def __handle_event_completion(self, json_obj):
-        """Handle messages upon event completion."""
+    def __handle_ongoing_events(self, json_obj):
+        """Handle 'Event_GetCourses' messages."""
         event = {
             'player_id': self.cur_user,
-            'event_name': json_obj['InternalEventName'],
             'time': self.cur_log_time.isoformat(),
-            'entry_fee': json_obj['ModuleInstanceData']['HasPaidEntry'],
-            'wins': json_obj['ModuleInstanceData']['WinLossGate']['CurrentWins'],
-            'losses': json_obj['ModuleInstanceData']['WinLossGate']['CurrentLosses'],
+            'courses': json_obj['Courses'],
         }
-        logger.info(f'Event submission: {event}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_SUBMISSION}', blob=event)
+        logger.info(f'Updated ongoing events')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_ONGOING_EVENTS}', blob=event)
+
+    def __handle_claim_prize(self, json_obj):
+        """Handle 'Event_ClaimPrize' messages."""
+        event = {
+            'player_id': self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'event_name': json_obj['EventName'],
+        }
+        logger.info(f'Event ended: {event}')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_ENDED}', blob=event)
 
     def __handle_event_course(self, json_obj):
         """Handle messages linking draft id to event name."""
