@@ -1653,7 +1653,6 @@ namespace mtga_log_client
                 event_.Add("time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)));
                 event_.Add("utc_time", JToken.FromObject(GetDatetimeString(lastUtcTime.Value)));
 
-                // event_.Add("courses", JArray.FromObject(blob["Courses"].Value<JObject>()));
                 event_.Add("courses", JArray.FromObject(blob["Courses"]));
 
                 apiClient.PostOngoingEvents(event_);
@@ -2284,7 +2283,6 @@ namespace mtga_log_client
                 JObject contents = new JObject();
                 foreach (String key in INVENTORY_KEYS)
                 {
-                    // contents.Add(key, JToken.FromObject(inventoryInfo[key].Value<JObject>()));
                     contents.Add(key, JToken.FromObject(inventoryInfo[key]));
                 }
                 inventory.Add("inventory", JToken.FromObject(contents));
