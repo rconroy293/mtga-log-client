@@ -628,6 +628,8 @@ namespace mtga_log_client
         private static readonly Regex JSON_LIST_REGEX = new Regex("\\[.+\\]");
         private static readonly Regex ACCOUNT_INFO_REGEX = new Regex(
             ".*Updated account\\. DisplayName:(.*), AccountID:(.*), Token:.*");
+        private static readonly Regex MATCH_ACCOUNT_INFO_REGEX = new Regex(
+            ".*: ((\\w+) to Match|Match to (\\w+)):");
 
         private static readonly HashSet<String> GAME_HISTORY_MESSAGE_TYPES = new HashSet<string> {
             "GREMessageType_GameStateMessage",
@@ -1073,7 +1075,6 @@ namespace mtga_log_client
 
         private void MaybeHandleAccountInfo(String line)
         {
-            if (!line.StartsWith("[Accounts - AccountClient]")) return;
             var match = ACCOUNT_INFO_REGEX.Match(line);
             if (match.Success)
             {
@@ -1081,6 +1082,16 @@ namespace mtga_log_client
                 currentUser = match.Groups[2].Value;
 
                 UpdateScreenName(screenName);
+                return
+            }
+
+            match = MATCH_ACCOUNT_INFO_REGEX.Match(line);
+            if (match.Success)
+            {
+                currentUser = match.Groups[2].Value;
+                if (String.IsNullOrEmpty(currentUser)) {
+                    currentUser = match.Groups[3].Value;
+                }
             }
         }
 

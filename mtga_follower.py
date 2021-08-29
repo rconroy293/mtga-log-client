@@ -51,7 +51,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.26.p'
+CLIENT_VERSION = '0.1.27.p'
 
 TOKEN_ENTRY_TITLE = 'MTGA Log Client Token'
 TOKEN_ENTRY_MESSAGE = 'Please enter your client token from 17lands.com/account: '
@@ -92,6 +92,7 @@ TIMESTAMP_REGEX = re.compile('^([\\d/.-]+[ T][\\d]+:[\\d]+:[\\d]+( AM| PM)?)')
 STRIPPED_TIMESTAMP_REGEX = re.compile('^(.*?)[: /]*$')
 JSON_START_REGEX = re.compile(r'[\[\{]')
 ACCOUNT_INFO_REGEX = re.compile(r'.*Updated account\. DisplayName:(.*), AccountID:(.*), Token:.*')
+MATCH_ACCOUNT_INFO_REGEX = re.compile(r'.*: ((\w+) to Match|Match to (\w+)):')
 SLEEP_TIME = 0.5
 
 TIME_FORMATS = (
@@ -121,6 +122,8 @@ ENDPOINT_INVENTORY = 'inventory'
 ENDPOINT_PLAYER_PROGRESS = 'player_progress'
 ENDPOINT_CLIENT_VERSION = 'min_client_version'
 ENDPOINT_RANK = 'api/rank'
+ENDPOINT_ONGOING_EVENTS = 'ongoing_events'
+ENDPOINT_EVENT_ENDED = 'event_ended'
 
 RETRIES = 2
 IS_CODE_FOR_RETRY = lambda code: code >= 500 and code < 600
@@ -366,26 +369,26 @@ class Follower:
         except:
             pass
 
-        if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj):
+        if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj): # Doesn't exist any more
             self.__handle_login(json_obj)
-        # elif json_value_matches('DuelScene.GameStop', ['params', 'messageName'], json_obj):
-        #     self.__handle_game_end(json_obj)
-        elif 'DraftStatus' in json_obj:
-            self.__handle_draft_log(json_obj)
-        elif json_value_matches('Draft.MakePick', ['method'], json_obj):
-            self.__handle_draft_pick(json_obj)
-        elif json_value_matches('Draft.MakeHumanDraftPick', ['method'], json_obj):
-            self.__handle_human_draft_pick(json_obj)
-        elif json_value_matches('Event.JoinPodmaking', ['method'], json_obj):
+        elif 'Event_Join' in full_log and 'EventName' in json_obj:
             self.__handle_joined_pod(json_obj)
-        elif json_value_matches('Event.DeckSubmit', ['method'], json_obj):
+        elif 'DraftStatus' in json_obj:
+            self.__handle_bot_draft_pack(json_obj)
+        elif 'BotDraft_DraftPick' in full_log and 'PickInfo' in json_obj:
+            self.__handle_bot_draft_pick(json_obj['PickInfo'])
+        elif 'LogBusinessEvents' in full_log and 'PickGrpId' in json_obj:
+            self.__handle_human_draft_combined(json_obj)
+        elif 'Event_SetDeck' in full_log and 'EventName' in json_obj:
             self.__handle_deck_submission(json_obj)
-        elif json_value_matches('Event.DeckSubmitV3', ['method'], json_obj):
-            self.__handle_deck_submission_v3(json_obj)
-        elif json_value_matches('DoneWithMatches', ['CurrentEventState'], json_obj):
-            self.__handle_event_completion(json_obj)
-        elif json_obj.get('ModuleInstanceData', {}).get('HumanDraft._internalState', {}).get('DraftId') is not None:
+        elif 'Event_GetCourses' in full_log and 'Courses' in json_obj:
+            self.__handle_ongoing_events(json_obj)
+        elif 'Event_ClaimPrize' in full_log and 'EventName' in json_obj:
+            self.__handle_claim_prize(json_obj)
+        elif 'Draft_CompleteDraft' in full_log and 'DraftId' in json_obj:
             self.__handle_event_course(json_obj)
+        elif 'authenticateResponse' in json_obj:
+            self.__update_screen_name(json_obj['authenticateResponse']['screenName'])
         elif 'matchGameRoomStateChangedEvent' in json_obj:
             self.__handle_match_started(json_obj)
         elif 'greToClientEvent' in json_obj and 'greToClientMessages' in json_obj['greToClientEvent']:
@@ -395,39 +398,36 @@ class Follower:
             self.__handle_client_to_gre_message(json_obj.get('payload', {}))
         elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREUIMessage', ['clientToMatchServiceMessageType'], json_obj):
             self.__handle_client_to_gre_ui_message(json_obj.get('payload', {}))
-        elif 'limitedStep' in json_obj:
+        elif 'Rank_GetCombinedRankInfo' in full_log and 'limitedClass' in json_obj:
             self.__handle_self_rank_info(json_obj)
-        elif 'opponentRankingClass' in json_obj:
+        elif 'opponentRankingClass' in json_obj: # TODO update this
             self.__handle_match_created(json_obj)
-        elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj:
+        elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj: # Doesn't exist any more
             self.__handle_collection(json_obj)
-        elif ' PlayerInventory.GetPlayerInventory ' in full_log and 'method' not in json_obj:
-            self.__handle_inventory(json_obj)
-        elif ' Progression.GetPlayerProgress ' in full_log and 'method' not in json_obj:
+        elif 'InventoryInfo' in json_obj:
+            self.__handle_inventory(json_obj['InventoryInfo'])
+        elif 'NodeStates' in json_obj and 'RewardTierUpgrade' in json_obj['NodeStates']:
             self.__handle_player_progress(json_obj)
-        elif 'Draft.Notify ' in full_log and 'method' not in json_obj:
-            self.__handle_human_draft_pack(json_obj)
-        elif 'Draft.Notification ' in full_log and 'method' not in json_obj:
-            self.__handle_draft_notification(json_obj)
         elif 'FrontDoorConnection.Close ' in full_log:
             self.__reset_current_user()
         elif 'Reconnect result : Connected' in full_log:
             self.__handle_reconnect_result()
 
+    def __try_decode(self, blob, key):
+        try:
+            json_obj, _ = self.json_decoder.raw_decode(blob[key])
+            return json_obj
+        except Exception:
+            return blob[key]
+
     def __extract_payload(self, blob):
-        if 'id' not in blob: return blob
-        if 'payload' in blob:
-            try:
-                json_obj, end = self.json_decoder.raw_decode(blob['payload'])
-                return json_obj
-            except Exception as e:
-                return blob['payload']
-        if 'request' in blob:
-            try:
-                json_obj, end = self.json_decoder.raw_decode(blob['request'])
-                return json_obj
-            except Exception as e:
-                pass
+        if type(blob) != dict: return blob
+        if 'clientToMatchServiceMessageType' in blob: return blob
+
+        for key in ('payload', 'Payload', 'request'):
+            if key in blob:
+                # Some messages are recursively serialized
+                return self.__extract_payload(self.__try_decode(blob, key))
 
         return blob
 
@@ -526,7 +526,7 @@ class Follower:
                 'companion': deck_info.get('companionGRPId', deck_info.get('companion', deck_info.get('deckMessageFieldFour', 0))),
                 'is_during_match': True,
             }
-            logger.info(f'Deck submission via __handle_client_to_gre_message: {deck}')
+            logger.info(f'Deck submission (ClientMessageType_SubmitDeckResp): {deck}')
             response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __handle_client_to_gre_ui_message(self, payload):
@@ -599,19 +599,31 @@ class Follower:
             screen_name = match.group(1)
             self.cur_user = match.group(2)
             self.__update_screen_name(screen_name)
+            return
 
-    def __handle_event_completion(self, json_obj):
-        """Handle messages upon event completion."""
+        match = MATCH_ACCOUNT_INFO_REGEX.match(line)
+        if match:
+            self.cur_user = match.group(2) or match.group(3)
+
+    def __handle_ongoing_events(self, json_obj):
+        """Handle 'Event_GetCourses' messages."""
         event = {
             'player_id': self.cur_user,
-            'event_name': json_obj['InternalEventName'],
             'time': self.cur_log_time.isoformat(),
-            'entry_fee': json_obj['ModuleInstanceData']['HasPaidEntry'],
-            'wins': json_obj['ModuleInstanceData']['WinLossGate']['CurrentWins'],
-            'losses': json_obj['ModuleInstanceData']['WinLossGate']['CurrentLosses'],
+            'courses': json_obj['Courses'],
         }
-        logger.info(f'Event submission: {event}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_SUBMISSION}', blob=event)
+        logger.info(f'Updated ongoing events')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_ONGOING_EVENTS}', blob=event)
+
+    def __handle_claim_prize(self, json_obj):
+        """Handle 'Event_ClaimPrize' messages."""
+        event = {
+            'player_id': self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'event_name': json_obj['EventName'],
+        }
+        logger.info(f'Event ended: {event}')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_ENDED}', blob=event)
 
     def __handle_event_course(self, json_obj):
         """Handle messages linking draft id to event name."""
@@ -619,11 +631,10 @@ class Follower:
             'player_id': self.cur_user,
             'event_name': json_obj['InternalEventName'],
             'time': self.cur_log_time.isoformat(),
-            'draft_id': json_obj['ModuleInstanceData']['HumanDraft._internalState']['DraftId'],
+            'draft_id': json_obj['DraftId'],
         }
         logger.info(f'Event course: {event}')
         self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_COURSE_SUBMISSION}', blob=event)
-        self.__update_screen_name(json_obj['ModuleInstanceData']['HumanDraft._internalState']['ScreenName'])
 
     def __handle_game_end(self, json_obj):
         """Handle 'DuelScene.GameStop' messages."""
@@ -697,14 +708,13 @@ class Follower:
         screen_name = json_obj['params']['payloadObject']['screenName']
         self.__update_screen_name(screen_name)
 
-    def __handle_draft_log(self, json_obj):
-        """Handle 'draftStatus' messages."""
-        if json_obj['DraftStatus'] == 'Draft.PickNext':
+    def __handle_bot_draft_pack(self, json_obj):
+        """Handle 'DraftStatus' messages."""
+        if json_obj['DraftStatus'] == 'PickNext':
             self.__clear_game_data()
-            (user, event_name, other) = json_obj['DraftId'].rsplit(':', 2)
             pack = {
                 'player_id': self.cur_user,
-                'event_name': event_name,
+                'event_name': json_obj['EventName'],
                 'time': self.cur_log_time.isoformat(),
                 'pack_number': int(json_obj['PackNumber']),
                 'pick_number': int(json_obj['PickNumber']),
@@ -713,120 +723,72 @@ class Follower:
             logger.info(f'Draft pack: {pack}')
             response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PACK}', blob=pack)
 
-    def __handle_draft_pick(self, json_obj):
+    def __handle_bot_draft_pick(self, json_obj):
         """Handle 'Draft.MakePick messages."""
         self.__clear_game_data()
-        inner_obj = json_obj['params']
-        (user, event_name, other) = inner_obj['draftId'].rsplit(':', 2)
-
         pick = {
             'player_id': self.cur_user,
-            'event_name': event_name,
+            'event_name': json_obj['EventName'],
             'time': self.cur_log_time.isoformat(),
-            'pack_number': int(inner_obj['packNumber']),
-            'pick_number': int(inner_obj['pickNumber']),
-            'card_id': int(inner_obj['cardId']),
+            'pack_number': int(json_obj['PackNumber']),
+            'pick_number': int(json_obj['PickNumber']),
+            'card_id': int(json_obj['CardId']),
         }
         logger.info(f'Draft pick: {pick}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PICK}', blob=pick)
 
     def __handle_joined_pod(self, json_obj):
-        """Handle 'Event.JoinPodmaking messages."""
+        """Handle 'Event_Join' messages."""
         self.__clear_game_data()
-        inner_obj = json_obj['params']
-        self.cur_draft_event = inner_obj['queueId']
+        self.cur_draft_event = json_obj['EventName']
 
         logger.info(f'Joined draft pod: {self.cur_draft_event}')
 
-    def __handle_human_draft_pick(self, json_obj):
-        """Handle 'Draft.MakeHumanDraftPick messages."""
+    def __handle_human_draft_combined(self, json_obj):
+        """Handle combined human draft pack/pick messages."""
         self.__clear_game_data()
-        inner_obj = json_obj['params']
-
-        pick = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
-            'draft_id': inner_obj['draftId'],
-            'event_name': self.cur_draft_event,
-            'pack_number': int(inner_obj['packNumber']),
-            'pick_number': int(inner_obj['pickNumber']),
-            'card_id': int(inner_obj['cardId']),
-        }
-        logger.info(f'Human draft pick: {pick}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
-
-    def __handle_human_draft_pack(self, json_obj):
-        """Handle 'Draft.Notify messages."""
-        self.__clear_game_data()
-
-        pack = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
-            'draft_id': json_obj['draftId'],
-            'event_name': self.cur_draft_event,
-            'pack_number': int(json_obj['SelfPack']),
-            'pick_number': int(json_obj['SelfPick']),
-            'card_ids': [int(x) for x in json_obj['PackCards'].split(',')],
-        }
-        logger.info(f'Human draft pack: {pack}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
-
-    def __handle_draft_notification(self, json_obj):
-        """Handle 'Draft.Notification messages."""
-        if json_obj.get('PickInfo') is None:
-            return
-
-        self.__clear_game_data()
-
-        pick_info = json_obj['PickInfo']
-
         pack = {
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
             'draft_id': json_obj['DraftId'],
-            'event_name': self.cur_draft_event,
-            'pack_number': int(pick_info['SelfPack']),
-            'pick_number': int(pick_info['SelfPick']),
-            'card_ids': pick_info['PackCards'],
+            'event_name': json_obj['EventId'],
+            'pack_number': int(json_obj['PackNumber']),
+            'pick_number': int(json_obj['PickNumber']),
+            'card_ids': json_obj['CardsInPack'],
+            'auto_pick': json_obj['AutoPick'],
+            'time_remaining': json_obj['TimeRemainingOnPick'],
         }
-        logger.info(f'Human draft pack via notification: {pack}')
+        logger.info(f'Human draft pack (combined): {pack}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
+        pick = {
+            'player_id': self.cur_user,
+            'time': self.cur_log_time.isoformat(),
+            'draft_id': json_obj['DraftId'],
+            'event_name': json_obj['EventId'],
+            'pack_number': int(json_obj['PackNumber']),
+            'pick_number': int(json_obj['PickNumber']),
+            'card_id': int(json_obj['PickGrpId']),
+        }
+        logger.info(f'Human draft pick (combined): {pick}')
+        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
 
     def __handle_deck_submission(self, json_obj):
-        """Handle 'Event.DeckSubmit' messages."""
+        """Handle 'Event_SetDeck' messages."""
         self.__clear_game_data()
-        inner_obj = json_obj['params']
-        deck_info = json.loads(inner_obj['deck'])
+        decks = json_obj['Deck']
         deck = {
             'player_id': self.cur_user,
-            'event_name': inner_obj['eventName'],
+            'event_name': json_obj['EventName'],
             'time': self.cur_log_time.isoformat(),
-            'maindeck_card_ids': [d['Id'] for d in deck_info['mainDeck'] for i in range(d['Quantity'])],
-            'sideboard_card_ids': [d['Id'] for d in deck_info['sideboard'] for i in range(d['Quantity'])],
+            'maindeck_card_ids': [d['cardId'] for d in decks['MainDeck'] for i in range(d['quantity'])],
+            'sideboard_card_ids': [d['cardId'] for d in decks['Sideboard'] for i in range(d['quantity'])],
             'is_during_match': False,
         }
-        logger.info(f'Deck submission via __handle_deck_submission: {deck}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
-
-    def __handle_deck_submission_v3(self, json_obj):
-        """Handle 'Event.DeckSubmitV3' messages."""
-        self.__clear_game_data()
-        inner_obj = json_obj['params']
-        deck_info = json.loads(inner_obj['deck'])
-        deck = {
-            'player_id': self.cur_user,
-            'event_name': inner_obj['eventName'],
-            'time': self.cur_log_time.isoformat(),
-            'maindeck_card_ids': self.__get_card_ids_from_decklist_v3(deck_info['mainDeck']),
-            'sideboard_card_ids': self.__get_card_ids_from_decklist_v3(deck_info['sideboard']),
-            'is_during_match': False,
-            'companion': deck_info.get('companionGRPId'),
-        }
-        logger.info(f'Deck submission via __handle_deck_submission_v3: {deck}')
+        logger.info(f'Deck submission (Event_SetDeck): {deck}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
     def __handle_self_rank_info(self, json_obj):
-        """Handle 'Event.GetCombinedRankInfo' messages."""
+        """Handle 'Rank_GetCombinedRankInfo' messages."""
         self.cur_limited_level = get_rank_string(
             rank_class=json_obj.get('limitedClass'),
             level=json_obj.get('limitedLevel'),
@@ -878,23 +840,30 @@ class Follower:
         self.__retry_post(f'{self.host}/{ENDPOINT_COLLECTION}', blob=collection)
 
     def __handle_inventory(self, json_obj):
-        """Handle 'PlayerInventory.GetPlayerInventory' messages."""
-        # Opportunistically update playerId if available
-        self.cur_user = json_obj.get('playerId', self.cur_user)
-
-        json_obj.pop('vanityItems', None)
-        json_obj.pop('vanitySelections', None)
-        json_obj.pop('starterDecks', None)
+        """Handle 'InventoryInfo' messages."""
+        json_obj = {k: v for k, v in json_obj.items() if k in (
+            'Gems',
+            'Gold',
+            'TotalVaultProgress',
+            'wcTrackPosition',
+            'WildCardCommons',
+            'WildCardUnCommons',
+            'WildCardRares',
+            'WildCardMythics',
+            'DraftTokens',
+            'SealedTokens',
+            'Boosters',
+        )}
         blob = {
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
             'inventory': json_obj,
         }
-        logger.info(f'Submitting inventory')
+        logger.info(f'Submitting inventory: {blob}')
         self.__retry_post(f'{self.host}/{ENDPOINT_INVENTORY}', blob=blob)
 
     def __handle_player_progress(self, json_obj):
-        """Handle 'Progression.GetPlayerProgress' messages."""
+        """Handle mastery pass messages."""
         blob = {
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
@@ -902,17 +871,6 @@ class Follower:
         }
         logger.info(f'Submitting mastery progress')
         self.__retry_post(f'{self.host}/{ENDPOINT_PLAYER_PROGRESS}', blob=blob)
-
-    def __get_card_ids_from_decklist_v3(self, decklist):
-        """Parse a list of [card_id_1, count_1, card_id_2, count_2, ...] elements."""
-        assert len(decklist) % 2 == 0
-        result = []
-        for i in range(len(decklist) // 2):
-            card_id = decklist[2 * i]
-            count = decklist[2 * i + 1]
-            for j in range(count):
-                result.append(card_id)
-        return result
 
     def __reset_current_user(self):
         logger.info('User logged out from MTGA')
