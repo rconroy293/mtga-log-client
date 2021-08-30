@@ -804,7 +804,7 @@ class Follower:
             'time': self.cur_log_time.isoformat(),
             'maindeck_card_ids': [d['cardId'] for d in decks['MainDeck'] for i in range(d['quantity'])],
             'sideboard_card_ids': [d['cardId'] for d in decks['Sideboard'] for i in range(d['quantity'])],
-            'companion': decks['Companions'][0]['cardId'] if len(decks['Companions']) > 0 else None,
+            'companion': decks['Companions'][0]['cardId'] if len(decks['Companions']) > 0 else 0,
             'is_during_match': False,
         }
         logger.info(f'Deck submission (Event_SetDeck): {deck}')
