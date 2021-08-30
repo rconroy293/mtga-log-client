@@ -611,7 +611,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.32.w";
+        public const string CLIENT_VERSION = "0.1.33.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -1470,11 +1470,11 @@ namespace mtga_log_client
                 pick.time = GetDatetimeString(currentLogTime.Value);
                 pick.utc_time = GetDatetimeString(lastUtcTime.Value);
 
-                pick.draft_id = currentDraftEvent;
+                pick.draft_id = blob["DraftId"].Value<String>();
                 pick.pack_number = blob["PackNumber"].Value<int>();
                 pick.pick_number = blob["PickNumber"].Value<int>();
                 pick.card_id = blob["PickGrpId"].Value<int>();
-                pick.event_name = blob["EventId"].Value<String>();
+                pick.event_name = currentDraftEvent;
                 pick.auto_pick = blob["AutoPick"].Value<bool>();
                 pick.time_remaining = blob["TimeRemainingOnPick"].Value<float>();
 
