@@ -611,7 +611,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.33.w";
+        public const string CLIENT_VERSION = "0.1.34.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -950,7 +950,7 @@ namespace mtga_log_client
             if (MaybeHandleClientToGreMessage(blob)) return;
             if (MaybeHandleClientToGreUiMessage(blob)) return;
             if (MaybeHandleSelfRankInfo(fullLog, blob)) return;
-            if (MaybeHandleMatchCreated(blob)) return; // TODO update this
+            // if (MaybeHandleMatchCreated(blob)) return;
             // if (MaybeHandleCollection(fullLog, blob)) return;
             if (MaybeHandleInventory(fullLog, blob)) return;
             if (MaybeHandlePlayerProgress(fullLog, blob)) return;
@@ -2023,15 +2023,37 @@ namespace mtga_log_client
 
             if (gameRoomConfig.ContainsKey("reservedPlayers"))
             {
+                String opponentPlayerId = null;
                 foreach (JToken player in gameRoomConfig["reservedPlayers"])
                 {
                     screenNames.Add(player["systemSeatId"].Value<int>(), player["playerName"].Value<String>().Split('#')[0]);
 
-                    if (player["userId"].Value<String>().Equals(currentUser))
+                    var playerId = player["userId"].Value<String>();
+                    if (playerId.Equals(currentUser))
                     {
                         UpdateScreenName(player["playerName"].Value<String>());
                     }
+                    else
+                    {
+                        opponentPlayerId = playerId;
+                    }
                 }
+
+                if (opponentPlayerId != null && gameRoomConfig.ContainsKey("clientMetadata"))
+                {
+                    var metadata = gameRoomConfig["clientMetadata"].Value<JObject>();
+
+                    currentOpponentLevel = GetRankString(
+                        GetOrEmpty(metadata, opponentPlayerId + "_RankClass"),
+                        GetOrEmpty(metadata, opponentPlayerId + "_RankTier"),
+                        GetOrEmpty(metadata, opponentPlayerId + "_LeaderboardPercentile"),
+                        GetOrEmpty(metadata, opponentPlayerId + "_LeaderboardPlacement"),
+                        null
+                    );
+
+                    LogMessage(String.Format("Parsed opponent rank info as {0} in match {1}", currentOpponentLevel, currentMatchId), Level.Info);
+                }
+
             }
 
             return false;

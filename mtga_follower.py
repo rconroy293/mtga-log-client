@@ -51,7 +51,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.29.p'
+CLIENT_VERSION = '0.1.30.p'
 
 TOKEN_ENTRY_TITLE = 'MTGA Log Client Token'
 TOKEN_ENTRY_MESSAGE = 'Please enter your client token from 17lands.com/account: '
@@ -402,8 +402,6 @@ class Follower:
             self.__handle_client_to_gre_ui_message(json_obj.get('payload', {}))
         elif 'Rank_GetCombinedRankInfo' in full_log and 'limitedClass' in json_obj:
             self.__handle_self_rank_info(json_obj)
-        elif 'opponentRankingClass' in json_obj: # TODO update this
-            self.__handle_match_created(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj: # Doesn't exist any more
             self.__handle_collection(json_obj)
         elif 'InventoryInfo' in json_obj:
@@ -459,11 +457,26 @@ class Follower:
             self.current_match_event_id = (game_room_config['matchId'], game_room_config['eventId'])
 
         if 'reservedPlayers' in game_room_config:
+            oppo_player_id = ''
             for player in game_room_config['reservedPlayers']:
                 self.screen_names[player['systemSeatId']] = player['playerName'].split('#')[0]
                 # Backfill the current user's screen name when possible
                 if player['userId'] == self.cur_user:
                     self.__update_screen_name(player['playerName'])
+                else:
+                    oppo_player_id = player['userId']
+
+            if oppo_player_id and 'clientMetadata' in game_room_config:
+                metadata = game_room_config['clientMetadata']
+                self.cur_opponent_level = get_rank_string(
+                    rank_class=metadata.get(f'{oppo_player_id}_RankClass'),
+                    level=metadata.get(f'{oppo_player_id}_RankTier'),
+                    percentile=metadata.get(f'{oppo_player_id}_LeaderboardPercentile'),
+                    place=metadata.get(f'{oppo_player_id}_LeaderboardPlacement'),
+                    step=None,
+                )
+                self.cur_opponent_match_id = game_room_config.get('matchId')
+                logger.info(f'Parsed opponent rank info as limited {self.cur_opponent_level} in match {self.cur_opponent_match_id}')
 
     def __handle_gre_to_client_message(self, message_blob):
         """Handle messages in the 'greToClientEvent' field."""
@@ -834,19 +847,6 @@ class Follower:
             'limited_rank': self.cur_limited_level,
             'constructed_rank': self.cur_constructed_level,
         })
-
-    def __handle_match_created(self, json_obj):
-        """Handle 'Event.MatchCreated' messages."""
-        self.__clear_game_data()
-        self.cur_opponent_level = get_rank_string(
-            rank_class=json_obj.get('opponentRankingClass'),
-            level=json_obj.get('opponentRankingTier'),
-            percentile=json_obj.get('opponentMythicPercentile'),
-            place=json_obj.get('opponentMythicLeaderboardPlace'),
-            step=None,
-        )
-        self.cur_opponent_match_id = json_obj.get('matchId')
-        logger.info(f'Parsed opponent rank info as limited {self.cur_opponent_level} in match {self.cur_opponent_match_id}')
 
     def __handle_collection(self, json_obj):
         """Handle 'PlayerInventory.GetPlayerCardsV3' messages."""
