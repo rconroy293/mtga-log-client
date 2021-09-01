@@ -120,7 +120,7 @@ ENDPOINT_HUMAN_DRAFT_PACK = 'human_draft_pack'
 ENDPOINT_COLLECTION = 'collection'
 ENDPOINT_INVENTORY = 'inventory'
 ENDPOINT_PLAYER_PROGRESS = 'player_progress'
-ENDPOINT_CLIENT_VERSION = 'min_client_version'
+ENDPOINT_CLIENT_VERSION = 'api/version_validation'
 ENDPOINT_RANK = 'api/rank'
 ENDPOINT_ONGOING_EVENTS = 'ongoing_events'
 ENDPOINT_EVENT_ENDED = 'event_ended'
@@ -1035,19 +1035,27 @@ def show_message(title, message):
         logger.exception('Could not suitably show message')
         logger.warning(message)
 
-def show_update_message(min_version):
+def show_update_message(response_data):
     title = '17Lands'
-    message = (f'17Lands update required! The minimum supported version for the client is {min_version}. '
-        + f'Your current version is {CLIENT_VERSION}. Please update with one of the following '
-        + 'commands in the terminal, depending on your installation method:\n'
-        + 'brew update && brew upgrade seventeenlands\n'
-        + 'pip3 install --user --upgrade seventeenlands')
+    if 'upgrade_instructions' in response_data:
+        message = response_data['upgrade_instructions']
+    else:
+        message = ('17Lands update required! The minimum supported version for the client is '
+            + f'{response_data.get("min_version", "newer than your current version")}. '
+            + f'Your current version is {CLIENT_VERSION}. Please update with one of the following '
+            + 'commands in the terminal, depending on your installation method:\n'
+            + 'brew update && brew upgrade seventeenlands\n'
+            + 'pip3 install --user --upgrade seventeenlands')
 
     show_message(title, message)
 
 def verify_version(host):
     for i in range(3):
-        response = requests.get(f'{host}/{ENDPOINT_CLIENT_VERSION}')
+        response = requests.get(f'{host}/{ENDPOINT_CLIENT_VERSION}', params={
+            'client': 'python',
+            'version': CLIENT_VERSION[:-2],
+        })
+
         if not IS_CODE_FOR_RETRY(response.status_code):
             break
         logger.warning(f'Got response code {response.status_code}; retrying')
@@ -1065,7 +1073,7 @@ def verify_version(host):
     if this_version >= min_supported_version:
         return
 
-    show_update_message(blob['min_version'])
+    show_update_message(blob)
     exit(1)
 
 
