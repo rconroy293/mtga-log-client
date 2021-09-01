@@ -288,8 +288,24 @@ class Follower:
                 logger.info('Done processing file.')
                 break
 
+    def __check_detailed_logs(self, line):
+        if (line.startswith('DETAILED LOGS: DISABLED')):
+            logger.warning('Detailed logs are disabled in MTGA.')
+            show_message(
+                title='MTGA Logging Disabled (17Lands)',
+                message=(
+                    '17Lands needs detailed logging enabled in MTGA. To enable this, click the '
+                    'gear at the top right of MTGA, then "View Account" (at the bottom), then '
+                    'check "Detailed Logs", then restart MTGA.'
+                ),
+            )
+        elif (line.startswith('DETAILED LOGS: ENABLED')):
+            logger.info('Detailed logs enabled in MTGA.')
+
     def __append_line(self, line):
         """Add a complete line (not necessarily a complete message) from the log."""
+        self.__check_detailed_logs(line)
+
         self.__maybe_handle_account_info(line)
 
         timestamp_match = TIMESTAMP_REGEX.match(line)
@@ -1009,6 +1025,16 @@ def show_dialog_tkinter(title, message):
     window.wm_withdraw()
     tkinter.messagebox.showerror(title, message)
 
+def show_message(title, message):
+    try:
+        if sys.platform == 'darwin':
+            return show_dialog_mac(title, message)
+        else:
+            return show_dialog_tkinter(title, message)
+    except ModuleNotFoundError:
+        logger.exception('Could not suitably show message')
+        logger.warning(message)
+
 def show_update_message(min_version):
     title = '17Lands'
     message = (f'17Lands update required! The minimum supported version for the client is {min_version}. '
@@ -1017,13 +1043,7 @@ def show_update_message(min_version):
         + 'brew update && brew upgrade seventeenlands\n'
         + 'pip3 install --user --upgrade seventeenlands')
 
-    try:
-        if sys.platform == 'darwin':
-            return show_dialog_mac(title, message)
-        else:
-            return show_dialog_tkinter(title, message)
-    except ModuleNotFoundError:
-        print(message)
+    show_message(title, message)
 
 def verify_version(host):
     for i in range(3):
@@ -1068,10 +1088,15 @@ def processing_loop(args, token):
                 break
 
     # tail and parse current logfile to handle ongoing events
+    any_found = False
     for filename in filepaths:
         if os.path.exists(filename):
+            any_found = True
             logger.info(f'Following along {filename}')
             follower.parse_log(filename=filename, follow=follow)
+
+    if not any_found:
+        logger.warning("Found no files to parse. Try to find Arena's Player.log file and pass it as an argument with -l")
 
     logger.info(f'Exiting')
 
