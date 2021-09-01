@@ -51,7 +51,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.30.p'
+CLIENT_VERSION = '0.1.31.p'
 
 TOKEN_ENTRY_TITLE = 'MTGA Log Client Token'
 TOKEN_ENTRY_MESSAGE = 'Please enter your client token from 17lands.com/account: '
@@ -120,7 +120,7 @@ ENDPOINT_HUMAN_DRAFT_PACK = 'human_draft_pack'
 ENDPOINT_COLLECTION = 'collection'
 ENDPOINT_INVENTORY = 'inventory'
 ENDPOINT_PLAYER_PROGRESS = 'player_progress'
-ENDPOINT_CLIENT_VERSION = 'min_client_version'
+ENDPOINT_CLIENT_VERSION = 'api/version_validation'
 ENDPOINT_RANK = 'api/rank'
 ENDPOINT_ONGOING_EVENTS = 'ongoing_events'
 ENDPOINT_EVENT_ENDED = 'event_ended'
@@ -288,8 +288,24 @@ class Follower:
                 logger.info('Done processing file.')
                 break
 
+    def __check_detailed_logs(self, line):
+        if (line.startswith('DETAILED LOGS: DISABLED')):
+            logger.warning('Detailed logs are disabled in MTGA.')
+            show_message(
+                title='MTGA Logging Disabled (17Lands)',
+                message=(
+                    '17Lands needs detailed logging enabled in MTGA. To enable this, click the '
+                    'gear at the top right of MTGA, then "View Account" (at the bottom), then '
+                    'check "Detailed Logs", then restart MTGA.'
+                ),
+            )
+        elif (line.startswith('DETAILED LOGS: ENABLED')):
+            logger.info('Detailed logs enabled in MTGA.')
+
     def __append_line(self, line):
         """Add a complete line (not necessarily a complete message) from the log."""
+        self.__check_detailed_logs(line)
+
         self.__maybe_handle_account_info(line)
 
         timestamp_match = TIMESTAMP_REGEX.match(line)
@@ -1009,25 +1025,37 @@ def show_dialog_tkinter(title, message):
     window.wm_withdraw()
     tkinter.messagebox.showerror(title, message)
 
-def show_update_message(min_version):
-    title = '17Lands'
-    message = (f'17Lands update required! The minimum supported version for the client is {min_version}. '
-        + f'Your current version is {CLIENT_VERSION}. Please update with one of the following '
-        + 'commands in the terminal, depending on your installation method:\n'
-        + 'brew update && brew upgrade seventeenlands\n'
-        + 'pip3 install --user --upgrade seventeenlands')
-
+def show_message(title, message):
     try:
         if sys.platform == 'darwin':
             return show_dialog_mac(title, message)
         else:
             return show_dialog_tkinter(title, message)
     except ModuleNotFoundError:
-        print(message)
+        logger.exception('Could not suitably show message')
+        logger.warning(message)
+
+def show_update_message(response_data):
+    title = '17Lands'
+    if 'upgrade_instructions' in response_data:
+        message = response_data['upgrade_instructions']
+    else:
+        message = ('17Lands update required! The minimum supported version for the client is '
+            + f'{response_data.get("min_version", "newer than your current version")}. '
+            + f'Your current version is {CLIENT_VERSION}. Please update with one of the following '
+            + 'commands in the terminal, depending on your installation method:\n'
+            + 'brew update && brew upgrade seventeenlands\n'
+            + 'pip3 install --user --upgrade seventeenlands')
+
+    show_message(title, message)
 
 def verify_version(host):
     for i in range(3):
-        response = requests.get(f'{host}/{ENDPOINT_CLIENT_VERSION}')
+        response = requests.get(f'{host}/{ENDPOINT_CLIENT_VERSION}', params={
+            'client': 'python',
+            'version': CLIENT_VERSION[:-2],
+        })
+
         if not IS_CODE_FOR_RETRY(response.status_code):
             break
         logger.warning(f'Got response code {response.status_code}; retrying')
@@ -1045,7 +1073,7 @@ def verify_version(host):
     if this_version >= min_supported_version:
         return
 
-    show_update_message(blob['min_version'])
+    show_update_message(blob)
     exit(1)
 
 
@@ -1068,10 +1096,15 @@ def processing_loop(args, token):
                 break
 
     # tail and parse current logfile to handle ongoing events
+    any_found = False
     for filename in filepaths:
         if os.path.exists(filename):
+            any_found = True
             logger.info(f'Following along {filename}')
             follower.parse_log(filename=filename, follow=follow)
+
+    if not any_found:
+        logger.warning("Found no files to parse. Try to find Arena's Player.log file and pass it as an argument with -l")
 
     logger.info(f'Exiting')
 

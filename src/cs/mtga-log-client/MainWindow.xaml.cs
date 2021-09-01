@@ -52,6 +52,7 @@ namespace mtga_log_client
         private bool runAtStartup;
         private bool minimizeAtStartup;
         private bool gameHistoryEnabled;
+        private bool exitingFromTray = false;
 
         public MainWindow()
         {
@@ -96,6 +97,12 @@ namespace mtga_log_client
 
         protected override void OnClosing(CancelEventArgs e)
         {
+            if (exitingFromTray)
+            {
+                base.OnClosing(e);
+                return;
+            }
+
             if (Properties.Settings.Default.do_not_ask_on_close)
             {
                 if (Properties.Settings.Default.minimize_on_close)
@@ -170,6 +177,7 @@ namespace mtga_log_client
 
         private void ExitClient(object Sender, EventArgs e)
         {
+            exitingFromTray = true;
             base.Close();
         }
 
@@ -611,7 +619,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.34.w";
+        public const string CLIENT_VERSION = "0.1.35.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;

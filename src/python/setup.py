@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="seventeenlands",
-    version="0.1.30",
+    version="0.1.31",
     author="Robert Conroy",
     author_email="seventeenlands@gmail.com",
     description="Utility to upload MTG Arena data to 17Lands.com",
