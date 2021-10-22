@@ -202,7 +202,11 @@ class Follower:
         self.cur_opponent_level = None
         self.cur_opponent_match_id = None
         self.current_match_event_id = None
+        self.match_id = None
+        self.event_name = None
         self.starting_team_id = None
+        self.seat_id = None
+        self.turn_count = 0
         self.objects_by_owner = defaultdict(dict)
         self.opening_hand_count_by_seat = defaultdict(int)
         self.opening_hand = defaultdict(list)
@@ -408,7 +412,7 @@ class Follower:
         elif 'authenticateResponse' in json_obj:
             self.__update_screen_name(json_obj['authenticateResponse']['screenName'])
         elif 'matchGameRoomStateChangedEvent' in json_obj:
-            self.__handle_match_started(json_obj)
+            self.__handle_match_state_changed(json_obj)
         elif 'greToClientEvent' in json_obj and 'greToClientMessages' in json_obj['greToClientEvent']:
             for message in json_obj['greToClientEvent']['greToClientMessages']:
                 self.__handle_gre_to_client_message(message)
@@ -460,14 +464,9 @@ class Follower:
         logger.info(f'Updating user info: {user_info}')
         self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
 
-    def __handle_match_started(self, blob):
-        game_room_config = blob.get(
-            'matchGameRoomStateChangedEvent', {}
-        ).get(
-            'gameRoomInfo', {}
-        ).get(
-            'gameRoomConfig', {}
-        )
+    def __handle_match_state_changed(self, blob):
+        game_room_info = blob.get('matchGameRoomStateChangedEvent', {}).get('gameRoomInfo', {})
+        game_room_config = game_room_info.get('gameRoomConfig', {})
 
         if 'eventId' in game_room_config and 'matchId' in game_room_config:
             self.current_match_event_id = (game_room_config['matchId'], game_room_config['eventId'])
@@ -494,6 +493,18 @@ class Follower:
                 self.cur_opponent_match_id = game_room_config.get('matchId')
                 logger.info(f'Parsed opponent rank info as limited {self.cur_opponent_level} in match {self.cur_opponent_match_id}')
 
+        if 'finalMatchResult' in game_room_info:
+            # If the regular game end message is lost, try to submit remaining game data on match end.
+            results = game_room_info['finalMatchResult'].get('resultList', [])
+            result = next((r for r in reversed(results) if r.get('scope') == 'MatchScope_Game'), None)
+            if result:
+                self.__send_game_end(
+                    won=self.seat_id == result['winningTeamId'],
+                    win_type=result['result'],
+                    game_end_reason='',
+                )
+            self.__clear_match_data()
+
     def __handle_gre_to_client_message(self, message_blob):
         """Handle messages in the 'greToClientEvent' field."""
         # Add to game history before processing the messsage, since we may submit the game right away.
@@ -503,8 +514,26 @@ class Follower:
             self.game_history_events.append(message_blob)
 
         if message_blob['type'] == 'GREMessageType_GameStateMessage':
+            system_seat_ids = message_blob.get('systemSeatIds', [])
+            if len(system_seat_ids) > 0:
+                self.seat_id = system_seat_ids[0]
+
             game_state_message = message_blob.get('gameStateMessage', {})
-            self.__maybe_handle_game_over_stage(message_blob.get('systemSeatIds', []), game_state_message)
+
+            game_info = game_state_message.get('gameInfo', {})
+            self.match_id = game_info.get('matchID', self.match_id)
+            if self.current_match_event_id is not None and self.current_match_event_id[0] == self.match_id:
+                self.event_name = self.current_match_event_id[1]
+
+            turn_info = game_state_message.get('turnInfo', {})
+            players = game_state_message.get('players', [])
+
+            if turn_info.get('turnNumber'):
+                self.turn_count = turn_info.get('turnNumber')
+            else:
+                turns_sum = sum(p.get('turnNumber', 0) for p in players)
+                self.turn_count = max(self.turn_count, turns_sum)
+
             for game_object in game_state_message.get('gameObjects', []):
                 if game_object['type'] not in ('GameObjectType_Card', 'GameObjectType_SplitCard'):
                     continue
@@ -525,10 +554,9 @@ class Follower:
                         if instance_id is not None and card_id is not None:
                             self.drawn_cards_by_instance_id[owner][instance_id] = card_id
 
-            turn_info = game_state_message.get('turnInfo', {})
             players_deciding_hand = {
                 (p['systemSeatNumber'], p.get('mulliganCount', 0))
-                for p in game_state_message.get('players', [])
+                for p in players
                 if p.get('pendingMessageType') == 'ClientMessageType_MulliganResp'
             }
             for (player_id, mulligan_count) in players_deciding_hand:
@@ -542,6 +570,8 @@ class Follower:
             if len(self.opening_hand) == 0 and ('Phase_Beginning', 'Step_Upkeep', 1) == (turn_info.get('phase'), turn_info.get('step'), turn_info.get('turnNumber')):
                 for (owner, hand) in self.cards_in_hand.items():
                     self.opening_hand[owner] = hand.copy()
+
+            self.__maybe_handle_game_over_stage(game_state_message)
 
     def __handle_client_to_gre_message(self, payload):
         if payload['type'] == 'ClientMessageType_SelectNResp':
@@ -564,55 +594,27 @@ class Follower:
         if 'onChat' in payload['uiMessage']:
             self.game_history_events.append(payload)
 
-    def __maybe_handle_game_over_stage(self, system_seat_ids, game_state_message):
+    def __maybe_handle_game_over_stage(self, game_state_message):
         game_info = game_state_message.get('gameInfo', {})
         if game_info.get('stage') != 'GameStage_GameOver':
             return
 
         results = game_info.get('results', [])
-        for result in reversed(results):
-            if result.get('scope') != 'MatchScope_Game':
-                continue
-
-            seat_id = system_seat_ids[0]
-            match_id = game_info['matchID']
-            event_id = None
-            if self.current_match_event_id is not None and self.current_match_event_id[0] == match_id:
-                event_id = self.current_match_event_id[1]
-
-            maybe_turn_number = game_state_message.get('turnInfo', {}).get('turnNumber')
-            if maybe_turn_number is None:
-                players = game_state_message.get('players', [])
-                if len(players) > 0:
-                    maybe_turn_number = sum(p['turnNumber'] for p in players)
-                    # If one of the player structs is missing, double the turn number to acount for it
-                    if len(players) == 1:
-                        maybe_turn_number *= 2
-                else:
-                    maybe_turn_number = -1
-
+        result = next((r for r in reversed(results) if r.get('scope') == 'MatchScope_Game'), None)
+        if result:
             self.__send_game_end(
-                seat_id=seat_id,
-                match_id=match_id,
-                mulliganed_hands=self.drawn_hands[seat_id][:-1],
-                drawn_hands=self.drawn_hands[seat_id],
-                drawn_cards=list(self.drawn_cards_by_instance_id[seat_id].values()),
-                event_name=event_id,
-                on_play=seat_id == self.starting_team_id,
-                won=seat_id == result['winningTeamId'],
+                won=self.seat_id == result['winningTeamId'],
                 win_type=result['result'],
                 game_end_reason=result['reason'],
-                turn_count=maybe_turn_number,
-                duration=-1,
             )
+        if game_info.get('matchState') == 'MatchState_MatchComplete':
+            self.__clear_match_data()
 
-            if game_info.get('matchState') == 'MatchState_MatchComplete':
-                self.__clear_match_data()
-
-            return
-
+    def __has_pending_game_data(self):
+        return len(self.drawn_cards_by_instance_id) > 0 and len(self.game_history_events) > 5
 
     def __clear_game_data(self):
+        self.turn_count = 0
         self.objects_by_owner.clear()
         self.opening_hand_count_by_seat.clear()
         self.opening_hand.clear()
@@ -667,50 +669,35 @@ class Follower:
         logger.info(f'Event course: {event}')
         self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_COURSE_SUBMISSION}', blob=event)
 
-    def __handle_game_end(self, json_obj):
-        """Handle 'DuelScene.GameStop' messages."""
-        blob = json_obj['params']['payloadObject']
-        self.__send_game_end(
-            seat_id=blob['seatId'],
-            match_id=blob['matchId'],
-            mulliganed_hands=[[x['grpId'] for x in hand] for hand in blob['mulliganedHands']],
-            drawn_hands=None,
-            drawn_cards=None,
-            event_name=blob['eventId'],
-            on_play=blob['teamId'] == blob['startingTeamId'],
-            won=blob['teamId'] == blob['winningTeamId'],
-            win_type=blob['winningType'],
-            game_end_reason=blob['winningReason'],
-            turn_count=blob['turnCount'],
-            duration=blob['secondsCount'],
-        )
+    def __send_game_end(self, won, win_type, game_end_reason):
+        if not self.__has_pending_game_data():
+            return
 
-    def __send_game_end(self, seat_id, match_id, mulliganed_hands, drawn_hands, drawn_cards, event_name, on_play, won, win_type, game_end_reason, turn_count, duration):
         logger.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
 
-        opponent_id = 2 if seat_id == 1 else 1
+        opponent_id = 2 if self.seat_id == 1 else 1
         opponent_card_ids = [c for c in self.objects_by_owner.get(opponent_id, {}).values()]
 
-        if match_id != self.cur_opponent_match_id:
+        if self.match_id != self.cur_opponent_match_id:
             self.cur_opponent_level = None
 
         game = {
             'player_id': self.cur_user,
-            'event_name': event_name,
-            'match_id': match_id,
+            'event_name': self.event_name,
+            'match_id': self.match_id,
             'time': self.cur_log_time.isoformat(),
-            'on_play': on_play,
+            'on_play': self.seat_id == self.starting_team_id,
             'won': won,
             'win_type': win_type,
             'game_end_reason': game_end_reason,
-            'opening_hand': self.opening_hand[seat_id],
-            'mulligans': mulliganed_hands,
-            'drawn_hands': drawn_hands,
-            'drawn_cards': drawn_cards,
-            'mulligan_count': self.opening_hand_count_by_seat[seat_id] - 1,
+            'opening_hand': self.opening_hand[self.seat_id],
+            'mulligans': self.drawn_hands[self.seat_id][:-1],
+            'drawn_hands': self.drawn_hands[self.seat_id],
+            'drawn_cards': list(self.drawn_cards_by_instance_id[self.seat_id].values()),
+            'mulligan_count': self.opening_hand_count_by_seat[self.seat_id] - 1,
             'opponent_mulligan_count': self.opening_hand_count_by_seat[opponent_id] - 1,
-            'turns': turn_count,
-            'duration': duration,
+            'turns': self.turn_count,
+            'duration': -1,
             'opponent_card_ids': opponent_card_ids,
             'limited_rank': self.cur_limited_level,
             'constructed_rank': self.cur_constructed_level,
@@ -721,9 +708,9 @@ class Follower:
         # Add the history to the blob after logging to avoid printing excessive logs
         logger.info(f'Adding game history ({len(self.game_history_events)} events)')
         game['history'] = {
-            'seat_id': seat_id,
+            'seat_id': self.seat_id,
             'opponent_seat_id': opponent_id,
-            'screen_name': self.screen_names[seat_id],
+            'screen_name': self.screen_names[self.seat_id],
             'opponent_screen_name': self.screen_names[opponent_id],
             'events': self.game_history_events,
         }
