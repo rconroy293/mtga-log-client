@@ -695,9 +695,12 @@ namespace mtga_log_client
         private string currentConstructedLevel = null;
         private string currentLimitedLevel = null;
         private string currentOpponentLevel = null;
+        private string currentOpponentMatchId = null;
         private string currentMatchId = null;
-        private string currentMatchEventId = null;
+        private string currentEventName = null;
         private int startingTeamId = -1;
+        private int seatId = 0;
+        private int turnCount = 0;
         private readonly Dictionary<int, string> screenNames = new Dictionary<int, string>();
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
         private readonly Dictionary<int, List<int>> cardsInHand = new Dictionary<int, List<int>>();
@@ -941,7 +944,6 @@ namespace mtga_log_client
             }
 
             if (MaybeHandleLogin(blob)) return;
-            // if (MaybeHandleGameEnd(blob)) return;
             if (MaybeHandleJoinPod(fullLog, blob)) return;
             if (MaybeHandleBotDraftPack(blob)) return;
             if (MaybeHandleBotDraftPick(fullLog, blob)) return;
@@ -953,7 +955,7 @@ namespace mtga_log_client
             // if (MaybeHandleEventCompletion(blob)) return;
             if (MaybeHandleEventCourse(fullLog, blob)) return;
             if (MaybeHandleScreenNameUpdate(fullLog, blob)) return;
-            if (MaybeHandleMatchStarted(blob)) return;
+            if (MaybeHandleMatchStateChanged(blob)) return;
             if (MaybeHandleGreToClientMessages(blob)) return;
             if (MaybeHandleClientToGreMessage(blob)) return;
             if (MaybeHandleClientToGreUiMessage(blob)) return;
@@ -1092,6 +1094,11 @@ namespace mtga_log_client
             return String.Format("{0}-{1}-{2}-{3}-{4}", rankClass, level, percentile, place, step == null ? "None" : step);
         }
 
+        private bool HasPendingGameData()
+        {
+            return drawnCardsByInstanceId.Count > 0 && gameHistoryEvents.Count > 5;
+        }
+
         private void ClearGameData()
         {
             objectsByOwner.Clear();
@@ -1100,6 +1107,8 @@ namespace mtga_log_client
             openingHand.Clear();
             gameHistoryEvents.Clear();
             startingTeamId = -1;
+            seatId = -1;
+            turnCount = 0;
         }
 
         private void ClearMatchData()
@@ -1188,60 +1197,10 @@ namespace mtga_log_client
             }
         }
 
-        private bool MaybeHandleGameEnd(JObject blob)
+        private bool SendHandleGameEnd(bool won, string winType, string gameEndReason)
         {
-            JToken token;
-            if (!blob.TryGetValue("params", out token)) return false;
-            if (!token.Value<JObject>().TryGetValue("messageName", out token)) return false;
-            if (!token.Value<String>().Equals("DuelScene.GameStop")) return false;
+            if (!HasPendingGameData()) return false;
 
-            try
-            {
-                var payload = blob["params"]["payloadObject"];
-
-                var seatId = payload["seatId"].Value<int>();
-                var opponentId = seatId == 1 ? 2 : 1;
-
-                var mulligans = new List<List<int>>();
-                foreach (JArray hand in payload["mulliganedHands"].Value<JArray>())
-                {
-                    var mulliganHand = new List<int>();
-                    foreach (JObject card in hand)
-                    {
-                        mulliganHand.Add(card["grpId"].Value<int>());
-                    }
-                    mulligans.Add(mulliganHand);
-                }
-
-                var eventName = payload["eventId"].Value<string>();
-                var matchId = payload["matchId"].Value<string>();
-                var onPlay = payload["teamId"].Value<int>() == payload["startingTeamId"].Value<int>();
-                var won = payload["teamId"].Value<int>() == payload["winningTeamId"].Value<int>();
-                var winType = payload["winningType"].Value<string>();
-                var gameEndReason = payload["winningReason"].Value<string>();
-                var turnCount = payload["turnCount"].Value<int>();
-
-                int duration;
-                try
-                {
-                    duration = payload["secondsCount"].Value<int>();
-                }
-                catch (OverflowException e)
-                {
-                    duration = 0;
-                }
-
-                return SendHandleGameEnd(seatId, matchId, mulligans, eventName, onPlay, won, winType, gameEndReason, turnCount, duration);
-            }
-            catch (Exception e)
-            {
-                LogError(String.Format("Error {0} parsing game result from {1}", e, blob), e.StackTrace, Level.Warn);
-                return false;
-            }
-        }
-
-        private bool SendHandleGameEnd(int seatId, string matchId, List<List<int>> mulliganedHands, string eventName, bool onPlay, bool won, string winType, string gameEndReason, int turnCount, int duration)
-        {
             try
             {
                 var opponentId = seatId == 1 ? 2 : 1;
@@ -1253,8 +1212,13 @@ namespace mtga_log_client
                         opponentCardIds.Add(entry.Value);
                     }
                 }
+                var mulligans = new List<List<int>>();
+                if (drawnHands.ContainsKey(seatId) && drawnHands[seatId].Count > 0)
+                {
+                    mulligans = drawnHands[seatId].GetRange(0, drawnHands[seatId].Count - 1);
+                }
 
-                if (!matchId.Equals(currentMatchId))
+                if (!currentMatchId.Equals(currentOpponentMatchId))
                 {
                     currentOpponentLevel = null;
                 }
@@ -1267,9 +1231,9 @@ namespace mtga_log_client
                 game.Add("time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)));
                 game.Add("utc_time", JToken.FromObject(GetDatetimeString(lastUtcTime.Value)));
 
-                game.Add("event_name", JToken.FromObject(eventName));
-                game.Add("match_id", JToken.FromObject(matchId));
-                game.Add("on_play", JToken.FromObject(onPlay));
+                game.Add("event_name", JToken.FromObject(currentEventName));
+                game.Add("match_id", JToken.FromObject(currentMatchId));
+                game.Add("on_play", JToken.FromObject(seatId.Equals(startingTeamId);));
                 game.Add("won", JToken.FromObject(won));
                 game.Add("win_type", JToken.FromObject(winType));
                 game.Add("game_end_reason", JToken.FromObject(gameEndReason));
@@ -1295,7 +1259,7 @@ namespace mtga_log_client
                     game.Add("drawn_cards", JToken.FromObject(drawnCardsByInstanceId[seatId].Values.ToList()));
                 }
 
-                game.Add("mulligans", JToken.FromObject(mulliganedHands));
+                game.Add("mulligans", JToken.FromObject(mulligans));
                 game.Add("turns", JToken.FromObject(turnCount));
                 if (currentLimitedLevel != null)
                 {
@@ -1309,7 +1273,7 @@ namespace mtga_log_client
                 {
                     game.Add("opponent_rank", JToken.FromObject(currentOpponentLevel));
                 }
-                game.Add("duration", JToken.FromObject(duration));
+                game.Add("duration", JToken.FromObject(-1));
                 game.Add("opponent_card_ids", JToken.FromObject(opponentCardIds));
 
                 LogMessage(String.Format("Posting game of {0}", game.ToString(Formatting.None)), Level.Info);
@@ -1845,11 +1809,26 @@ namespace mtga_log_client
 
             try
             {
-                var gameStateMessage = blob["gameStateMessage"].Value<JObject>();
                 if (blob.Value<JObject>().ContainsKey("systemSeatIds"))
                 {
-                    MaybeHandleGameOverStage(blob["systemSeatIds"].Value<JArray>()[0].Value<int>(), gameStateMessage);
+                    var systemSeatIds = blob["systemSeatIds"].Value<JArray>();
+                    if (systemSeatIds.Count > 0)
+                    {
+                        seatId = systemSeatIds[0].Value<int>();
+                    }
                 }
+
+                var gameStateMessage = blob["gameStateMessage"].Value<JObject>();
+
+                if (gameStateMessage.ContainsKey("gameInfo"))
+                {
+                    var gameInfo = gameStateMessage["gameInfo"].Value<JObject>();
+                    if (gameInfo.ContainsKey("matchID")
+                    {
+                        currentMatchId = gameInfo["matchID"].Value<string>();
+                    }
+                }
+
                 if (gameStateMessage.ContainsKey("gameObjects"))
                 {
                     foreach (JToken gameObject in gameStateMessage["gameObjects"].Value<JArray>())
@@ -1937,9 +1916,28 @@ namespace mtga_log_client
                 if (gameStateMessage.ContainsKey("turnInfo"))
                 {
                     var turnInfo = gameStateMessage.GetValue("turnInfo").Value<JObject>();
-                    if (openingHand.Count == 0 && turnInfo.ContainsKey("phase") && turnInfo.ContainsKey("step") && turnInfo.ContainsKey("turnNumber"))
+
+                    if (turnInfo.ContainsKey("turnNumber"))
                     {
-                        if (turnInfo.GetValue("phase").Value<string>().Equals("Phase_Beginning") && turnInfo.GetValue("step").Value<string>().Equals("Step_Upkeep") && turnInfo.GetValue("turnNumber").Value<int>() == 1)
+                        turnCount = turnInfo["turnNumber"].Value<int>()
+                    }
+                    else if (gameStateMessage.ContainsKey("players"))
+                    {
+                        turnCount = 0;
+                        var players = gameStateMessage["players"].Value<JArray>();
+                        foreach (JToken turnToken in players)
+                        {
+                            turnCount += turnToken.Value<JObject>()["turnNumber"].Value<int>();
+                        }
+                        if (players.Count == 1)
+                        {
+                            turnCount *= 2;
+                        }
+                    }
+
+                    if (openingHand.Count == 0 && turnInfo.ContainsKey("phase") && turnInfo.ContainsKey("step"))
+                    {
+                        if (turnInfo.GetValue("phase").Value<string>().Equals("Phase_Beginning") && turnInfo.GetValue("step").Value<string>().Equals("Step_Upkeep") && turnCount == 1)
                         {
                             LogMessage("Recording opening hands", Level.Info);
                             foreach (int playerId in cardsInHand.Keys)
@@ -1950,6 +1948,7 @@ namespace mtga_log_client
                     }
                 }
 
+                MaybeHandleGameOverStage(gameStateMessage);
                 return true;
             }
             catch (Exception e)
@@ -1959,7 +1958,7 @@ namespace mtga_log_client
             }
         }
 
-        private bool MaybeHandleGameOverStage(int seatId, JObject gameStateMessage)
+        private bool MaybeHandleGameOverStage(JObject gameStateMessage)
         {
             if (!gameStateMessage.ContainsKey("gameInfo")) return false;
             var gameInfo = gameStateMessage["gameInfo"].Value<JObject>();
@@ -1972,40 +1971,11 @@ namespace mtga_log_client
                 var result = results[i].Value<JObject>();
                 if (!result.ContainsKey("scope") || !result["scope"].Value<String>().Equals("MatchScope_Game")) continue;
 
-                var matchId = gameInfo["matchID"].Value<String>();
-                var eventName = currentMatchEventId;
-
-                int turnNumber = -1;
-                if (gameStateMessage.ContainsKey("turnInfo") && gameStateMessage["turnInfo"].Value<JObject>().ContainsKey("turnNumber"))
-                {
-                    turnNumber = gameStateMessage["turnInfo"].Value<JObject>()["turnNumber"].Value<int>();
-                }
-                else if (gameStateMessage.ContainsKey("players"))
-                {
-                    turnNumber = 0;
-                    var players = gameStateMessage["players"].Value<JArray>();
-                    foreach (JToken turnToken in players)
-                    {
-                        turnNumber += turnToken.Value<JObject>()["turnNumber"].Value<int>();
-                    }
-                    if (players.Count == 1)
-                    {
-                        turnNumber *= 2;
-                    }
-                }
-
-                var mulligans = new List<List<int>>();
-                if (drawnHands.ContainsKey(seatId) && drawnHands[seatId].Count > 0)
-                {
-                    mulligans = drawnHands[seatId].GetRange(0, drawnHands[seatId].Count - 1);
-                }
-                var onPlay = seatId.Equals(startingTeamId);
                 var won = seatId.Equals(result["winningTeamId"].Value<int>());
                 var winType = result["result"].Value<String>();
                 var gameEndReason = result["reason"].Value<String>();
-                var duration = -1;
 
-                var success = SendHandleGameEnd(seatId, matchId, mulligans, eventName, onPlay, won, winType, gameEndReason, turnNumber, duration);
+                var success = SendHandleGameEnd(won, winType, gameEndReason);
 
                 if (gameInfo.ContainsKey("matchState") && gameInfo["matchState"].Value<String>().Equals("MatchState_MatchComplete"))
                 {
@@ -2017,7 +1987,7 @@ namespace mtga_log_client
             return false;
         }
 
-        private bool MaybeHandleMatchStarted(JObject blob)
+        private bool MaybeHandleMatchStateChanged(JObject blob)
         {
             if (!blob.ContainsKey("matchGameRoomStateChangedEvent")) return false;
             if (!blob["matchGameRoomStateChangedEvent"].Value<JObject>().ContainsKey("gameRoomInfo")) return false;
@@ -2026,7 +1996,7 @@ namespace mtga_log_client
             var gameRoomConfig = blob["matchGameRoomStateChangedEvent"].Value<JObject>()["gameRoomInfo"].Value<JObject>()["gameRoomConfig"].Value<JObject>();
             if (gameRoomConfig.ContainsKey("eventId") && gameRoomConfig.ContainsKey("matchId"))
             {
-                currentMatchEventId = gameRoomConfig["eventId"].Value<String>();
+                currentEventName = gameRoomConfig["eventId"].Value<String>();
             }
 
             if (gameRoomConfig.ContainsKey("reservedPlayers"))
@@ -2058,10 +2028,31 @@ namespace mtga_log_client
                         GetOrEmpty(metadata, opponentPlayerId + "_LeaderboardPlacement"),
                         null
                     );
-
-                    LogMessage(String.Format("Parsed opponent rank info as {0} in match {1}", currentOpponentLevel, currentMatchId), Level.Info);
+                    currentOpponentMatchId = gameRoomConfig['matchId'].Value<string>();
+                    LogMessage(String.Format("Parsed opponent rank info as {0} in match {1}", currentOpponentLevel, currentOpponentMatchId), Level.Info);
                 }
+            }
 
+            if (gameRoomConfig.ContainsKey("finalMatchResult"))
+            {
+                // If the regular game end message is lost, try to submit remaining game data on match end.
+                var finalMatchResult = gameRoomConfig["finalMatchResult"].Value<JObject>();
+                if (finalMatchResult.ContainsKey("resultList")) {
+                    var results = gameInfo["resultList"].Value<JArray>();
+                    for (int i = results.Count - 1; i >= 0; i--)
+                    {
+                        var result = results[i].Value<JObject>();
+                        if (!result.ContainsKey("scope") || !result["scope"].Value<String>().Equals("MatchScope_Game")) continue;
+
+                        var won = seatId.Equals(result["winningTeamId"].Value<int>());
+                        var winType = result["result"].Value<String>();
+
+                        var success = SendHandleGameEnd(won, winType, "");
+                        ClearMatchData();
+                        return success;
+                    }
+                }
+                return false;
             }
 
             return false;
