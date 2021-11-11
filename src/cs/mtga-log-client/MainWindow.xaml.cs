@@ -1233,7 +1233,7 @@ namespace mtga_log_client
 
                 game.Add("event_name", JToken.FromObject(currentEventName));
                 game.Add("match_id", JToken.FromObject(currentMatchId));
-                game.Add("on_play", JToken.FromObject(seatId.Equals(startingTeamId);));
+                game.Add("on_play", JToken.FromObject(seatId.Equals(startingTeamId)));
                 game.Add("won", JToken.FromObject(won));
                 game.Add("win_type", JToken.FromObject(winType));
                 game.Add("game_end_reason", JToken.FromObject(gameEndReason));
@@ -1823,7 +1823,7 @@ namespace mtga_log_client
                 if (gameStateMessage.ContainsKey("gameInfo"))
                 {
                     var gameInfo = gameStateMessage["gameInfo"].Value<JObject>();
-                    if (gameInfo.ContainsKey("matchID")
+                    if (gameInfo.ContainsKey("matchID"))
                     {
                         currentMatchId = gameInfo["matchID"].Value<string>();
                     }
@@ -1919,7 +1919,7 @@ namespace mtga_log_client
 
                     if (turnInfo.ContainsKey("turnNumber"))
                     {
-                        turnCount = turnInfo["turnNumber"].Value<int>()
+                        turnCount = turnInfo["turnNumber"].Value<int>();
                     }
                     else if (gameStateMessage.ContainsKey("players"))
                     {
@@ -1927,7 +1927,10 @@ namespace mtga_log_client
                         var players = gameStateMessage["players"].Value<JArray>();
                         foreach (JToken turnToken in players)
                         {
-                            turnCount += turnToken.Value<JObject>()["turnNumber"].Value<int>();
+                            if (turnToken.Value<JObject>().ContainsKey("turnNumber"))
+                            {
+                                turnCount += turnToken.Value<JObject>()["turnNumber"].Value<int>(0);
+                            }
                         }
                         if (players.Count == 1)
                         {
@@ -2004,7 +2007,7 @@ namespace mtga_log_client
                 String opponentPlayerId = null;
                 foreach (JToken player in gameRoomConfig["reservedPlayers"])
                 {
-                    screenNames.Add(player["systemSeatId"].Value<int>(), player["playerName"].Value<String>().Split('#')[0]);
+                    screenNames[player["systemSeatId"].Value<int>()] = player["playerName"].Value<String>().Split('#')[0];
 
                     var playerId = player["userId"].Value<String>();
                     if (playerId.Equals(currentUser))
@@ -2028,7 +2031,7 @@ namespace mtga_log_client
                         GetOrEmpty(metadata, opponentPlayerId + "_LeaderboardPlacement"),
                         null
                     );
-                    currentOpponentMatchId = gameRoomConfig['matchId'].Value<string>();
+                    currentOpponentMatchId = gameRoomConfig["matchId"].Value<string>();
                     LogMessage(String.Format("Parsed opponent rank info as {0} in match {1}", currentOpponentLevel, currentOpponentMatchId), Level.Info);
                 }
             }
@@ -2038,7 +2041,7 @@ namespace mtga_log_client
                 // If the regular game end message is lost, try to submit remaining game data on match end.
                 var finalMatchResult = gameRoomConfig["finalMatchResult"].Value<JObject>();
                 if (finalMatchResult.ContainsKey("resultList")) {
-                    var results = gameInfo["resultList"].Value<JArray>();
+                    var results = finalMatchResult["resultList"].Value<JArray>();
                     for (int i = results.Count - 1; i >= 0; i--)
                     {
                         var result = results[i].Value<JObject>();
