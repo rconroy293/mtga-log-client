@@ -1993,10 +1993,12 @@ namespace mtga_log_client
         private bool MaybeHandleMatchStateChanged(JObject blob)
         {
             if (!blob.ContainsKey("matchGameRoomStateChangedEvent")) return false;
-            if (!blob["matchGameRoomStateChangedEvent"].Value<JObject>().ContainsKey("gameRoomInfo")) return false;
-            if (!blob["matchGameRoomStateChangedEvent"].Value<JObject>()["gameRoomInfo"].Value<JObject>().ContainsKey("gameRoomConfig")) return false;
+            var matchEvent = blob["matchGameRoomStateChangedEvent"].Value<JObject>();
+            if (!matchEvent.ContainsKey("gameRoomInfo")) return false;
+            var gameRoomInfo = matchEvent["gameRoomInfo"].Value<JObject>();
+            if (!gameRoomInfo.ContainsKey("gameRoomConfig")) return false;
+            var gameRoomConfig = gameRoomInfo["gameRoomConfig"].Value<JObject>();
 
-            var gameRoomConfig = blob["matchGameRoomStateChangedEvent"].Value<JObject>()["gameRoomInfo"].Value<JObject>()["gameRoomConfig"].Value<JObject>();
             if (gameRoomConfig.ContainsKey("eventId") && gameRoomConfig.ContainsKey("matchId"))
             {
                 currentEventName = gameRoomConfig["eventId"].Value<String>();
@@ -2036,10 +2038,10 @@ namespace mtga_log_client
                 }
             }
 
-            if (gameRoomConfig.ContainsKey("finalMatchResult"))
+            if (gameRoomInfo.ContainsKey("finalMatchResult"))
             {
                 // If the regular game end message is lost, try to submit remaining game data on match end.
-                var finalMatchResult = gameRoomConfig["finalMatchResult"].Value<JObject>();
+                var finalMatchResult = gameRoomInfo["finalMatchResult"].Value<JObject>();
                 if (finalMatchResult.ContainsKey("resultList")) {
                     var results = finalMatchResult["resultList"].Value<JArray>();
                     for (int i = results.Count - 1; i >= 0; i--)
