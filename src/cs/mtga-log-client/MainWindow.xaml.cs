@@ -2309,7 +2309,10 @@ namespace mtga_log_client
                 JObject contents = new JObject();
                 foreach (String key in INVENTORY_KEYS)
                 {
-                    contents.Add(key, JToken.FromObject(inventoryInfo[key]));
+                    if (inventoryInfo.ContainsKey(key))
+                    {
+                        contents.Add(key, JToken.FromObject(inventoryInfo[key]));
+                    }
                 }
                 inventory.Add("inventory", JToken.FromObject(contents));
 
