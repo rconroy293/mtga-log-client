@@ -1,23 +1,33 @@
-# mtga-log-client
+# Draft Dash Client
 
-Simple client for passing relevant events from MTG Arena logs to the 17Lands REST endpoint.
+This is a locally-hosted Dash app (requires basic python knowledge) that helps you keep track of your drafts
+in real time (...almost). It works by extending the functionality of the default `mtga_client` and removing
+the interaction with `17lands.com`. Instead, it regularly re-parses your log file (only bothering with the
+events it needs to watch your draft) to provide you the 17Lands stats relating to your chosen cards. It also
+provides basic summaries of your deck.
 
-## Basic Usage
+![Demo of the app](/img/example.png)
 
-On Windows, simply download and run `clickonce/setup.exe`. This version will have a console window that shows you everything that's being uploaded. You can kick this off before you start MTG Arena and have it run while you play. It can be configured to run at startup and will prompt you when updates are available.
+## Considerations
 
-## Advanced Usage
+This is not meant to replace the `17Lands` client, you can still have that running.
 
-Requires [Python 3.6+](https://www.python.org/downloads/), along with the [`requests` package](http://docs.python-requests.org/en/master/).
+This is forked from the client itself, and all the credit for the hard work goes to 
+the team at http://www.17lands.com.
 
-You can kick this off before you start MTG Arena and have it run in the background while you play. If you have Python installed, you can simply run the script directly. If you want to run through a terminal, the command would just be as follows:
-```
-python3 mtga_follower.py
-```
+## Installation/Run Instructions
 
-Additional options are available by passing the `-h` flag to the program.
+- clone the repo
+- get a python env of your choice (conda, venv, pyenv, etc)
+- pip install dash pandas lxml nb_black dash-bootstrap-components
+- download card_list.csv from 17Lands https://17lands-public.s3.amazonaws.com/analysis_data/cards/card_list.csv
+- save each set you care about as a different page under one dir. Filename should be data/{set}_card_ratings.html 
+  - this can be done by going to https://www.17lands.com/card_ratings and changing the set, then right-clicking and using "save as"
+- start this jupyter notebook (making sure the card_list and set data are in data/) with `jupyter notebook` to start the server, then open the file
+- update the path to your log file (can be found in 17Lands client)
+- run all the cells - the last one will start the app, and will run continuously
+- go to localhost:8050/ to see the app!
 
-The log messages will show you what's being sent to the server. You can see more information about the data it's submitting here: http://www.17lands.com/ui/.
 
 ## Notes
 
