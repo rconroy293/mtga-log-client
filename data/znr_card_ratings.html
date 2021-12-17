@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    
+    <script async="" src="znr_card_ratings_files/js"></script>
+    <script type="text/javascript" src="znr_card_ratings_files/analytics.js"></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="znr_card_ratings_files/bootstrap.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="znr_card_ratings_files/semantic.css">
+    <link rel="stylesheet" href="znr_card_ratings_files/styles.css">
+    <link rel="stylesheet" href="znr_card_ratings_files/mana.css">
+    <link rel="stylesheet" href="znr_card_ratings_files/keyrune.css" type="text/css">
+    
+    <title>17Lands.com</title>
+  <style>.PresetDateRangePicker_panel {
+  padding: 0 22px 11px
+}
+.PresetDateRangePicker_button {
+  position: relative;
+  height: 100%;
+  text-align: center;
+  background: 0 0;
+  border: 2px solid #00a699;
+  color: #00a699;
+  padding: 4px 12px;
+  margin-right: 8px;
+  font: inherit;
+  font-weight: 700;
+  line-height: normal;
+  overflow: visible;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  cursor: pointer
+}
+.PresetDateRangePicker_button:active {
+  outline: 0
+}
+.PresetDateRangePicker_button__selected {
+  color: #fff;
+  background: #00a699
+}
+.SingleDatePickerInput {
+  display: inline-block;
+  background-color: #fff
+}
+.SingleDatePickerInput__withBorder {
+  border-radius: 2px;
+  border: 1px solid #dbdbdb
+}
+.SingleDatePickerInput__rtl {
+  direction: rtl
+}
+.SingleDatePickerInput__disabled {
+  background-color: #f2f2f2
+}
+.SingleDatePickerInput__block {
+  display: block
+}
+.SingleDatePickerInput__showClearDate {
+  padding-right: 30px
+}
+.SingleDatePickerInput_clearDate {
+  background: 0 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  line-height: normal;
+  overflow: visible;
+  cursor: pointer;
+  padding: 10px;
+  margin: 0 10px 0 5px;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  -webkit-transform: translateY(-50%);
+  -ms-transform: translateY(-50%);
+  transform: translateY(-50%)
+}
+.SingleDatePickerInput_clearDate__default:focus,
+.SingleDatePickerInput_clearDate__default:hover {
+  background: #dbdbdb;
+  border-radius: 50%
+}
+.SingleDatePickerInput_clearDate__small {
+  padding: 6px
+}
+.SingleDatePickerInput_clearDate__hide {
+  visibility: hidden
+}
+.SingleDatePickerInput_clearDate_svg {
+  fill: #82888a;
+  height: 12px;
+  width: 15px;
+  vertical-align: middle
+}
+.SingleDatePickerInput_clearDate_svg__small {
+  height: 9px
+}
+.SingleDatePickerInput_calendarIcon {
+  background: 0 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  line-height: normal;
+  overflow: visible;
+  cursor: pointer;
+  display: inline-block;
+  vertical-align: middle;
+  padding: 10px;
+  margin: 0 5px 0 10px
+}
+.SingleDatePickerInput_calendarIcon_svg {
+  fill: #82888a;
+  height: 15px;
+  width: 14px;
+  vertical-align: middle
+}
+.SingleDatePicker {
+  position: relative;
+  display: inline-block
+}
+.SingleDatePicker__block {
+  display: block
+}
+.SingleDatePicker_picker {
+  z-index: 1;
+  background-color: #fff;
+  position: absolute
+}
+.SingleDatePicker_picker__rtl {
+  direction: rtl
+}
+.SingleDatePicker_picker__directionLeft {
+  left: 0
+}
+.SingleDatePicker_picker__directionRight {
+  right: 0
+}
+.SingleDatePicker_picker__portal {
+  background-color: rgba(0,0,0,.3);
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%
+}
+.SingleDatePicker_picker__fullScreenPortal {
+  background-color: #fff
+}
+.SingleDatePicker_closeButton {
+  background: 0 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  line-height: normal;
+  overflow: visible;
+  cursor: pointer;
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 15px;
+  z-index: 2
+}
+.SingleDatePicker_closeButton:focus,
+.SingleDatePicker_closeButton:hover {
+  color: darken(#cacccd,10%);
+  text-decoration: none
+}
+.SingleDatePicker_closeButton_svg {
+  height: 15px;
+  width: 15px;
+  fill: #cacccd
+}
+.DayPickerKeyboardShortcuts_buttonReset {
+  background: 0 0;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  font: inherit;
+  line-height: normal;
+  overflow: visible;
+  padding: 0;
+  cursor: pointer;
+  font-size: 14px
+}
+.DayPickerKeyboardShortcuts_buttonReset:active {
+  outline: 0
+}
+.DayPickerKeyboardShortcuts_show {
+  width: 33px;
+  height: 26px;
+  position: absolute;
+  z-index: 2
+}
+.DayPickerKeyboardShortcuts_show::before {
+  content: "";
+  display: block;
+  position: absolute
+}
+.DayPickerKeyboardShortcuts_show__bottomRight {
+  bottom: 0;
+  right: 0
+}
+.DayPickerKeyboardShortcuts_show__bottomRight::before {
+  border-top: 26px solid transparent;
+  border-right: 33px solid #00a699;
+  bottom: 0;
+  right: 0
+}
+.DayPickerKeyboardShortcuts_show__bottomRight:hover::before {
+  border-right: 33px solid #008489
+}
+.DayPickerKeyboardShortcuts_show__topRight {
+  top: 0;
+  right: 0
+}
+.DayPickerKeyboardShortcuts_show__topRight::before {
+  border-bottom: 26px solid transparent;
+  border-right: 33px solid #00a699;
+  top: 0;
+  right: 0
+}
+.DayPickerKeyboardShortcuts_show__topRight:hover::before {
+  border-right: 33px solid #008489
+}
+.DayPickerKeyboardShortcuts_show__topLeft {
+  top: 0;
+  left: 0
+}
+.DayPickerKeyboardShortcuts_show__topLeft::before {
+  border-bottom: 26px solid transparent;
+  border-left: 33px solid #00a699;
+  top: 0;
+  left: 0
+}
+.DayPickerKeyboardShortcuts_show__topLeft:hover::before {
+  border-left: 33px solid #008489
+}
+.DayPickerKeyboardShortcuts_showSpan {
+  color: #fff;
+  position: absolute
+}
+.DayPickerKeyboardShortcuts_showSpan__bottomRight {
+  bottom: 0;
+  right: 5px
+}
+.DayPickerKeyboardShortcuts_showSpan__topRight {
+  top: 1px;
+  right: 5px
+}
+.DayPickerKeyboardShortcuts_showSpan__topLeft {
+  top: 1px;
+  left: 5px
+}
+.DayPickerKeyboardShortcuts_panel {
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #dbdbdb;
+  border-radius: 2px;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  padding: 22px;
+  margin: 33px;
+  text-align: left
+}
+.DayPickerKeyboardShortcuts_title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0
+}
+.DayPickerKeyboardShortcuts_list {
+  list-style: none;
+  padding: 0;
+  font-size: 14px
+}
+.DayPickerKeyboardShortcuts_close {
+  position: absolute;
+  right: 22px;
+  top: 22px;
+  z-index: 2
+}
+.DayPickerKeyboardShortcuts_close:active {
+  outline: 0
+}
+.DayPickerKeyboardShortcuts_closeSvg {
+  height: 15px;
+  width: 15px;
+  fill: #cacccd
+}
+.DayPickerKeyboardShortcuts_closeSvg:focus,
+.DayPickerKeyboardShortcuts_closeSvg:hover {
+  fill: #82888a
+}
+.CalendarDay {
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: center
+}
+.CalendarDay:active {
+  outline: 0
+}
+.CalendarDay__defaultCursor {
+  cursor: default
+}
+.CalendarDay__default {
+  border: 1px solid #e4e7e7;
+  color: #484848;
+  background: #fff
+}
+.CalendarDay__default:hover {
+  background: #e4e7e7;
+  border: 1px solid #e4e7e7;
+  color: inherit
+}
+.CalendarDay__hovered_offset {
+  background: #f4f5f5;
+  border: 1px double #e4e7e7;
+  color: inherit
+}
+.CalendarDay__outside {
+  border: 0;
+  background: #fff;
+  color: #484848
+}
+.CalendarDay__outside:hover {
+  border: 0
+}
+.CalendarDay__blocked_minimum_nights {
+  background: #fff;
+  border: 1px solid #eceeee;
+  color: #cacccd
+}
+.CalendarDay__blocked_minimum_nights:active,
+.CalendarDay__blocked_minimum_nights:hover {
+  background: #fff;
+  color: #cacccd
+}
+.CalendarDay__highlighted_calendar {
+  background: #ffe8bc;
+  color: #484848
+}
+.CalendarDay__highlighted_calendar:active,
+.CalendarDay__highlighted_calendar:hover {
+  background: #ffce71;
+  color: #484848
+}
+.CalendarDay__selected_span {
+  background: #66e2da;
+  border: 1px double #33dacd;
+  color: #fff
+}
+.CalendarDay__selected_span:active,
+.CalendarDay__selected_span:hover {
+  background: #33dacd;
+  border: 1px double #33dacd;
+  color: #fff
+}
+.CalendarDay__selected,
+.CalendarDay__selected:active,
+.CalendarDay__selected:hover {
+  background: #00a699;
+  border: 1px double #00a699;
+  color: #fff
+}
+.CalendarDay__hovered_span,
+.CalendarDay__hovered_span:hover {
+  background: #b2f1ec;
+  border: 1px double #80e8e0;
+  color: #007a87
+}
+.CalendarDay__hovered_span:active {
+  background: #80e8e0;
+  border: 1px double #80e8e0;
+  color: #007a87
+}
+.CalendarDay__blocked_calendar,
+.CalendarDay__blocked_calendar:active,
+.CalendarDay__blocked_calendar:hover {
+  background: #cacccd;
+  border: 1px solid #cacccd;
+  color: #82888a
+}
+.CalendarDay__blocked_out_of_range,
+.CalendarDay__blocked_out_of_range:active,
+.CalendarDay__blocked_out_of_range:hover {
+  background: #fff;
+  border: 1px solid #e4e7e7;
+  color: #cacccd
+}
+.CalendarDay__hovered_start_first_possible_end {
+  background: #eceeee;
+  border: 1px double #eceeee
+}
+.CalendarDay__hovered_start_blocked_min_nights {
+  background: #eceeee;
+  border: 1px double #e4e7e7
+}
+.CalendarMonth {
+  background: #fff;
+  text-align: center;
+  vertical-align: top;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none
+}
+.CalendarMonth_table {
+  border-collapse: collapse;
+  border-spacing: 0
+}
+.CalendarMonth_verticalSpacing {
+  border-collapse: separate
+}
+.CalendarMonth_caption {
+  color: #484848;
+  font-size: 18px;
+  text-align: center;
+  padding-top: 22px;
+  padding-bottom: 37px;
+  caption-side: initial
+}
+.CalendarMonth_caption__verticalScrollable {
+  padding-top: 12px;
+  padding-bottom: 7px
+}
+.CalendarMonthGrid {
+  background: #fff;
+  text-align: left;
+  z-index: 0
+}
+.CalendarMonthGrid__animating {
+  z-index: 1
+}
+.CalendarMonthGrid__horizontal {
+  position: absolute;
+  left: 9px
+}
+.CalendarMonthGrid__vertical,
+.CalendarMonthGrid__vertical_scrollable {
+  margin: 0 auto
+}
+.CalendarMonthGrid_month__horizontal {
+  display: inline-block;
+  vertical-align: top;
+  min-height: 100%
+}
+.CalendarMonthGrid_month__hideForAnimation {
+  position: absolute;
+  z-index: -1;
+  opacity: 0;
+  pointer-events: none
+}
+.CalendarMonthGrid_month__hidden {
+  visibility: hidden
+}
+.DayPickerNavigation {
+  position: relative;
+  z-index: 2
+}
+.DayPickerNavigation__horizontal {
+  height: 0
+}
+.DayPickerNavigation__verticalScrollable_prevNav {
+  z-index: 1
+}
+.DayPickerNavigation__verticalDefault {
+  position: absolute;
+  width: 100%;
+  height: 52px;
+  bottom: 0;
+  left: 0
+}
+.DayPickerNavigation__verticalScrollableDefault {
+  position: relative
+}
+.DayPickerNavigation__bottom {
+  height: auto
+}
+.DayPickerNavigation__bottomDefault {
+  -webkit-box-pack: justify;
+  -ms-flex-pack: justify;
+  display: -webkit-box;
+  display: -moz-box;
+  display: -ms-flexbox;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-justify-content: space-between;
+  justify-content: space-between
+}
+.DayPickerNavigation_button {
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  border: 0;
+  padding: 0;
+  margin: 0
+}
+.DayPickerNavigation_button__default {
+  border: 1px solid #e4e7e7;
+  background-color: #fff;
+  color: #757575
+}
+.DayPickerNavigation_button__default:focus,
+.DayPickerNavigation_button__default:hover {
+  border: 1px solid #c4c4c4
+}
+.DayPickerNavigation_button__default:active {
+  background: #f2f2f2
+}
+.DayPickerNavigation_button__disabled {
+  cursor: default;
+  border: 1px solid #f2f2f2
+}
+.DayPickerNavigation_button__disabled:focus,
+.DayPickerNavigation_button__disabled:hover {
+  border: 1px solid #f2f2f2
+}
+.DayPickerNavigation_button__disabled:active {
+  background: 0 0
+}
+.DayPickerNavigation_button__horizontalDefault {
+  position: absolute;
+  top: 18px;
+  line-height: .78;
+  border-radius: 3px;
+  padding: 6px 9px
+}
+.DayPickerNavigation_bottomButton__horizontalDefault {
+  position: static;
+  margin: -10px 22px 30px
+}
+.DayPickerNavigation_leftButton__horizontalDefault {
+  left: 22px
+}
+.DayPickerNavigation_rightButton__horizontalDefault {
+  right: 22px
+}
+.DayPickerNavigation_button__verticalDefault {
+  padding: 5px;
+  background: #fff;
+  box-shadow: 0 0 5px 2px rgba(0,0,0,.1);
+  position: relative;
+  display: inline-block;
+  text-align: center;
+  height: 100%;
+  width: 50%
+}
+.DayPickerNavigation_nextButton__verticalDefault {
+  border-left: 0
+}
+.DayPickerNavigation_nextButton__verticalScrollableDefault,
+.DayPickerNavigation_prevButton__verticalScrollableDefault {
+  width: 100%
+}
+.DayPickerNavigation_svg__horizontal {
+  height: 19px;
+  width: 19px;
+  fill: #82888a;
+  display: block
+}
+.DayPickerNavigation_svg__vertical {
+  height: 42px;
+  width: 42px;
+  fill: #484848
+}
+.DayPickerNavigation_svg__disabled {
+  fill: #f2f2f2
+}
+.DayPicker {
+  background: #fff;
+  position: relative;
+  text-align: left
+}
+.DayPicker__horizontal {
+  background: #fff
+}
+.DayPicker__verticalScrollable {
+  height: 100%
+}
+.DayPicker__hidden {
+  visibility: hidden
+}
+.DayPicker__withBorder {
+  box-shadow: 0 2px 6px rgba(0,0,0,.05),0 0 0 1px rgba(0,0,0,.07);
+  border-radius: 3px
+}
+.DayPicker_portal__horizontal {
+  box-shadow: none;
+  position: absolute;
+  left: 50%;
+  top: 50%
+}
+.DayPicker_portal__vertical {
+  position: initial
+}
+.DayPicker_focusRegion {
+  outline: 0
+}
+.DayPicker_calendarInfo__horizontal,
+.DayPicker_wrapper__horizontal {
+  display: inline-block;
+  vertical-align: top
+}
+.DayPicker_weekHeaders {
+  position: relative
+}
+.DayPicker_weekHeaders__horizontal {
+  margin-left: 9px
+}
+.DayPicker_weekHeader {
+  color: #757575;
+  position: absolute;
+  top: 62px;
+  z-index: 2;
+  text-align: left
+}
+.DayPicker_weekHeader__vertical {
+  left: 50%
+}
+.DayPicker_weekHeader__verticalScrollable {
+  top: 0;
+  display: table-row;
+  border-bottom: 1px solid #dbdbdb;
+  background: #fff;
+  margin-left: 0;
+  left: 0;
+  width: 100%;
+  text-align: center
+}
+.DayPicker_weekHeader_ul {
+  list-style: none;
+  margin: 1px 0;
+  padding-left: 0;
+  padding-right: 0;
+  font-size: 14px
+}
+.DayPicker_weekHeader_li {
+  display: inline-block;
+  text-align: center
+}
+.DayPicker_transitionContainer {
+  position: relative;
+  overflow: hidden;
+  border-radius: 3px
+}
+.DayPicker_transitionContainer__horizontal {
+  -webkit-transition: height .2s ease-in-out;
+  -moz-transition: height .2s ease-in-out;
+  transition: height .2s ease-in-out
+}
+.DayPicker_transitionContainer__vertical {
+  width: 100%
+}
+.DayPicker_transitionContainer__verticalScrollable {
+  padding-top: 20px;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  overflow-y: scroll
+}
+.DateInput {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  position: relative;
+  display: inline-block;
+  width: 130px;
+  vertical-align: middle
+}
+.DateInput__small {
+  width: 97px
+}
+.DateInput__block {
+  width: 100%
+}
+.DateInput__disabled {
+  background: #f2f2f2;
+  color: #dbdbdb
+}
+.DateInput_input {
+  font-weight: 200;
+  font-size: 19px;
+  line-height: 24px;
+  color: #484848;
+  background-color: #fff;
+  width: 100%;
+  padding: 11px 11px 9px;
+  border: 0;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 2px solid transparent;
+  border-left: 0;
+  border-radius: 0
+}
+.DateInput_input__small {
+  font-size: 15px;
+  line-height: 18px;
+  letter-spacing: .2px;
+  padding: 7px 7px 5px
+}
+.DateInput_input__regular {
+  font-weight: auto
+}
+.DateInput_input__readOnly {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none
+}
+.DateInput_input__focused {
+  outline: 0;
+  background: #fff;
+  border: 0;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 2px solid #008489;
+  border-left: 0
+}
+.DateInput_input__disabled {
+  background: #f2f2f2;
+  font-style: italic
+}
+.DateInput_screenReaderMessage {
+  border: 0;
+  clip: rect(0,0,0,0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px
+}
+.DateInput_fang {
+  position: absolute;
+  width: 20px;
+  height: 10px;
+  left: 22px;
+  z-index: 2
+}
+.DateInput_fangShape {
+  fill: #fff
+}
+.DateInput_fangStroke {
+  stroke: #dbdbdb;
+  fill: transparent
+}
+.DateRangePickerInput {
+  background-color: #fff;
+  display: inline-block
+}
+.DateRangePickerInput__disabled {
+  background: #f2f2f2
+}
+.DateRangePickerInput__withBorder {
+  border-radius: 2px;
+  border: 1px solid #dbdbdb
+}
+.DateRangePickerInput__rtl {
+  direction: rtl
+}
+.DateRangePickerInput__block {
+  display: block
+}
+.DateRangePickerInput__showClearDates {
+  padding-right: 30px
+}
+.DateRangePickerInput_arrow {
+  display: inline-block;
+  vertical-align: middle;
+  color: #484848
+}
+.DateRangePickerInput_arrow_svg {
+  vertical-align: middle;
+  fill: #484848;
+  height: 24px;
+  width: 24px
+}
+.DateRangePickerInput_clearDates {
+  background: 0 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  line-height: normal;
+  overflow: visible;
+  cursor: pointer;
+  padding: 10px;
+  margin: 0 10px 0 5px;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  -webkit-transform: translateY(-50%);
+  -ms-transform: translateY(-50%);
+  transform: translateY(-50%)
+}
+.DateRangePickerInput_clearDates__small {
+  padding: 6px
+}
+.DateRangePickerInput_clearDates_default:focus,
+.DateRangePickerInput_clearDates_default:hover {
+  background: #dbdbdb;
+  border-radius: 50%
+}
+.DateRangePickerInput_clearDates__hide {
+  visibility: hidden
+}
+.DateRangePickerInput_clearDates_svg {
+  fill: #82888a;
+  height: 12px;
+  width: 15px;
+  vertical-align: middle
+}
+.DateRangePickerInput_clearDates_svg__small {
+  height: 9px
+}
+.DateRangePickerInput_calendarIcon {
+  background: 0 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  line-height: normal;
+  overflow: visible;
+  cursor: pointer;
+  display: inline-block;
+  vertical-align: middle;
+  padding: 10px;
+  margin: 0 5px 0 10px
+}
+.DateRangePickerInput_calendarIcon_svg {
+  fill: #82888a;
+  height: 15px;
+  width: 14px;
+  vertical-align: middle
+}
+.DateRangePicker {
+  position: relative;
+  display: inline-block
+}
+.DateRangePicker__block {
+  display: block
+}
+.DateRangePicker_picker {
+  z-index: 1;
+  background-color: #fff;
+  position: absolute
+}
+.DateRangePicker_picker__rtl {
+  direction: rtl
+}
+.DateRangePicker_picker__directionLeft {
+  left: 0
+}
+.DateRangePicker_picker__directionRight {
+  right: 0
+}
+.DateRangePicker_picker__portal {
+  background-color: rgba(0,0,0,.3);
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%
+}
+.DateRangePicker_picker__fullScreenPortal {
+  background-color: #fff
+}
+.DateRangePicker_closeButton {
+  background: 0 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  line-height: normal;
+  overflow: visible;
+  cursor: pointer;
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 15px;
+  z-index: 2
+}
+.DateRangePicker_closeButton:focus,
+.DateRangePicker_closeButton:hover {
+  color: darken(#cacccd,10%);
+  text-decoration: none
+}
+.DateRangePicker_closeButton_svg {
+  height: 15px;
+  width: 15px;
+  fill: #cacccd
+}</style><style>.DateInput_input {
+  font-size: 14px;
+  padding: 6px;
+}
+.DateInput {
+  width: 100px;
+}
+
+@media (max-width: 425px) {
+  .DateInput_input {
+    font-size: 0.8em;
+    padding: 6px;
+    line-height: 1;
+  }
+  .DateInput {
+    width: 60px;
+  }
+}
+</style></head>
+  <body>
+    
+
+<nav class="navbar navbar-expand-md navbar-dark bg-dark">
+    <a class="navbar-brand" href="https://www.17lands.com/">17Lands</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item">
+                <a class="nav-link" href="https://www.17lands.com/getting_started">Getting Started</a>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Account
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                    
+                        <a class="dropdown-item" href="https://www.17lands.com/user">My Data</a>
+                        <a class="dropdown-item" href="https://www.17lands.com/site_draft_index/">Mock Draft</a>
+                        <a class="dropdown-item" href="https://www.17lands.com/collection">My Collection</a>
+                        <a class="dropdown-item" href="https://www.17lands.com/format_summary_statistics">User Behavior Comparison</a>
+                        <a class="dropdown-item" href="https://www.17lands.com/user/most_drafted_cards">My Most Drafted Cards</a>
+                        <a class="dropdown-item" href="https://www.17lands.com/card_tiers">Card Tiers</a>
+                        <a class="dropdown-item" href="https://www.17lands.com/account">Account Settings</a>
+                        <a class="dropdown-item" href="https://www.17lands.com/logout">Log out</a>
+                    
+                </div>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Analytics
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                    <a class="dropdown-item" href="https://www.17lands.com/color_ratings">Format Color Ratings</a>
+                    <a class="dropdown-item" href="https://www.17lands.com/card_ratings">Card Ratings</a>
+                    <a class="dropdown-item" href="https://www.17lands.com/card_performance_comparison">Card Performance Comparison</a>
+                    <a class="dropdown-item" href="https://www.17lands.com/card_evaluation_metagame/">Card Evaluation Metagame</a>
+                    <a class="dropdown-item" href="https://www.17lands.com/play_draw">Play / Draw Advantage</a>
+                    <a class="dropdown-item" href="https://www.17lands.com/trophies">Recent Trophy Decks</a>
+                    <a class="dropdown-item" href="https://www.17lands.com/leaderboard">Leaderboard</a>
+                    <a class="dropdown-item" href="https://www.17lands.com/public_datasets">Public Data Sets</a>
+                </div>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Tools
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                    <a class="dropdown-item" href="https://www.17lands.com/tier_comparison">Tier Comparisons</a>
+                </div>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Articles
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                    <a class="dropdown-item" href="https://www.17lands.com/blog/using_wr_data">Using Win Rate Data</a>
+                    <a class="dropdown-item" href="https://www.17lands.com/blog/khm_snow_decks">Snow Decks in Kaldheim</a>
+                    <a class="dropdown-item" href="https://www.17lands.com/blog/simulating_draft_strategies">Simulating Draft Strategies</a>
+                    <a class="dropdown-item" href="https://www.17lands.com/blog/london_mulligan">Impact of the London Mulligan</a>
+                    <a class="dropdown-item" href="https://www.17lands.com/blog/bot_signals">Do the Bots Send Signals?</a>
+                </div>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Support
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                    <a class="dropdown-item" href="https://www.17lands.com/faq">FAQ</a>
+                    
+                        <a class="dropdown-item" href="https://www.17lands.com/contact">Contact and Support 17Lands</a>
+                    
+                    <a class="dropdown-item" href="https://www.17lands.com/privacy">Privacy Policy</a>
+                </div>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+
+
+
+
+
+<div id="card_ratings_app" class="wide-container"><div class="container-xxl"><div class="container main-text"><div role="alert" class="fade alert alert-secondary show"><p>Interested in supporting 17Lands? We have a Patreon page at <a href="https://patreon.com/17lands" target="_blank">patreon.com/17lands</a>!</p></div><h2>Card Performance</h2><p>This
+ table shows information about each card in a given format. Sort by ALSA
+ to get a sense of the community's pick order. Sort by ATA to see where 
+others usually pick the cards.</p><p>The deck color selection filters 
+for performance numbers of cards only when played in that maindeck color
+ combination. This helps understand, for example, which red cards 
+perform better when paired with green than with blue. Splashes are 
+included, so selecting RG also includes RGu and RGb decks, for example.</p><p>Metric definitions are <a href="https://www.17lands.com/metrics_definitions">here</a>.</p><div class="form-row user-filter"><div class="user-filter-selector"><select class="form-control" id="expansion" name="expansion"><option value="VOW">VOW</option><option value="MID">MID</option><option value="RAVM">RAVM</option><option value="CORE">CORE</option><option value="AFR">AFR</option><option value="STX">STX</option><option value="KHM">KHM</option><option value="ZNR" selected="selected">ZNR</option><option value="KLR">KLR</option><option value="M21">M21</option><option value="AKR">AKR</option><option value="IKO">IKO</option><option value="THB">THB</option><option value="ELD">ELD</option><option value="M20">M20</option><option value="WAR">WAR</option><option value="RNA">RNA</option><option value="GRN">GRN</option><option value="M19">M19</option><option value="DOM">DOM</option><option value="RIX">RIX</option><option value="XLN">XLN</option><option value="MH2">MH2</option><option value="MH1">MH1</option><option value="2XM">2XM</option><option value="TSR">TSR</option><option value="Cube">Cube</option></select></div><div class="user-filter-selector"><select class="form-control" id="format" name="format"><option value="PremierDraft">PremierDraft</option><option value="TradDraft">TradDraft</option><option value="QuickDraft" selected="selected">QuickDraft</option><option value="CompDraft">CompDraft</option><option value="Sealed">Sealed</option><option value="TradSealed">TradSealed</option><option value="CubeDraft">CubeDraft</option><option value="CubeSealed">CubeSealed</option><option value="MidWeekQuickDraft">MidWeekQuickDraft</option><option value="DraftChallenge">DraftChallenge</option><option value="OpenSealed_D1_Bo1">OpenSealed_D1_Bo1</option><option value="OpenSealed_D1_Bo3">OpenSealed_D1_Bo3</option><option value="OpenSealed_D2_Bo3">OpenSealed_D2_Bo3</option><option value="OpenDraft_D1_Bo1">OpenDraft_D1_Bo1</option><option value="OpenDraft_D1_Bo3">OpenDraft_D1_Bo3</option><option value="OpenDraft_D2_Bo3">OpenDraft_D2_Bo3</option></select></div><div class="user-filter-selector"><select class="form-control" id="color" name="color"><option value="" selected="selected">Color...</option><option value="W">W</option><option value="U">U</option><option value="B">B</option><option value="R">R</option><option value="G">G</option><option value="Multicolor">Multicolor</option><option value="Colorless">Colorless</option></select></div><div class="user-filter-selector"><select class="form-control" id="deck_color" name="deck_color"><option value="" selected="selected">All Decks</option><option value="W">W</option><option value="U">U</option><option value="B">B</option><option value="R">R</option><option value="G">G</option><option value="WU">WU</option><option value="WB">WB</option><option value="WR">WR</option><option value="WG">WG</option><option value="UB">UB</option><option value="UR">UR</option><option value="UG">UG</option><option value="BR">BR</option><option value="BG">BG</option><option value="RG">RG</option><option value="WUB">WUB</option><option value="WUR">WUR</option><option value="WUG">WUG</option><option value="WBR">WBR</option><option value="WBG">WBG</option><option value="WRG">WRG</option><option value="UBR">UBR</option><option value="UBG">UBG</option><option value="URG">URG</option><option value="BRG">BRG</option><option value="WUBR">WUBR</option><option value="WUBG">WUBG</option><option value="WURG">WURG</option><option value="WBRG">WBRG</option><option value="UBRG">UBRG</option><option value="WUBRG">WUBRG</option></select></div><div class="user-filter-selector"><select class="form-control" id="rarity" name="rarity"><option value="" selected="selected">Rarity...</option><option value="common">Common</option><option value="uncommon">Uncommon</option><option value="rare">Rare</option><option value="mythic">Mythic</option></select></div><div class="user-filter-selector"><div class="DateRangePicker DateRangePicker_1"><div><div class="DateRangePickerInput DateRangePickerInput_1 DateRangePickerInput__withBorder DateRangePickerInput__withBorder_2"><div class="DateInput DateInput_1"><input class="DateInput_input DateInput_input_1" aria-label="Start Date" type="text" id="start_date_1" name="start_date_1" placeholder="Start Date" autocomplete="off" aria-describedby="DateInput__screen-reader-message-start_date_1" value="08/16/2021"><p class="DateInput_screenReaderMessage DateInput_screenReaderMessage_1" id="DateInput__screen-reader-message-start_date_1">Navigate
+ forward to interact with the calendar and select a date. Press the 
+question mark key to get the keyboard shortcuts for changing dates.</p></div><div class="DateRangePickerInput_arrow DateRangePickerInput_arrow_1" aria-hidden="true" role="presentation"><svg class="DateRangePickerInput_arrow_svg DateRangePickerInput_arrow_svg_1" focusable="false" viewBox="0 0 1000 1000"><path d="M694 242l249 250c12 11 12 21 1 32L694 773c-5 5-10 7-16 7s-11-2-16-7c-11-11-11-21 0-32l210-210H68c-13 0-23-10-23-23s10-23 23-23h806L662 275c-21-22 11-54 32-33z"></path></svg></div><div class="DateInput DateInput_1"><input class="DateInput_input DateInput_input_1" aria-label="End Date" type="text" id="end_date_1" name="end_date_1" placeholder="End Date" autocomplete="off" aria-describedby="DateInput__screen-reader-message-end_date_1" value="12/16/2021"><p class="DateInput_screenReaderMessage DateInput_screenReaderMessage_1" id="DateInput__screen-reader-message-end_date_1">Navigate
+ backward to interact with the calendar and select a date. Press the 
+question mark key to get the keyboard shortcuts for changing dates.</p></div></div></div></div></div></div><div class="card-performance-selectors">Columns:<div class="ui checked checkbox card-performance-checkbox"><input class="hidden" readonly="readonly" tabindex="0" type="checkbox" value="" checked="checked"><label>Seen</label></div><div class="ui checked checkbox card-performance-checkbox"><input class="hidden" readonly="readonly" tabindex="0" type="checkbox" value="" checked="checked"><label>Picked</label></div><div class="ui checked checkbox card-performance-checkbox"><input class="hidden" readonly="readonly" tabindex="0" type="checkbox" value="" checked="checked"><label>Played in Deck</label></div><div class="ui checked checkbox card-performance-checkbox"><input class="hidden" readonly="readonly" tabindex="0" type="checkbox" value="" checked="checked"><label>Opening Hand</label></div><div class="ui checked checkbox card-performance-checkbox"><input class="hidden" readonly="readonly" tabindex="0" type="checkbox" value="" checked="checked"><label>Drawn in Game</label></div><div class="ui checked checkbox card-performance-checkbox"><input class="hidden" readonly="readonly" tabindex="0" type="checkbox" value="" checked="checked"><label>Ever In Hand</label></div><div class="ui checked checkbox card-performance-checkbox"><input class="hidden" readonly="readonly" tabindex="0" type="checkbox" value="" checked="checked"><label>Not Drawn</label></div><div class="ui checked checkbox card-performance-checkbox"><input class="hidden" readonly="readonly" tabindex="0" type="checkbox" value="" checked="checked"><label>Improvement when Drawn</label></div></div></div><div class="scrolling-table"><table class="ui celled inverted selectable sortable striped unstackable compact table"><thead class=""><tr class=""><th class="">Name</th><th class="">Color</th><th class="">Rarity</th><th class=""># Seen</th><th title="Avg. Last Seen At" class="">ALSA</th><th class=""># Picked</th><th title="Avg. Taken At" class="">ATA</th><th title="Number of Games Played" class=""># GP</th><th title="Win Rate when Maindecked" class="">GP WR</th><th title="Number of Games in Opening Hand" class=""># OH</th><th title="Win Rate in Opening Hand" class="">OH WR</th><th title="Number of Games Drawn Turn 1 or Later" class=""># GD</th><th title="Win Rate when Drawn Turn 1 or Later" class="">GD WR</th><th title="Number of Games in Hand (Opener or Drawn)" class=""># GIH</th><th title="Win Rate in Hand (Opener or Drawn)" class="">GIH WR</th><th title="Number of Games Not Drawn" class=""># GND</th><th title="Win Rate Not Drawn" class="">GND WR</th><th title="Win Rate Improvement when Drawn" class="">IWD</th></tr></thead><tbody class=""><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Allied Assault</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">2583</td><td class="">5.41</td><td class="">332</td><td class="">7.98</td><td class="">685</td><td class=""></td><td class="">112</td><td class=""></td><td class="">201</td><td class="">52.2%</td><td class="">313</td><td class="">54.6%</td><td class="">374</td><td class="">54.3%</td><td class="">0.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Angel of Destiny</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">M</td><td class="">74</td><td class="">1.15</td><td class="">54</td><td class="">1.15</td><td class="">243</td><td class=""></td><td class="">31</td><td class=""></td><td class="">76</td><td class=""></td><td class="">107</td><td class=""></td><td class="">142</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Angelheart Protector</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">7504</td><td class="">5.91</td><td class="">1042</td><td class="">8.47</td><td class="">2870</td><td class="">54.0%</td><td class="">542</td><td class="">51.7%</td><td class="">885</td><td class="">55.3%</td><td class="">1427</td><td class="">53.9%</td><td class="">1584</td><td class="">54.3%</td><td class="">-0.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Archon of Emeria</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">R</td><td class="">279</td><td class="">1.73</td><td class="">105</td><td class="">1.68</td><td class="">440</td><td class=""></td><td class="">71</td><td class=""></td><td class="">126</td><td class=""></td><td class="">197</td><td class=""></td><td class="">263</td><td class="">57.0%</td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Archpriest of Iona</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">R</td><td class="">317</td><td class="">2.03</td><td class="">163</td><td class="">2.19</td><td class="">801</td><td class="">54.6%</td><td class="">158</td><td class=""></td><td class="">192</td><td class=""></td><td class="">350</td><td class="">55.4%</td><td class="">467</td><td class="">54.6%</td><td class="">0.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Attended Healer</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">1468</td><td class="">2.85</td><td class="">508</td><td class="">3.22</td><td class="">2132</td><td class="">54.7%</td><td class="">425</td><td class="">55.5%</td><td class="">674</td><td class="">59.9%</td><td class="">1099</td><td class="">58.2%</td><td class="">1150</td><td class="">51.8%</td><td class="">6.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Canyon Jerboa</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">2225</td><td class="">4.43</td><td class="">451</td><td class="">5.67</td><td class="">1393</td><td class="">53.0%</td><td class="">282</td><td class="">53.9%</td><td class="">361</td><td class="">52.4%</td><td class="">643</td><td class="">53.0%</td><td class="">801</td><td class="">52.4%</td><td class="">0.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Cliffhaven Sell-Sword</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">7363</td><td class="">5.51</td><td class="">919</td><td class="">8.12</td><td class="">2703</td><td class="">54.8%</td><td class="">598</td><td class="">54.5%</td><td class="">842</td><td class="">54.6%</td><td class="">1440</td><td class="">54.6%</td><td class="">1430</td><td class="">55.0%</td><td class="">-0.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Dauntless Unity</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">8448</td><td class="">7.78</td><td class="">1443</td><td class="">10.60</td><td class="">1885</td><td class="">51.9%</td><td class="">322</td><td class="">46.9%</td><td class="">528</td><td class="">51.1%</td><td class="">850</td><td class="">49.5%</td><td class="">1076</td><td class="">53.4%</td><td class="">-3.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Disenchant</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">8540</td><td class="">9.29</td><td class="">1206</td><td class="">12.66</td><td class="">106</td><td class=""></td><td class="">19</td><td class=""></td><td class="">28</td><td class=""></td><td class="">47</td><td class=""></td><td class="">61</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Emeria Captain</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">1304</td><td class="">2.61</td><td class="">388</td><td class="">3.09</td><td class="">1779</td><td class="">56.3%</td><td class="">310</td><td class="">60.0%</td><td class="">516</td><td class="">58.3%</td><td class="">826</td><td class="">59.0%</td><td class="">1030</td><td class="">54.3%</td><td class="">4.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Emeria's Call</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">M</td><td class="">87</td><td class="">1.00</td><td class="">60</td><td class="">1.00</td><td class="">270</td><td class=""></td><td class="">43</td><td class=""></td><td class="">67</td><td class=""></td><td class="">110</td><td class=""></td><td class="">165</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Expedition Healer</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">5844</td><td class="">4.18</td><td class="">903</td><td class="">5.82</td><td class="">3603</td><td class="">54.9%</td><td class="">837</td><td class="">58.3%</td><td class="">1261</td><td class="">53.4%</td><td class="">2098</td><td class="">55.3%</td><td class="">1829</td><td class="">54.2%</td><td class="">1.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Farsight Adept</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">7228</td><td class="">5.39</td><td class="">867</td><td class="">8.02</td><td class="">2411</td><td class="">53.1%</td><td class="">510</td><td class="">53.3%</td><td class="">777</td><td class="">51.6%</td><td class="">1287</td><td class="">52.3%</td><td class="">1296</td><td class="">53.4%</td><td class="">-1.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Fearless Fledgling</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">1003</td><td class="">2.26</td><td class="">320</td><td class="">2.59</td><td class="">1497</td><td class="">56.0%</td><td class="">301</td><td class="">64.1%</td><td class="">434</td><td class="">58.5%</td><td class="">735</td><td class="">60.8%</td><td class="">827</td><td class="">52.4%</td><td class="">8.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Felidar Retreat</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">R</td><td class="">136</td><td class="">1.08</td><td class="">121</td><td class="">1.08</td><td class="">698</td><td class=""></td><td class="">133</td><td class=""></td><td class="">182</td><td class=""></td><td class="">315</td><td class="">67.0%</td><td class="">384</td><td class="">45.6%</td><td class="">21.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Journey to Oblivion</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">1052</td><td class="">2.25</td><td class="">391</td><td class="">2.67</td><td class="">1760</td><td class="">52.6%</td><td class="">301</td><td class="">51.8%</td><td class="">496</td><td class="">58.9%</td><td class="">797</td><td class="">56.2%</td><td class="">1000</td><td class="">50.0%</td><td class="">6.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Kabira Outrider</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">8065</td><td class="">6.85</td><td class="">1659</td><td class="">9.07</td><td class="">4053</td><td class="">53.8%</td><td class="">871</td><td class="">55.5%</td><td class="">1386</td><td class="">53.0%</td><td class="">2257</td><td class="">54.0%</td><td class="">2066</td><td class="">54.0%</td><td class="">-0.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Kabira Takedown</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">1523</td><td class="">2.69</td><td class="">397</td><td class="">3.30</td><td class="">2036</td><td class="">55.0%</td><td class="">398</td><td class="">53.0%</td><td class="">536</td><td class="">56.7%</td><td class="">934</td><td class="">55.1%</td><td class="">1153</td><td class="">55.1%</td><td class="">0.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Kitesail Cleric</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">2434</td><td class="">4.90</td><td class="">511</td><td class="">6.57</td><td class="">1876</td><td class="">52.0%</td><td class="">348</td><td class="">51.4%</td><td class="">513</td><td class="">49.3%</td><td class="">861</td><td class="">50.2%</td><td class="">1071</td><td class="">53.0%</td><td class="">-2.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Kor Blademaster</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">1565</td><td class="">3.09</td><td class="">193</td><td class="">3.60</td><td class="">739</td><td class=""></td><td class="">164</td><td class=""></td><td class="">175</td><td class=""></td><td class="">339</td><td class="">55.2%</td><td class="">412</td><td class="">58.0%</td><td class="">-2.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Kor Celebrant</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">7029</td><td class="">5.30</td><td class="">1953</td><td class="">6.27</td><td class="">5135</td><td class="">53.1%</td><td class="">1467</td><td class="">54.4%</td><td class="">2304</td><td class="">54.0%</td><td class="">3771</td><td class="">54.2%</td><td class="">2286</td><td class="">50.7%</td><td class="">3.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Legion Angel</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">R</td><td class="">216</td><td class="">1.45</td><td class="">121</td><td class="">1.45</td><td class="">553</td><td class=""></td><td class="">91</td><td class=""></td><td class="">175</td><td class=""></td><td class="">266</td><td class="">56.4%</td><td class="">307</td><td class="">52.8%</td><td class="">3.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Luminarch Aspirant</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">R</td><td class="">133</td><td class="">1.02</td><td class="">104</td><td class="">1.02</td><td class="">575</td><td class=""></td><td class="">101</td><td class=""></td><td class="">182</td><td class=""></td><td class="">283</td><td class="">64.0%</td><td class="">306</td><td class="">54.2%</td><td class="">9.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Makindi Ox</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">8388</td><td class="">7.77</td><td class="">1343</td><td class="">10.72</td><td class="">1583</td><td class="">49.8%</td><td class="">289</td><td class="">49.8%</td><td class="">514</td><td class="">49.2%</td><td class="">803</td><td class="">49.4%</td><td class="">855</td><td class="">49.6%</td><td class="">-0.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Makindi Stampede</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">1979</td><td class="">3.44</td><td class="">262</td><td class="">5.27</td><td class="">1118</td><td class="">52.6%</td><td class="">224</td><td class="">48.7%</td><td class="">263</td><td class="">55.5%</td><td class="">487</td><td class="">52.4%</td><td class="">654</td><td class="">53.1%</td><td class="">-0.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Maul of the Skyclaves</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">R</td><td class="">145</td><td class="">1.00</td><td class="">120</td><td class="">1.00</td><td class="">666</td><td class=""></td><td class="">104</td><td class=""></td><td class="">171</td><td class=""></td><td class="">275</td><td class="">65.8%</td><td class="">394</td><td class="">51.3%</td><td class="">14.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Mesa Lynx</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">8307</td><td class="">7.69</td><td class="">1071</td><td class="">10.79</td><td class="">1046</td><td class="">51.3%</td><td class="">232</td><td class="">49.6%</td><td class="">330</td><td class="">48.8%</td><td class="">562</td><td class="">49.1%</td><td class="">560</td><td class="">54.1%</td><td class="">-5.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Nahiri's Binding</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">3524</td><td class="">2.67</td><td class="">681</td><td class="">3.44</td><td class="">2692</td><td class="">52.3%</td><td class="">529</td><td class="">52.2%</td><td class="">826</td><td class="">52.1%</td><td class="">1355</td><td class="">52.1%</td><td class="">1459</td><td class="">52.4%</td><td class="">-0.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Ondu Inversion</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">R</td><td class="">284</td><td class="">1.96</td><td class="">96</td><td class="">1.99</td><td class="">343</td><td class=""></td><td class="">50</td><td class=""></td><td class="">85</td><td class=""></td><td class="">135</td><td class=""></td><td class="">208</td><td class="">51.0%</td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Paired Tactician</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">2668</td><td class="">5.34</td><td class="">625</td><td class="">6.67</td><td class="">1911</td><td class="">54.4%</td><td class="">422</td><td class="">55.5%</td><td class="">565</td><td class="">53.3%</td><td class="">987</td><td class="">54.2%</td><td class="">1036</td><td class="">53.6%</td><td class="">0.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Practiced Tactics</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">8134</td><td class="">6.79</td><td class="">1678</td><td class="">8.80</td><td class="">4185</td><td class="">54.8%</td><td class="">913</td><td class="">54.4%</td><td class="">1474</td><td class="">56.2%</td><td class="">2387</td><td class="">55.6%</td><td class="">2098</td><td class="">54.3%</td><td class="">1.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Pressure Point</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">8665</td><td class="">9.30</td><td class="">1558</td><td class="">12.04</td><td class="">573</td><td class=""></td><td class="">106</td><td class=""></td><td class="">150</td><td class=""></td><td class="">256</td><td class="">55.5%</td><td class="">338</td><td class="">51.8%</td><td class="">3.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Prowling Felidar</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">6357</td><td class="">4.52</td><td class="">805</td><td class="">6.43</td><td class="">2368</td><td class="">50.6%</td><td class="">552</td><td class="">49.6%</td><td class="">834</td><td class="">49.4%</td><td class="">1386</td><td class="">49.5%</td><td class="">1200</td><td class="">51.2%</td><td class="">-1.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Resolute Strike</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">7673</td><td class="">6.06</td><td class="">616</td><td class="">9.53</td><td class="">1089</td><td class="">53.4%</td><td class="">204</td><td class="">54.9%</td><td class="">303</td><td class="">55.1%</td><td class="">507</td><td class="">55.0%</td><td class="">604</td><td class="">52.2%</td><td class="">2.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Sea Gate Banneret</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">7550</td><td class="">5.93</td><td class="">1041</td><td class="">8.25</td><td class="">3473</td><td class="">56.8%</td><td class="">655</td><td class="">57.6%</td><td class="">951</td><td class="">59.9%</td><td class="">1606</td><td class="">59.0%</td><td class="">1962</td><td class="">55.1%</td><td class="">3.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Sejiri Shelter</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">1796</td><td class="">3.16</td><td class="">349</td><td class="">4.19</td><td class="">1695</td><td class="">54.4%</td><td class="">320</td><td class="">52.5%</td><td class="">450</td><td class="">56.0%</td><td class="">770</td><td class="">54.5%</td><td class="">973</td><td class="">54.7%</td><td class="">-0.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Shepherd of Heroes</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">4219</td><td class="">3.12</td><td class="">1122</td><td class="">3.84</td><td class="">4178</td><td class="">55.1%</td><td class="">897</td><td class="">54.2%</td><td class="">1639</td><td class="">60.5%</td><td class="">2536</td><td class="">58.3%</td><td class="">2098</td><td class="">52.8%</td><td class="">5.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Skyclave Apparition</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">R</td><td class="">186</td><td class="">1.41</td><td class="">112</td><td class="">1.47</td><td class="">484</td><td class=""></td><td class="">87</td><td class=""></td><td class="">150</td><td class=""></td><td class="">237</td><td class="">55.7%</td><td class="">261</td><td class="">53.3%</td><td class="">2.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Skyclave Cleric</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">U</td><td class="">2284</td><td class="">3.96</td><td class="">415</td><td class="">5.35</td><td class="">1923</td><td class="">53.6%</td><td class="">378</td><td class="">52.1%</td><td class="">484</td><td class="">52.7%</td><td class="">862</td><td class="">52.4%</td><td class="">1102</td><td class="">54.6%</td><td class="">-2.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Squad Commander</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">R</td><td class="">208</td><td class="">1.45</td><td class="">141</td><td class="">1.37</td><td class="">714</td><td class=""></td><td class="">130</td><td class=""></td><td class="">179</td><td class=""></td><td class="">309</td><td class="">61.5%</td><td class="">410</td><td class="">56.3%</td><td class="">5.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Smite the Monstrous</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">7937</td><td class="">6.96</td><td class="">970</td><td class="">9.97</td><td class="">1587</td><td class="">50.5%</td><td class="">268</td><td class="">53.0%</td><td class="">403</td><td class="">51.4%</td><td class="">671</td><td class="">52.0%</td><td class="">933</td><td class="">49.6%</td><td class="">2.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Tazeem Raptor</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">W</td><td class="">C</td><td class="">6218</td><td class="">4.53</td><td class="">673</td><td class="">6.60</td><td class="">2008</td><td class="">50.8%</td><td class="">419</td><td class="">49.4%</td><td class="">644</td><td class="">49.8%</td><td class="">1063</td><td class="">49.7%</td><td class="">1068</td><td class="">51.3%</td><td class="">-1.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Tazri, Beacon of Unity</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WUBRG</td><td class="">M</td><td class="">73</td><td class="">1.14</td><td class="">54</td><td class="">1.09</td><td class="">257</td><td class=""></td><td class="">45</td><td class=""></td><td class="">67</td><td class=""></td><td class="">112</td><td class=""></td><td class="">152</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Anticognition</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">7528</td><td class="">6.00</td><td class="">790</td><td class="">8.66</td><td class="">1726</td><td class="">54.6%</td><td class="">354</td><td class="">57.3%</td><td class="">595</td><td class="">55.1%</td><td class="">949</td><td class="">56.0%</td><td class="">891</td><td class="">53.0%</td><td class="">3.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Beyeen Veil</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">2122</td><td class="">3.74</td><td class="">228</td><td class="">5.57</td><td class="">988</td><td class="">54.4%</td><td class="">189</td><td class=""></td><td class="">309</td><td class="">55.7%</td><td class="">498</td><td class="">54.6%</td><td class="">507</td><td class="">54.6%</td><td class="">-0.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Bubble Snare</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">3952</td><td class="">2.96</td><td class="">867</td><td class="">3.87</td><td class="">3660</td><td class="">55.5%</td><td class="">811</td><td class="">56.1%</td><td class="">1337</td><td class="">59.2%</td><td class="">2148</td><td class="">58.0%</td><td class="">1774</td><td class="">53.3%</td><td class="">4.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Cascade Seer</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">8489</td><td class="">7.72</td><td class="">1550</td><td class="">10.19</td><td class="">2402</td><td class="">51.6%</td><td class="">468</td><td class="">49.4%</td><td class="">926</td><td class="">50.1%</td><td class="">1394</td><td class="">49.9%</td><td class="">1174</td><td class="">53.0%</td><td class="">-3.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Charix, the Raging Isle</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">R</td><td class="">272</td><td class="">1.79</td><td class="">143</td><td class="">1.93</td><td class="">599</td><td class=""></td><td class="">110</td><td class=""></td><td class="">195</td><td class=""></td><td class="">305</td><td class="">49.8%</td><td class="">313</td><td class="">52.1%</td><td class="">-2.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Chilling Trap</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">8031</td><td class="">6.85</td><td class="">1229</td><td class="">9.43</td><td class="">2257</td><td class="">55.5%</td><td class="">509</td><td class="">58.3%</td><td class="">989</td><td class="">58.1%</td><td class="">1498</td><td class="">58.2%</td><td class="">1025</td><td class="">53.3%</td><td class="">4.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Cleric of Chill Depths</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">8394</td><td class="">7.78</td><td class="">1500</td><td class="">10.31</td><td class="">2230</td><td class="">52.5%</td><td class="">507</td><td class="">50.7%</td><td class="">779</td><td class="">51.9%</td><td class="">1286</td><td class="">51.4%</td><td class="">1102</td><td class="">53.5%</td><td class="">-2.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Concerted Defense</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">2998</td><td class="">7.91</td><td class="">503</td><td class="">10.73</td><td class="">211</td><td class=""></td><td class="">43</td><td class=""></td><td class="">65</td><td class=""></td><td class="">108</td><td class=""></td><td class="">107</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Confounding Conundrum</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">R</td><td class="">548</td><td class="">3.38</td><td class="">78</td><td class="">4.13</td><td class="">11</td><td class=""></td><td class="">0</td><td class=""></td><td class="">3</td><td class=""></td><td class="">3</td><td class=""></td><td class="">8</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Coralhelm Chronicler</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">R</td><td class="">310</td><td class="">1.90</td><td class="">134</td><td class="">1.94</td><td class="">561</td><td class=""></td><td class="">105</td><td class=""></td><td class="">173</td><td class=""></td><td class="">278</td><td class="">57.2%</td><td class="">287</td><td class="">54.7%</td><td class="">2.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Cunning Geysermage</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">6177</td><td class="">4.38</td><td class="">1373</td><td class="">5.63</td><td class="">4944</td><td class="">54.8%</td><td class="">1124</td><td class="">53.1%</td><td class="">2210</td><td class="">59.4%</td><td class="">3334</td><td class="">57.3%</td><td class="">2242</td><td class="">51.8%</td><td class="">5.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Deliberate</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">8418</td><td class="">7.86</td><td class="">1205</td><td class="">10.92</td><td class="">1170</td><td class="">55.0%</td><td class="">248</td><td class="">54.4%</td><td class="">389</td><td class="">54.8%</td><td class="">637</td><td class="">54.6%</td><td class="">599</td><td class="">54.9%</td><td class="">-0.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Expedition Diviner</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">6243</td><td class="">4.38</td><td class="">1263</td><td class="">5.82</td><td class="">4588</td><td class="">54.5%</td><td class="">1128</td><td class="">56.9%</td><td class="">2077</td><td class="">56.5%</td><td class="">3205</td><td class="">56.6%</td><td class="">2031</td><td class="">52.5%</td><td class="">4.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Field Research</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">6394</td><td class="">4.61</td><td class="">1039</td><td class="">6.20</td><td class="">3943</td><td class="">55.2%</td><td class="">841</td><td class="">54.5%</td><td class="">1570</td><td class="">57.5%</td><td class="">2411</td><td class="">56.4%</td><td class="">1957</td><td class="">54.6%</td><td class="">1.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Glacial Grasp</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">7424</td><td class="">5.72</td><td class="">1388</td><td class="">7.62</td><td class="">3887</td><td class="">54.3%</td><td class="">880</td><td class="">53.8%</td><td class="">1721</td><td class="">57.5%</td><td class="">2601</td><td class="">56.2%</td><td class="">1811</td><td class="">52.7%</td><td class="">3.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Glasspool Mimic</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">R</td><td class="">224</td><td class="">1.43</td><td class="">127</td><td class="">1.57</td><td class="">625</td><td class=""></td><td class="">116</td><td class=""></td><td class="">187</td><td class=""></td><td class="">303</td><td class="">54.5%</td><td class="">335</td><td class="">60.9%</td><td class="">-6.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Inscription of Insight</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">R</td><td class="">181</td><td class="">1.27</td><td class="">105</td><td class="">1.27</td><td class="">512</td><td class=""></td><td class="">80</td><td class=""></td><td class="">192</td><td class=""></td><td class="">272</td><td class="">61.4%</td><td class="">264</td><td class="">48.5%</td><td class="">12.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Into the Roil</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">4065</td><td class="">2.99</td><td class="">1012</td><td class="">3.74</td><td class="">4135</td><td class="">55.7%</td><td class="">971</td><td class="">54.4%</td><td class="">1833</td><td class="">60.4%</td><td class="">2804</td><td class="">58.3%</td><td class="">1934</td><td class="">53.5%</td><td class="">4.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Jace, Mirror Mage</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">M</td><td class="">71</td><td class="">1.07</td><td class="">48</td><td class="">1.06</td><td class="">199</td><td class=""></td><td class="">28</td><td class=""></td><td class="">55</td><td class=""></td><td class="">83</td><td class=""></td><td class="">118</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Jwari Disruption</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">2345</td><td class="">4.00</td><td class="">440</td><td class="">5.45</td><td class="">2111</td><td class="">55.1%</td><td class="">421</td><td class="">58.9%</td><td class="">585</td><td class="">53.5%</td><td class="">1006</td><td class="">55.8%</td><td class="">1137</td><td class="">54.6%</td><td class="">1.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Living Tempest</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">7650</td><td class="">6.01</td><td class="">565</td><td class="">9.81</td><td class="">849</td><td class="">52.8%</td><td class="">136</td><td class=""></td><td class="">285</td><td class="">55.1%</td><td class="">421</td><td class="">55.1%</td><td class="">455</td><td class="">49.9%</td><td class="">5.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Lullmage's Domination</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">1296</td><td class="">2.62</td><td class="">474</td><td class="">2.96</td><td class="">2324</td><td class="">58.1%</td><td class="">452</td><td class="">59.3%</td><td class="">888</td><td class="">64.9%</td><td class="">1340</td><td class="">63.0%</td><td class="">1183</td><td class="">54.5%</td><td class="">8.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Maddening Cacophony</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">R</td><td class="">350</td><td class="">2.37</td><td class="">106</td><td class="">2.63</td><td class="">335</td><td class=""></td><td class="">67</td><td class=""></td><td class="">105</td><td class=""></td><td class="">172</td><td class=""></td><td class="">176</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Master of Winds</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">R</td><td class="">166</td><td class="">1.07</td><td class="">105</td><td class="">1.05</td><td class="">465</td><td class=""></td><td class="">83</td><td class=""></td><td class="">145</td><td class=""></td><td class="">228</td><td class="">59.6%</td><td class="">250</td><td class="">48.8%</td><td class="">10.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Merfolk Falconer</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">1329</td><td class="">2.79</td><td class="">392</td><td class="">3.25</td><td class="">1783</td><td class="">53.6%</td><td class="">293</td><td class="">55.6%</td><td class="">678</td><td class="">55.2%</td><td class="">971</td><td class="">55.3%</td><td class="">923</td><td class="">51.0%</td><td class="">4.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Merfolk Windrobber</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">1953</td><td class="">3.61</td><td class="">337</td><td class="">4.66</td><td class="">1476</td><td class="">56.2%</td><td class="">274</td><td class="">58.4%</td><td class="">552</td><td class="">58.9%</td><td class="">826</td><td class="">58.7%</td><td class="">743</td><td class="">53.8%</td><td class="">4.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Negate</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">8384</td><td class="">7.81</td><td class="">972</td><td class="">11.03</td><td class="">633</td><td class=""></td><td class="">104</td><td class=""></td><td class="">202</td><td class="">44.6%</td><td class="">306</td><td class="">44.1%</td><td class="">346</td><td class="">48.0%</td><td class="">-3.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Nimble Trapfinder</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">R</td><td class="">274</td><td class="">1.84</td><td class="">120</td><td class="">1.82</td><td class="">479</td><td class=""></td><td class="">78</td><td class=""></td><td class="">141</td><td class=""></td><td class="">219</td><td class="">53.9%</td><td class="">268</td><td class="">48.5%</td><td class="">5.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Risen Riptide</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">7634</td><td class="">5.73</td><td class="">1012</td><td class="">7.92</td><td class="">2200</td><td class="">53.3%</td><td class="">620</td><td class="">49.7%</td><td class="">1073</td><td class="">51.9%</td><td class="">1693</td><td class="">51.1%</td><td class="">859</td><td class="">56.0%</td><td class="">-4.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Roost of Drakes</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">1337</td><td class="">2.61</td><td class="">620</td><td class="">2.74</td><td class="">2620</td><td class="">56.4%</td><td class="">587</td><td class="">62.0%</td><td class="">955</td><td class="">66.0%</td><td class="">1542</td><td class="">64.5%</td><td class="">1236</td><td class="">48.5%</td><td class="">15.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Ruin Crab</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">1413</td><td class="">2.84</td><td class="">567</td><td class="">2.97</td><td class="">2364</td><td class="">56.8%</td><td class="">573</td><td class="">66.0%</td><td class="">828</td><td class="">59.9%</td><td class="">1401</td><td class="">62.4%</td><td class="">1153</td><td class="">52.2%</td><td class="">10.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Sea Gate Restoration</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">M</td><td class="">92</td><td class="">1.40</td><td class="">29</td><td class="">1.55</td><td class="">80</td><td class=""></td><td class="">13</td><td class=""></td><td class="">24</td><td class=""></td><td class="">37</td><td class=""></td><td class="">43</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Sea Gate Stormcaller</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">M</td><td class="">108</td><td class="">1.32</td><td class="">52</td><td class="">1.35</td><td class="">164</td><td class=""></td><td class="">32</td><td class=""></td><td class="">46</td><td class=""></td><td class="">78</td><td class=""></td><td class="">87</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Seafloor Stalker</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">7577</td><td class="">5.90</td><td class="">1476</td><td class="">7.86</td><td class="">4314</td><td class="">54.9%</td><td class="">1069</td><td class="">54.8%</td><td class="">1778</td><td class="">55.5%</td><td class="">2847</td><td class="">55.2%</td><td class="">1953</td><td class="">54.3%</td><td class="">0.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Shell Shield</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">8209</td><td class="">7.39</td><td class="">1327</td><td class="">9.91</td><td class="">2453</td><td class="">54.3%</td><td class="">453</td><td class="">53.4%</td><td class="">913</td><td class="">54.3%</td><td class="">1366</td><td class="">54.0%</td><td class="">1220</td><td class="">54.9%</td><td class="">-0.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Silundi Vision</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">2290</td><td class="">3.97</td><td class="">261</td><td class="">6.02</td><td class="">1056</td><td class="">54.9%</td><td class="">200</td><td class="">56.0%</td><td class="">316</td><td class="">54.7%</td><td class="">516</td><td class="">55.2%</td><td class="">569</td><td class="">55.0%</td><td class="">0.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Skyclave Plunder</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">2727</td><td class="">5.68</td><td class="">554</td><td class="">7.68</td><td class="">1596</td><td class="">53.4%</td><td class="">248</td><td class="">51.6%</td><td class="">505</td><td class="">58.4%</td><td class="">753</td><td class="">56.2%</td><td class="">888</td><td class="">51.6%</td><td class="">4.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Skyclave Squid</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">7820</td><td class="">6.38</td><td class="">1055</td><td class="">9.18</td><td class="">2414</td><td class="">54.7%</td><td class="">529</td><td class="">58.4%</td><td class="">845</td><td class="">53.3%</td><td class="">1374</td><td class="">55.2%</td><td class="">1235</td><td class="">54.4%</td><td class="">0.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Sure-Footed Infiltrator</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">1930</td><td class="">3.65</td><td class="">539</td><td class="">4.38</td><td class="">2183</td><td class="">55.0%</td><td class="">414</td><td class="">53.9%</td><td class="">789</td><td class="">56.0%</td><td class="">1203</td><td class="">55.3%</td><td class="">1136</td><td class="">54.8%</td><td class="">0.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Tazeem Roilmage</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">7180</td><td class="">5.36</td><td class="">1922</td><td class="">6.58</td><td class="">6193</td><td class="">55.3%</td><td class="">1533</td><td class="">53.2%</td><td class="">2904</td><td class="">58.2%</td><td class="">4437</td><td class="">56.5%</td><td class="">2728</td><td class="">54.1%</td><td class="">2.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Thieving Skydiver</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">R</td><td class="">248</td><td class="">1.69</td><td class="">112</td><td class="">1.80</td><td class="">501</td><td class=""></td><td class="">86</td><td class=""></td><td class="">157</td><td class=""></td><td class="">243</td><td class="">57.6%</td><td class="">276</td><td class="">53.6%</td><td class="">4.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Umara Wizard</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">1518</td><td class="">2.67</td><td class="">364</td><td class="">3.49</td><td class="">1695</td><td class="">53.6%</td><td class="">312</td><td class="">53.2%</td><td class="">527</td><td class="">57.5%</td><td class="">839</td><td class="">55.9%</td><td class="">928</td><td class="">52.6%</td><td class="">3.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Windrider Wizard</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">U</td><td class="">1367</td><td class="">2.88</td><td class="">339</td><td class="">3.46</td><td class="">1576</td><td class="">53.5%</td><td class="">339</td><td class="">54.9%</td><td class="">515</td><td class="">55.3%</td><td class="">854</td><td class="">55.2%</td><td class="">798</td><td class="">51.9%</td><td class="">3.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Zulaport Duelist</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">U</td><td class="">C</td><td class="">8446</td><td class="">7.67</td><td class="">2015</td><td class="">9.39</td><td class="">4291</td><td class="">56.3%</td><td class="">1156</td><td class="">58.8%</td><td class="">1851</td><td class="">57.0%</td><td class="">3007</td><td class="">57.7%</td><td class="">1876</td><td class="">54.5%</td><td class="">3.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Acquisitions Expert</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">2123</td><td class="">4.05</td><td class="">796</td><td class="">4.89</td><td class="">3574</td><td class="">56.7%</td><td class="">795</td><td class="">60.0%</td><td class="">1145</td><td class="">59.3%</td><td class="">1940</td><td class="">59.6%</td><td class="">1858</td><td class="">54.9%</td><td class="">4.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Agadeem's Awakening</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">M</td><td class="">74</td><td class="">1.09</td><td class="">44</td><td class="">1.14</td><td class="">188</td><td class=""></td><td class="">35</td><td class=""></td><td class="">68</td><td class=""></td><td class="">103</td><td class=""></td><td class="">91</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Blackbloom Rogue</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">1355</td><td class="">2.39</td><td class="">409</td><td class="">2.88</td><td class="">2152</td><td class="">55.1%</td><td class="">443</td><td class="">55.3%</td><td class="">599</td><td class="">58.8%</td><td class="">1042</td><td class="">57.3%</td><td class="">1181</td><td class="">53.2%</td><td class="">4.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Blood Beckoning</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">7727</td><td class="">5.96</td><td class="">1614</td><td class="">7.90</td><td class="">5753</td><td class="">55.6%</td><td class="">1051</td><td class="">53.5%</td><td class="">1897</td><td class="">57.3%</td><td class="">2948</td><td class="">55.9%</td><td class="">3067</td><td class="">55.7%</td><td class="">0.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Blood Price</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">8132</td><td class="">7.64</td><td class="">1354</td><td class="">10.43</td><td class="">1880</td><td class="">52.9%</td><td class="">322</td><td class="">49.1%</td><td class="">531</td><td class="">52.2%</td><td class="">853</td><td class="">51.0%</td><td class="">1060</td><td class="">54.2%</td><td class="">-3.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Bloodchief's Thirst</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">917</td><td class="">1.97</td><td class="">463</td><td class="">2.17</td><td class="">2254</td><td class="">54.2%</td><td class="">397</td><td class="">52.6%</td><td class="">708</td><td class="">54.8%</td><td class="">1105</td><td class="">54.0%</td><td class="">1233</td><td class="">54.3%</td><td class="">-0.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Coveted Prize</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">R</td><td class="">379</td><td class="">2.40</td><td class="">77</td><td class="">2.70</td><td class="">74</td><td class=""></td><td class="">9</td><td class=""></td><td class="">18</td><td class=""></td><td class="">27</td><td class=""></td><td class="">47</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Deadly Alliance</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">2917</td><td class="">2.25</td><td class="">1047</td><td class="">2.65</td><td class="">4620</td><td class="">55.5%</td><td class="">954</td><td class="">55.7%</td><td class="">1645</td><td class="">59.1%</td><td class="">2599</td><td class="">57.9%</td><td class="">2370</td><td class="">53.0%</td><td class="">4.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Demon's Disciple</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">2177</td><td class="">4.15</td><td class="">380</td><td class="">5.76</td><td class="">1434</td><td class="">54.0%</td><td class="">267</td><td class="">53.2%</td><td class="">449</td><td class="">55.9%</td><td class="">716</td><td class="">54.9%</td><td class="">801</td><td class="">53.3%</td><td class="">1.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Drana, the Last Bloodchief</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">M</td><td class="">85</td><td class="">1.00</td><td class="">71</td><td class="">1.00</td><td class="">374</td><td class=""></td><td class="">53</td><td class=""></td><td class="">116</td><td class=""></td><td class="">169</td><td class=""></td><td class="">217</td><td class="">53.0%</td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Drana's Silencer</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">7614</td><td class="">5.93</td><td class="">909</td><td class="">8.74</td><td class="">1792</td><td class="">53.8%</td><td class="">317</td><td class="">52.1%</td><td class="">603</td><td class="">52.7%</td><td class="">920</td><td class="">52.5%</td><td class="">939</td><td class="">54.7%</td><td class="">-2.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Dreadwurm</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">8387</td><td class="">7.61</td><td class="">1444</td><td class="">10.33</td><td class="">2483</td><td class="">53.4%</td><td class="">427</td><td class="">52.2%</td><td class="">818</td><td class="">53.8%</td><td class="">1245</td><td class="">53.3%</td><td class="">1366</td><td class="">53.6%</td><td class="">-0.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Expedition Skulker</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">6241</td><td class="">4.57</td><td class="">1009</td><td class="">6.44</td><td class="">3850</td><td class="">56.3%</td><td class="">824</td><td class="">55.3%</td><td class="">1403</td><td class="">55.6%</td><td class="">2227</td><td class="">55.5%</td><td class="">1972</td><td class="">57.3%</td><td class="">-1.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Feed the Swarm</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">4885</td><td class="">3.49</td><td class="">1499</td><td class="">4.28</td><td class="">6132</td><td class="">55.6%</td><td class="">1375</td><td class="">56.4%</td><td class="">2118</td><td class="">56.5%</td><td class="">3493</td><td class="">56.5%</td><td class="">3077</td><td class="">55.0%</td><td class="">1.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Ghastly Gloomhunter</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">6553</td><td class="">4.64</td><td class="">1410</td><td class="">6.19</td><td class="">5109</td><td class="">54.3%</td><td class="">1236</td><td class="">56.0%</td><td class="">1917</td><td class="">55.8%</td><td class="">3153</td><td class="">55.9%</td><td class="">2569</td><td class="">52.4%</td><td class="">3.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Guul Draz Mucklord</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">8398</td><td class="">7.79</td><td class="">1090</td><td class="">11.15</td><td class="">952</td><td class="">51.2%</td><td class="">192</td><td class=""></td><td class="">360</td><td class="">53.3%</td><td class="">552</td><td class="">52.5%</td><td class="">485</td><td class="">49.5%</td><td class="">3.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Hagra Constrictor</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">8377</td><td class="">7.76</td><td class="">1228</td><td class="">10.83</td><td class="">1087</td><td class="">51.4%</td><td class="">268</td><td class="">48.1%</td><td class="">360</td><td class="">54.2%</td><td class="">628</td><td class="">51.6%</td><td class="">555</td><td class="">51.4%</td><td class="">0.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Hagra Mauling</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">R</td><td class="">219</td><td class="">1.50</td><td class="">154</td><td class="">1.51</td><td class="">856</td><td class="">59.1%</td><td class="">159</td><td class=""></td><td class="">244</td><td class="">62.3%</td><td class="">403</td><td class="">61.8%</td><td class="">476</td><td class="">57.1%</td><td class="">4.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Highborn Vampire</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">8460</td><td class="">8.43</td><td class="">1507</td><td class="">11.25</td><td class="">1324</td><td class="">52.6%</td><td class="">219</td><td class="">61.6%</td><td class="">446</td><td class="">50.4%</td><td class="">665</td><td class="">54.1%</td><td class="">721</td><td class="">50.8%</td><td class="">3.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Inscription of Ruin</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">R</td><td class="">224</td><td class="">1.47</td><td class="">138</td><td class="">1.44</td><td class="">688</td><td class=""></td><td class="">120</td><td class=""></td><td class="">184</td><td class=""></td><td class="">304</td><td class="">59.2%</td><td class="">398</td><td class="">52.0%</td><td class="">7.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Lithoform Blight</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">3144</td><td class="">9.26</td><td class="">740</td><td class="">11.44</td><td class="">206</td><td class=""></td><td class="">34</td><td class=""></td><td class="">74</td><td class=""></td><td class="">108</td><td class=""></td><td class="">107</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Malakir Blood-Priest</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">5821</td><td class="">4.12</td><td class="">1421</td><td class="">5.40</td><td class="">5260</td><td class="">56.1%</td><td class="">1283</td><td class="">56.5%</td><td class="">2068</td><td class="">57.8%</td><td class="">3351</td><td class="">57.3%</td><td class="">2569</td><td class="">54.5%</td><td class="">2.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Malakir Rebirth</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">2089</td><td class="">3.67</td><td class="">418</td><td class="">4.91</td><td class="">2157</td><td class="">56.3%</td><td class="">415</td><td class="">55.9%</td><td class="">543</td><td class="">56.9%</td><td class="">958</td><td class="">56.5%</td><td class="">1219</td><td class="">56.1%</td><td class="">0.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Marauding Blight-Priest</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">7266</td><td class="">5.38</td><td class="">1681</td><td class="">6.51</td><td class="">4596</td><td class="">54.6%</td><td class="">1322</td><td class="">54.2%</td><td class="">2251</td><td class="">55.8%</td><td class="">3573</td><td class="">55.2%</td><td class="">1937</td><td class="">53.6%</td><td class="">1.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Mind Carver</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">2610</td><td class="">5.51</td><td class="">317</td><td class="">7.89</td><td class="">715</td><td class=""></td><td class="">99</td><td class=""></td><td class="">186</td><td class=""></td><td class="">285</td><td class="">52.3%</td><td class="">433</td><td class="">58.2%</td><td class="">-5.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Mind Drain</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">7600</td><td class="">5.97</td><td class="">1186</td><td class="">8.38</td><td class="">3351</td><td class="">55.7%</td><td class="">638</td><td class="">55.2%</td><td class="">1041</td><td class="">58.3%</td><td class="">1679</td><td class="">57.1%</td><td class="">1776</td><td class="">54.7%</td><td class="">2.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Nighthawk Scavenger</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">R</td><td class="">174</td><td class="">1.25</td><td class="">135</td><td class="">1.24</td><td class="">783</td><td class=""></td><td class="">132</td><td class=""></td><td class="">286</td><td class="">67.8%</td><td class="">418</td><td class="">66.3%</td><td class="">430</td><td class="">55.6%</td><td class="">10.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Nimana Skitter-Sneak</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">7231</td><td class="">5.52</td><td class="">805</td><td class="">8.27</td><td class="">2447</td><td class="">57.0%</td><td class="">454</td><td class="">61.5%</td><td class="">876</td><td class="">56.3%</td><td class="">1330</td><td class="">58.0%</td><td class="">1295</td><td class="">56.0%</td><td class="">2.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Nimana Skydancer</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">6644</td><td class="">5.05</td><td class="">1458</td><td class="">6.65</td><td class="">5037</td><td class="">55.8%</td><td class="">1232</td><td class="">54.0%</td><td class="">1964</td><td class="">56.1%</td><td class="">3196</td><td class="">55.3%</td><td class="">2450</td><td class="">56.2%</td><td class="">-0.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Nullpriest of Oblivion</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">R</td><td class="">160</td><td class="">1.07</td><td class="">118</td><td class="">1.08</td><td class="">644</td><td class=""></td><td class="">128</td><td class=""></td><td class="">206</td><td class="">62.6%</td><td class="">334</td><td class="">60.8%</td><td class="">341</td><td class="">51.6%</td><td class="">9.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Oblivion's Hunger</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">8390</td><td class="">7.70</td><td class="">972</td><td class="">11.01</td><td class="">730</td><td class=""></td><td class="">138</td><td class=""></td><td class="">196</td><td class=""></td><td class="">334</td><td class="">47.6%</td><td class="">406</td><td class="">51.2%</td><td class="">-3.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Pelakka Predation</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">2152</td><td class="">3.83</td><td class="">335</td><td class="">5.46</td><td class="">1543</td><td class="">55.5%</td><td class="">316</td><td class="">61.7%</td><td class="">386</td><td class="">49.0%</td><td class="">702</td><td class="">54.7%</td><td class="">864</td><td class="">56.7%</td><td class="">-2.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Scion of the Swarm</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">2042</td><td class="">4.03</td><td class="">593</td><td class="">4.64</td><td class="">2281</td><td class="">54.1%</td><td class="">437</td><td class="">60.0%</td><td class="">814</td><td class="">57.6%</td><td class="">1251</td><td class="">58.4%</td><td class="">1201</td><td class="">50.9%</td><td class="">7.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Scourge of the Skyclaves</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">M</td><td class="">76</td><td class="">1.00</td><td class="">48</td><td class="">1.00</td><td class="">234</td><td class=""></td><td class="">44</td><td class=""></td><td class="">59</td><td class=""></td><td class="">103</td><td class=""></td><td class="">139</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Shadow Stinger</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">2335</td><td class="">4.46</td><td class="">627</td><td class="">5.52</td><td class="">2333</td><td class="">56.2%</td><td class="">498</td><td class="">57.2%</td><td class="">902</td><td class="">58.5%</td><td class="">1400</td><td class="">58.1%</td><td class="">1168</td><td class="">54.7%</td><td class="">3.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Shadows' Verdict</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">R</td><td class="">289</td><td class="">1.80</td><td class="">88</td><td class="">1.89</td><td class="">281</td><td class=""></td><td class="">50</td><td class=""></td><td class="">66</td><td class=""></td><td class="">116</td><td class=""></td><td class="">169</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Skyclave Shade</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">R</td><td class="">227</td><td class="">1.56</td><td class="">165</td><td class="">1.60</td><td class="">828</td><td class="">56.6%</td><td class="">146</td><td class=""></td><td class="">225</td><td class="">53.8%</td><td class="">371</td><td class="">53.6%</td><td class="">467</td><td class="">58.2%</td><td class="">-4.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Skyclave Shadowcat</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">2295</td><td class="">4.57</td><td class="">296</td><td class="">6.43</td><td class="">868</td><td class="">50.7%</td><td class="">152</td><td class=""></td><td class="">277</td><td class="">54.2%</td><td class="">429</td><td class="">53.4%</td><td class="">478</td><td class="">48.7%</td><td class="">4.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Soul Shatter</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">R</td><td class="">279</td><td class="">2.02</td><td class="">178</td><td class="">2.07</td><td class="">817</td><td class="">55.4%</td><td class="">141</td><td class=""></td><td class="">217</td><td class="">53.5%</td><td class="">358</td><td class="">52.8%</td><td class="">469</td><td class="">56.5%</td><td class="">-3.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Subtle Strike</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">5819</td><td class="">4.19</td><td class="">863</td><td class="">5.89</td><td class="">3673</td><td class="">55.8%</td><td class="">701</td><td class="">57.1%</td><td class="">1079</td><td class="">58.4%</td><td class="">1780</td><td class="">57.9%</td><td class="">2005</td><td class="">54.6%</td><td class="">3.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Taborax, Hope's Demise</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">R</td><td class="">239</td><td class="">1.57</td><td class="">162</td><td class="">1.54</td><td class="">848</td><td class="">53.8%</td><td class="">140</td><td class=""></td><td class="">268</td><td class="">54.9%</td><td class="">408</td><td class="">56.4%</td><td class="">474</td><td class="">51.9%</td><td class="">4.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Thwart the Grave</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">1440</td><td class="">2.78</td><td class="">531</td><td class="">3.18</td><td class="">2534</td><td class="">55.1%</td><td class="">437</td><td class="">53.1%</td><td class="">706</td><td class="">57.9%</td><td class="">1143</td><td class="">56.1%</td><td class="">1443</td><td class="">54.2%</td><td class="">1.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Vanquish the Weak</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">C</td><td class="">4439</td><td class="">3.09</td><td class="">1202</td><td class="">3.95</td><td class="">5059</td><td class="">55.4%</td><td class="">1098</td><td class="">56.6%</td><td class="">1679</td><td class="">57.5%</td><td class="">2777</td><td class="">57.1%</td><td class="">2603</td><td class="">53.7%</td><td class="">3.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Zof Consumption</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">B</td><td class="">U</td><td class="">2556</td><td class="">4.46</td><td class="">563</td><td class="">6.06</td><td class="">2668</td><td class="">53.8%</td><td class="">513</td><td class="">50.5%</td><td class="">727</td><td class="">52.0%</td><td class="">1240</td><td class="">51.4%</td><td class="">1481</td><td class="">55.6%</td><td class="">-4.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Akoum Hellhound</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">7171</td><td class="">5.59</td><td class="">497</td><td class="">8.34</td><td class="">814</td><td class="">48.3%</td><td class="">221</td><td class="">52.9%</td><td class="">304</td><td class="">46.7%</td><td class="">525</td><td class="">49.3%</td><td class="">390</td><td class="">46.7%</td><td class="">2.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Akoum Warrior</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">2268</td><td class="">3.98</td><td class="">520</td><td class="">5.16</td><td class="">2287</td><td class="">54.8%</td><td class="">441</td><td class="">53.1%</td><td class="">644</td><td class="">55.7%</td><td class="">1085</td><td class="">54.7%</td><td class="">1305</td><td class="">55.2%</td><td class="">-0.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Ardent Electromancer</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">7689</td><td class="">6.03</td><td class="">1298</td><td class="">7.64</td><td class="">3773</td><td class="">57.4%</td><td class="">1010</td><td class="">58.3%</td><td class="">1466</td><td class="">57.5%</td><td class="">2476</td><td class="">57.8%</td><td class="">1770</td><td class="">56.8%</td><td class="">1.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Cinderclasm</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">2606</td><td class="">5.30</td><td class="">375</td><td class="">7.62</td><td class="">675</td><td class=""></td><td class="">101</td><td class=""></td><td class="">171</td><td class=""></td><td class="">272</td><td class="">45.6%</td><td class="">415</td><td class="">54.5%</td><td class="">-8.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Cleansing Wildfire</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">8618</td><td class="">9.52</td><td class="">1445</td><td class="">12.37</td><td class="">539</td><td class=""></td><td class="">115</td><td class=""></td><td class="">175</td><td class=""></td><td class="">290</td><td class="">44.5%</td><td class="">281</td><td class="">44.5%</td><td class="">-0.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Expedition Champion</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">6773</td><td class="">4.98</td><td class="">879</td><td class="">6.90</td><td class="">2887</td><td class="">57.2%</td><td class="">690</td><td class="">56.5%</td><td class="">931</td><td class="">55.2%</td><td class="">1621</td><td class="">55.8%</td><td class="">1509</td><td class="">57.8%</td><td class="">-2.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Fireblade Charger</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">2114</td><td class="">4.07</td><td class="">331</td><td class="">5.42</td><td class="">1246</td><td class="">56.8%</td><td class="">278</td><td class="">59.4%</td><td class="">332</td><td class="">57.8%</td><td class="">610</td><td class="">58.5%</td><td class="">686</td><td class="">55.8%</td><td class="">2.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Fissure Wizard</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">7614</td><td class="">6.04</td><td class="">1098</td><td class="">8.45</td><td class="">3485</td><td class="">56.3%</td><td class="">807</td><td class="">56.6%</td><td class="">1143</td><td class="">55.6%</td><td class="">1950</td><td class="">56.0%</td><td class="">1794</td><td class="">56.6%</td><td class="">-0.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Goma Fada Vanguard</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">2016</td><td class="">4.01</td><td class="">418</td><td class="">5.03</td><td class="">1759</td><td class="">59.0%</td><td class="">402</td><td class="">57.7%</td><td class="">489</td><td class="">57.7%</td><td class="">891</td><td class="">57.7%</td><td class="">946</td><td class="">60.4%</td><td class="">-2.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Grotag Bug-Catcher</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">6706</td><td class="">4.88</td><td class="">1304</td><td class="">5.95</td><td class="">4059</td><td class="">57.4%</td><td class="">1207</td><td class="">62.7%</td><td class="">1651</td><td class="">55.6%</td><td class="">2858</td><td class="">58.6%</td><td class="">1799</td><td class="">56.3%</td><td class="">2.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Grotag Night-Runner</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">2390</td><td class="">4.90</td><td class="">529</td><td class="">6.28</td><td class="">1939</td><td class="">56.5%</td><td class="">415</td><td class="">56.4%</td><td class="">536</td><td class="">53.2%</td><td class="">951</td><td class="">54.6%</td><td class="">1075</td><td class="">58.3%</td><td class="">-3.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Inordinate Rage</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">8277</td><td class="">7.83</td><td class="">1164</td><td class="">10.57</td><td class="">2141</td><td class="">55.3%</td><td class="">384</td><td class="">53.4%</td><td class="">602</td><td class="">52.2%</td><td class="">986</td><td class="">52.6%</td><td class="">1228</td><td class="">56.8%</td><td class="">-4.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Kargan Intimidator</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">R</td><td class="">301</td><td class="">1.93</td><td class="">149</td><td class="">1.86</td><td class="">680</td><td class=""></td><td class="">116</td><td class=""></td><td class="">168</td><td class=""></td><td class="">284</td><td class="">60.9%</td><td class="">407</td><td class="">56.0%</td><td class="">4.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Kazuul's Fury</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">2756</td><td class="">4.75</td><td class="">690</td><td class="">6.16</td><td class="">2870</td><td class="">55.3%</td><td class="">521</td><td class="">53.0%</td><td class="">817</td><td class="">56.4%</td><td class="">1338</td><td class="">55.1%</td><td class="">1650</td><td class="">56.2%</td><td class="">-1.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Leyline Tyrant</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">M</td><td class="">76</td><td class="">1.00</td><td class="">55</td><td class="">1.00</td><td class="">261</td><td class=""></td><td class="">44</td><td class=""></td><td class="">85</td><td class=""></td><td class="">129</td><td class=""></td><td class="">140</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Magmatic Channeler</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">R</td><td class="">300</td><td class="">1.91</td><td class="">155</td><td class="">1.92</td><td class="">625</td><td class=""></td><td class="">105</td><td class=""></td><td class="">135</td><td class=""></td><td class="">240</td><td class="">56.3%</td><td class="">393</td><td class="">59.5%</td><td class="">-3.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Molten Blast</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">7510</td><td class="">6.05</td><td class="">720</td><td class="">8.87</td><td class="">1494</td><td class="">54.3%</td><td class="">311</td><td class="">54.7%</td><td class="">446</td><td class="">52.0%</td><td class="">757</td><td class="">53.1%</td><td class="">791</td><td class="">55.5%</td><td class="">-2.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Moraug, Fury of Akoum</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">M</td><td class="">69</td><td class="">1.01</td><td class="">49</td><td class="">1.02</td><td class="">197</td><td class=""></td><td class="">27</td><td class=""></td><td class="">42</td><td class=""></td><td class="">69</td><td class=""></td><td class="">132</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Nahiri's Lithoforming</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">R</td><td class="">448</td><td class="">2.74</td><td class="">56</td><td class="">3.13</td><td class="">38</td><td class=""></td><td class="">10</td><td class=""></td><td class="">9</td><td class=""></td><td class="">19</td><td class=""></td><td class="">19</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Pyroclastic Hellion</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">7157</td><td class="">5.54</td><td class="">835</td><td class="">8.11</td><td class="">2336</td><td class="">54.5%</td><td class="">484</td><td class="">56.2%</td><td class="">777</td><td class="">54.2%</td><td class="">1261</td><td class="">55.0%</td><td class="">1229</td><td class="">53.8%</td><td class="">1.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Relic Robber</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">R</td><td class="">278</td><td class="">1.81</td><td class="">127</td><td class="">1.71</td><td class="">514</td><td class=""></td><td class="">90</td><td class=""></td><td class="">117</td><td class=""></td><td class="">207</td><td class="">51.7%</td><td class="">315</td><td class="">58.4%</td><td class="">-6.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Rockslide Sorcerer</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">1448</td><td class="">2.94</td><td class="">348</td><td class="">3.53</td><td class="">1488</td><td class="">54.8%</td><td class="">285</td><td class="">60.4%</td><td class="">446</td><td class="">54.9%</td><td class="">731</td><td class="">57.0%</td><td class="">825</td><td class="">53.2%</td><td class="">3.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Roil Eruption</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">3128</td><td class="">2.45</td><td class="">948</td><td class="">2.91</td><td class="">3786</td><td class="">57.3%</td><td class="">934</td><td class="">58.8%</td><td class="">1429</td><td class="">61.3%</td><td class="">2363</td><td class="">60.3%</td><td class="">1866</td><td class="">53.9%</td><td class="">6.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Roiling Vortex</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">R</td><td class="">476</td><td class="">2.61</td><td class="">65</td><td class="">3.17</td><td class="">61</td><td class=""></td><td class="">11</td><td class=""></td><td class="">12</td><td class=""></td><td class="">23</td><td class=""></td><td class="">38</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Scavenged Blade</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">8266</td><td class="">7.95</td><td class="">991</td><td class="">10.91</td><td class="">1190</td><td class="">55.2%</td><td class="">250</td><td class="">49.2%</td><td class="">285</td><td class="">46.0%</td><td class="">535</td><td class="">47.5%</td><td class="">691</td><td class="">60.5%</td><td class="">-13.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Scorch Rider</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">8443</td><td class="">7.83</td><td class="">1424</td><td class="">10.37</td><td class="">2603</td><td class="">56.1%</td><td class="">554</td><td class="">50.4%</td><td class="">820</td><td class="">53.5%</td><td class="">1374</td><td class="">52.3%</td><td class="">1385</td><td class="">59.1%</td><td class="">-6.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Shatterskull Charger</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">R</td><td class="">269</td><td class="">1.73</td><td class="">141</td><td class="">1.72</td><td class="">615</td><td class=""></td><td class="">104</td><td class=""></td><td class="">263</td><td class="">50.2%</td><td class="">367</td><td class="">51.8%</td><td class="">345</td><td class="">53.0%</td><td class="">-1.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Shatterskull Minotaur</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">1468</td><td class="">2.90</td><td class="">371</td><td class="">3.22</td><td class="">1685</td><td class="">57.1%</td><td class="">303</td><td class="">58.4%</td><td class="">499</td><td class="">58.3%</td><td class="">802</td><td class="">58.4%</td><td class="">957</td><td class="">56.3%</td><td class="">2.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Shatterskull Smashing</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">M</td><td class="">69</td><td class="">1.01</td><td class="">49</td><td class="">1.00</td><td class="">209</td><td class=""></td><td class="">39</td><td class=""></td><td class="">54</td><td class=""></td><td class="">93</td><td class=""></td><td class="">127</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Sizzling Barrage</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">8603</td><td class="">7.97</td><td class="">1002</td><td class="">11.08</td><td class="">927</td><td class="">50.5%</td><td class="">173</td><td class=""></td><td class="">262</td><td class="">44.3%</td><td class="">435</td><td class="">43.7%</td><td class="">530</td><td class="">54.7%</td><td class="">-11.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Skyclave Geopede</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">2049</td><td class="">4.02</td><td class="">363</td><td class="">5.11</td><td class="">1272</td><td class="">53.9%</td><td class="">245</td><td class="">56.3%</td><td class="">389</td><td class="">53.7%</td><td class="">634</td><td class="">54.7%</td><td class="">696</td><td class="">53.6%</td><td class="">1.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Sneaking Guide</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">8378</td><td class="">7.87</td><td class="">1159</td><td class="">10.49</td><td class="">2147</td><td class="">55.2%</td><td class="">432</td><td class="">63.4%</td><td class="">600</td><td class="">53.3%</td><td class="">1032</td><td class="">57.6%</td><td class="">1209</td><td class="">53.8%</td><td class="">3.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Song-Mad Treachery</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">2214</td><td class="">3.72</td><td class="">292</td><td class="">5.28</td><td class="">1270</td><td class="">55.7%</td><td class="">266</td><td class="">56.4%</td><td class="">359</td><td class="">55.2%</td><td class="">625</td><td class="">55.7%</td><td class="">712</td><td class="">56.0%</td><td class="">-0.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Spikefield Hazard</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">2175</td><td class="">3.71</td><td class="">404</td><td class="">5.08</td><td class="">1881</td><td class="">55.8%</td><td class="">376</td><td class="">57.7%</td><td class="">526</td><td class="">54.6%</td><td class="">902</td><td class="">55.9%</td><td class="">1041</td><td class="">55.9%</td><td class="">-0.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Spitfire Lagac</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">8322</td><td class="">7.85</td><td class="">1217</td><td class="">10.59</td><td class="">1435</td><td class="">51.1%</td><td class="">350</td><td class="">50.9%</td><td class="">485</td><td class="">50.3%</td><td class="">835</td><td class="">50.5%</td><td class="">716</td><td class="">52.1%</td><td class="">-1.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Synchronized Spellcraft</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">6322</td><td class="">4.67</td><td class="">804</td><td class="">6.65</td><td class="">2953</td><td class="">54.5%</td><td class="">561</td><td class="">54.9%</td><td class="">960</td><td class="">56.0%</td><td class="">1521</td><td class="">55.6%</td><td class="">1586</td><td class="">53.6%</td><td class="">2.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Teeterpeak Ambusher</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">8433</td><td class="">7.82</td><td class="">1457</td><td class="">10.08</td><td class="">2875</td><td class="">54.0%</td><td class="">736</td><td class="">54.2%</td><td class="">957</td><td class="">49.2%</td><td class="">1693</td><td class="">51.4%</td><td class="">1428</td><td class="">56.5%</td><td class="">-5.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Thundering Rebuke</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">955</td><td class="">2.10</td><td class="">343</td><td class="">2.43</td><td class="">1616</td><td class="">55.1%</td><td class="">287</td><td class="">56.1%</td><td class="">465</td><td class="">61.9%</td><td class="">752</td><td class="">59.7%</td><td class="">923</td><td class="">52.1%</td><td class="">7.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Thundering Sparkmage</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">U</td><td class="">1338</td><td class="">2.72</td><td class="">377</td><td class="">3.19</td><td class="">1629</td><td class="">59.7%</td><td class="">318</td><td class="">62.3%</td><td class="">454</td><td class="">61.0%</td><td class="">772</td><td class="">61.5%</td><td class="">916</td><td class="">58.3%</td><td class="">3.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Tormenting Voice</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">8624</td><td class="">9.48</td><td class="">1463</td><td class="">12.30</td><td class="">822</td><td class="">52.1%</td><td class="">156</td><td class=""></td><td class="">234</td><td class="">51.7%</td><td class="">390</td><td class="">50.8%</td><td class="">449</td><td class="">52.3%</td><td class="">-1.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Tuktuk Rubblefort</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">C</td><td class="">8605</td><td class="">9.58</td><td class="">1233</td><td class="">12.84</td><td class="">285</td><td class=""></td><td class="">47</td><td class=""></td><td class="">78</td><td class=""></td><td class="">125</td><td class=""></td><td class="">162</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Valakut Awakening</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">R</td><td class="">269</td><td class="">1.76</td><td class="">66</td><td class="">1.98</td><td class="">221</td><td class=""></td><td class="">39</td><td class=""></td><td class="">48</td><td class=""></td><td class="">87</td><td class=""></td><td class="">140</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Valakut Exploration</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">R</td><td class="">327</td><td class="">1.91</td><td class="">116</td><td class="">2.13</td><td class="">433</td><td class=""></td><td class="">82</td><td class=""></td><td class="">100</td><td class=""></td><td class="">182</td><td class=""></td><td class="">252</td><td class="">56.3%</td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Wayward Guide-Beast</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">R</td><td class="">R</td><td class="">469</td><td class="">2.88</td><td class="">83</td><td class="">3.17</td><td class="">132</td><td class=""></td><td class="">19</td><td class=""></td><td class="">25</td><td class=""></td><td class="">44</td><td class=""></td><td class="">88</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Adventure Awaits</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">8611</td><td class="">9.30</td><td class="">1249</td><td class="">12.42</td><td class="">302</td><td class=""></td><td class="">60</td><td class=""></td><td class="">114</td><td class=""></td><td class="">174</td><td class=""></td><td class="">148</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Ancient Greenwarden</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">M</td><td class="">78</td><td class="">1.09</td><td class="">46</td><td class="">1.04</td><td class="">138</td><td class=""></td><td class="">23</td><td class=""></td><td class="">32</td><td class=""></td><td class="">55</td><td class=""></td><td class="">86</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Ashaya, Soul of the Wild</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">M</td><td class="">91</td><td class="">1.11</td><td class="">63</td><td class="">1.06</td><td class="">263</td><td class=""></td><td class="">45</td><td class=""></td><td class="">73</td><td class=""></td><td class="">118</td><td class=""></td><td class="">149</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Bala Ged Recovery</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">2126</td><td class="">3.76</td><td class="">352</td><td class="">5.12</td><td class="">1464</td><td class="">51.6%</td><td class="">278</td><td class="">48.6%</td><td class="">460</td><td class="">50.7%</td><td class="">738</td><td class="">49.9%</td><td class="">799</td><td class="">53.4%</td><td class="">-3.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Broken Wings</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">8614</td><td class="">9.31</td><td class="">1039</td><td class="">12.79</td><td class="">375</td><td class=""></td><td class="">63</td><td class=""></td><td class="">114</td><td class=""></td><td class="">177</td><td class=""></td><td class="">207</td><td class="">50.2%</td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Canopy Baloth</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">5215</td><td class="">3.76</td><td class="">405</td><td class="">5.55</td><td class="">1507</td><td class="">51.8%</td><td class="">304</td><td class="">49.0%</td><td class="">503</td><td class="">51.3%</td><td class="">807</td><td class="">50.4%</td><td class="">801</td><td class="">52.1%</td><td class="">-1.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Cragplate Baloth</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">R</td><td class="">406</td><td class="">2.33</td><td class="">175</td><td class="">2.43</td><td class="">635</td><td class=""></td><td class="">94</td><td class=""></td><td class="">190</td><td class=""></td><td class="">284</td><td class="">51.1%</td><td class="">355</td><td class="">49.0%</td><td class="">2.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Dauntless Survivor</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">7499</td><td class="">6.06</td><td class="">708</td><td class="">8.82</td><td class="">1722</td><td class="">50.2%</td><td class="">386</td><td class="">46.1%</td><td class="">613</td><td class="">51.4%</td><td class="">999</td><td class="">49.3%</td><td class="">848</td><td class="">50.7%</td><td class="">-1.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Gnarlid Colony</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">5892</td><td class="">4.29</td><td class="">830</td><td class="">5.83</td><td class="">2862</td><td class="">52.2%</td><td class="">716</td><td class="">53.4%</td><td class="">1186</td><td class="">54.2%</td><td class="">1902</td><td class="">53.9%</td><td class="">1304</td><td class="">50.8%</td><td class="">3.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Inscription of Abundance</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">R</td><td class="">268</td><td class="">1.78</td><td class="">141</td><td class="">1.87</td><td class="">508</td><td class=""></td><td class="">86</td><td class=""></td><td class="">159</td><td class=""></td><td class="">245</td><td class="">60.4%</td><td class="">291</td><td class="">48.5%</td><td class="">12.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Iridescent Hornbeetle</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">1888</td><td class="">3.75</td><td class="">207</td><td class="">5.37</td><td class="">570</td><td class=""></td><td class="">96</td><td class=""></td><td class="">193</td><td class=""></td><td class="">289</td><td class="">46.4%</td><td class="">322</td><td class="">48.4%</td><td class="">-2.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Joraga Visionary</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">5873</td><td class="">4.26</td><td class="">893</td><td class="">5.63</td><td class="">3016</td><td class="">51.9%</td><td class="">704</td><td class="">55.0%</td><td class="">1211</td><td class="">52.9%</td><td class="">1915</td><td class="">53.7%</td><td class="">1445</td><td class="">49.9%</td><td class="">3.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Kazandu Mammoth</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">R</td><td class="">187</td><td class="">1.26</td><td class="">90</td><td class="">1.23</td><td class="">352</td><td class=""></td><td class="">74</td><td class=""></td><td class="">93</td><td class=""></td><td class="">167</td><td class=""></td><td class="">197</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Kazandu Nectarpot</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">7496</td><td class="">6.13</td><td class="">506</td><td class="">9.16</td><td class="">999</td><td class="">49.2%</td><td class="">216</td><td class="">48.6%</td><td class="">308</td><td class="">49.4%</td><td class="">524</td><td class="">49.0%</td><td class="">515</td><td class="">48.2%</td><td class="">0.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Kazandu Stomper</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">7702</td><td class="">6.14</td><td class="">934</td><td class="">8.52</td><td class="">2655</td><td class="">51.7%</td><td class="">444</td><td class="">51.4%</td><td class="">941</td><td class="">52.7%</td><td class="">1385</td><td class="">52.3%</td><td class="">1409</td><td class="">50.9%</td><td class="">1.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Khalni Ambush</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">1416</td><td class="">2.72</td><td class="">279</td><td class="">3.36</td><td class="">1335</td><td class="">53.1%</td><td class="">221</td><td class="">51.1%</td><td class="">364</td><td class="">61.5%</td><td class="">585</td><td class="">57.6%</td><td class="">801</td><td class="">50.7%</td><td class="">6.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Lotus Cobra</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">R</td><td class="">182</td><td class="">1.29</td><td class="">87</td><td class="">1.31</td><td class="">353</td><td class=""></td><td class="">65</td><td class=""></td><td class="">83</td><td class=""></td><td class="">148</td><td class=""></td><td class="">207</td><td class="">53.1%</td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Might of Murasa</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">8352</td><td class="">7.83</td><td class="">1188</td><td class="">10.41</td><td class="">2177</td><td class="">52.0%</td><td class="">412</td><td class="">48.8%</td><td class="">846</td><td class="">55.6%</td><td class="">1258</td><td class="">53.3%</td><td class="">1069</td><td class="">51.2%</td><td class="">2.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Murasa Brute</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">8319</td><td class="">7.79</td><td class="">900</td><td class="">10.89</td><td class="">1003</td><td class="">51.9%</td><td class="">202</td><td class="">51.0%</td><td class="">358</td><td class="">49.7%</td><td class="">560</td><td class="">50.2%</td><td class="">506</td><td class="">53.2%</td><td class="">-3.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Murasa Sproutling</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">1511</td><td class="">3.02</td><td class="">332</td><td class="">3.70</td><td class="">1327</td><td class="">51.8%</td><td class="">285</td><td class="">48.4%</td><td class="">458</td><td class="">55.5%</td><td class="">743</td><td class="">52.8%</td><td class="">674</td><td class="">51.9%</td><td class="">0.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Nissa's Zendikon</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">8395</td><td class="">7.90</td><td class="">842</td><td class="">11.13</td><td class="">685</td><td class=""></td><td class="">128</td><td class=""></td><td class="">231</td><td class="">48.1%</td><td class="">359</td><td class="">45.7%</td><td class="">355</td><td class="">47.0%</td><td class="">-1.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Oran-Rief Ooze</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">R</td><td class="">240</td><td class="">1.68</td><td class="">106</td><td class="">1.61</td><td class="">406</td><td class=""></td><td class="">64</td><td class=""></td><td class="">134</td><td class=""></td><td class="">198</td><td class=""></td><td class="">223</td><td class="">48.4%</td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Rabid Bite</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">4240</td><td class="">3.08</td><td class="">640</td><td class="">4.03</td><td class="">2440</td><td class="">52.6%</td><td class="">537</td><td class="">55.7%</td><td class="">948</td><td class="">55.2%</td><td class="">1485</td><td class="">55.4%</td><td class="">1210</td><td class="">50.5%</td><td class="">4.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Reclaim the Wastes</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">6869</td><td class="">5.18</td><td class="">630</td><td class="">7.38</td><td class="">1945</td><td class="">52.2%</td><td class="">422</td><td class="">51.7%</td><td class="">717</td><td class="">53.8%</td><td class="">1139</td><td class="">53.0%</td><td class="">986</td><td class="">52.9%</td><td class="">0.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Roiling Regrowth</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">2637</td><td class="">5.37</td><td class="">514</td><td class="">7.08</td><td class="">1355</td><td class="">49.8%</td><td class="">272</td><td class="">39.3%</td><td class="">435</td><td class="">52.9%</td><td class="">707</td><td class="">47.7%</td><td class="">715</td><td class="">51.9%</td><td class="">-4.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Scale the Heights</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">8148</td><td class="">7.12</td><td class="">871</td><td class="">9.81</td><td class="">1710</td><td class="">50.1%</td><td class="">376</td><td class="">49.7%</td><td class="">605</td><td class="">54.9%</td><td class="">981</td><td class="">52.9%</td><td class="">843</td><td class="">47.3%</td><td class="">5.6pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Scute Swarm</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">R</td><td class="">246</td><td class="">1.67</td><td class="">163</td><td class="">1.66</td><td class="">729</td><td class=""></td><td class="">149</td><td class=""></td><td class="">206</td><td class="">58.7%</td><td class="">355</td><td class="">60.0%</td><td class="">387</td><td class="">47.8%</td><td class="">12.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Skyclave Pick-Axe</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">1948</td><td class="">3.69</td><td class="">118</td><td class="">5.80</td><td class="">328</td><td class=""></td><td class="">64</td><td class=""></td><td class="">73</td><td class=""></td><td class="">137</td><td class=""></td><td class="">193</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Springmantle Cleric</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">2803</td><td class="">5.88</td><td class="">331</td><td class="">8.68</td><td class="">432</td><td class=""></td><td class="">84</td><td class=""></td><td class="">144</td><td class=""></td><td class="">228</td><td class="">53.9%</td><td class="">228</td><td class="">45.2%</td><td class="">8.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Strength of Solidarity</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">8567</td><td class="">9.33</td><td class="">1018</td><td class="">12.65</td><td class="">241</td><td class=""></td><td class="">42</td><td class=""></td><td class="">69</td><td class=""></td><td class="">111</td><td class=""></td><td class="">138</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Swarm Shambler</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">R</td><td class="">274</td><td class="">1.79</td><td class="">124</td><td class="">1.88</td><td class="">545</td><td class=""></td><td class="">76</td><td class=""></td><td class="">132</td><td class=""></td><td class="">208</td><td class="">54.8%</td><td class="">342</td><td class="">49.1%</td><td class="">5.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Tajuru Blightblade</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">6800</td><td class="">5.12</td><td class="">665</td><td class="">7.38</td><td class="">2258</td><td class="">52.9%</td><td class="">532</td><td class="">60.0%</td><td class="">756</td><td class="">48.3%</td><td class="">1288</td><td class="">53.1%</td><td class="">1136</td><td class="">52.0%</td><td class="">1.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Tajuru Paragon</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">R</td><td class="">280</td><td class="">1.79</td><td class="">119</td><td class="">1.92</td><td class="">416</td><td class=""></td><td class="">82</td><td class=""></td><td class="">105</td><td class=""></td><td class="">187</td><td class=""></td><td class="">239</td><td class="">48.5%</td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Tajuru Snarecaster</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">8356</td><td class="">7.84</td><td class="">717</td><td class="">11.44</td><td class="">665</td><td class=""></td><td class="">134</td><td class=""></td><td class="">207</td><td class="">50.2%</td><td class="">341</td><td class="">48.1%</td><td class="">351</td><td class="">51.0%</td><td class="">-2.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Tangled Florahedron</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">2347</td><td class="">4.15</td><td class="">455</td><td class="">5.64</td><td class="">1890</td><td class="">54.2%</td><td class="">400</td><td class="">56.8%</td><td class="">493</td><td class="">54.0%</td><td class="">893</td><td class="">55.2%</td><td class="">1042</td><td class="">53.4%</td><td class="">1.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Taunting Arbormage</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">2823</td><td class="">5.92</td><td class="">653</td><td class="">7.70</td><td class="">1947</td><td class="">51.8%</td><td class="">356</td><td class="">53.1%</td><td class="">639</td><td class="">54.0%</td><td class="">995</td><td class="">53.7%</td><td class="">1034</td><td class="">51.3%</td><td class="">2.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Territorial Scythecat</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">5933</td><td class="">4.32</td><td class="">767</td><td class="">5.86</td><td class="">2439</td><td class="">51.0%</td><td class="">615</td><td class="">51.1%</td><td class="">971</td><td class="">50.4%</td><td class="">1586</td><td class="">50.6%</td><td class="">1145</td><td class="">50.7%</td><td class="">-0.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Turntimber Ascetic</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">C</td><td class="">7580</td><td class="">5.94</td><td class="">875</td><td class="">8.45</td><td class="">2467</td><td class="">52.9%</td><td class="">496</td><td class="">54.2%</td><td class="">849</td><td class="">55.9%</td><td class="">1345</td><td class="">55.3%</td><td class="">1296</td><td class="">51.1%</td><td class="">4.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Turntimber Symbiosis</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">M</td><td class="">100</td><td class="">1.35</td><td class="">50</td><td class="">1.42</td><td class="">170</td><td class=""></td><td class="">25</td><td class=""></td><td class="">47</td><td class=""></td><td class="">72</td><td class=""></td><td class="">105</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Vastwood Fortification</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">2319</td><td class="">4.14</td><td class="">310</td><td class="">5.96</td><td class="">1209</td><td class="">50.2%</td><td class="">233</td><td class="">43.8%</td><td class="">340</td><td class="">51.8%</td><td class="">573</td><td class="">48.5%</td><td class="">682</td><td class="">51.2%</td><td class="">-2.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Vastwood Surge</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">2081</td><td class="">4.04</td><td class="">420</td><td class="">4.97</td><td class="">1565</td><td class="">51.1%</td><td class="">304</td><td class="">48.4%</td><td class="">551</td><td class="">55.4%</td><td class="">855</td><td class="">52.9%</td><td class="">818</td><td class="">49.9%</td><td class="">3.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Veteran Adventurer</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">1380</td><td class="">2.77</td><td class="">179</td><td class="">3.64</td><td class="">723</td><td class=""></td><td class="">117</td><td class=""></td><td class="">255</td><td class="">45.9%</td><td class="">372</td><td class="">47.6%</td><td class="">398</td><td class="">50.0%</td><td class="">-2.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Vine Gecko</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">G</td><td class="">U</td><td class="">1483</td><td class="">3.10</td><td class="">311</td><td class="">3.81</td><td class="">1120</td><td class="">51.7%</td><td class="">265</td><td class="">61.1%</td><td class="">372</td><td class="">50.8%</td><td class="">637</td><td class="">55.1%</td><td class="">557</td><td class="">47.4%</td><td class="">7.7pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Akiri, Fearless Voyager</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WR</td><td class="">R</td><td class="">241</td><td class="">1.66</td><td class="">82</td><td class="">1.56</td><td class="">312</td><td class=""></td><td class="">77</td><td class=""></td><td class="">61</td><td class=""></td><td class="">138</td><td class=""></td><td class="">176</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Brushfire Elemental</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">RG</td><td class="">U</td><td class="">1806</td><td class="">3.46</td><td class="">167</td><td class="">4.04</td><td class="">542</td><td class=""></td><td class="">102</td><td class=""></td><td class="">134</td><td class=""></td><td class="">236</td><td class="">53.0%</td><td class="">329</td><td class="">52.6%</td><td class="">0.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Cleric of Life's Bond</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WB</td><td class="">U</td><td class="">1063</td><td class="">2.30</td><td class="">328</td><td class="">2.35</td><td class="">1446</td><td class="">55.0%</td><td class="">280</td><td class="">65.4%</td><td class="">530</td><td class="">58.5%</td><td class="">810</td><td class="">60.9%</td><td class="">762</td><td class="">49.1%</td><td class="">11.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Grakmaw, Skyclave Ravager</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">BG</td><td class="">R</td><td class="">131</td><td class="">1.05</td><td class="">42</td><td class="">1.05</td><td class="">139</td><td class=""></td><td class="">22</td><td class=""></td><td class="">43</td><td class=""></td><td class="">65</td><td class=""></td><td class="">80</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Kargan Warleader</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WR</td><td class="">U</td><td class="">2371</td><td class="">4.47</td><td class="">504</td><td class="">5.22</td><td class="">1521</td><td class="">58.1%</td><td class="">385</td><td class="">59.2%</td><td class="">455</td><td class="">57.8%</td><td class="">840</td><td class="">58.5%</td><td class="">792</td><td class="">58.1%</td><td class="">0.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Kaza, Roil Chaser</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">UR</td><td class="">R</td><td class="">406</td><td class="">2.43</td><td class="">91</td><td class="">2.29</td><td class="">151</td><td class=""></td><td class="">27</td><td class=""></td><td class="">54</td><td class=""></td><td class="">81</td><td class=""></td><td class="">71</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Linvala, Shield of Sea Gate</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WU</td><td class="">R</td><td class="">183</td><td class="">1.22</td><td class="">83</td><td class="">1.22</td><td class="">303</td><td class=""></td><td class="">43</td><td class=""></td><td class="">96</td><td class=""></td><td class="">139</td><td class=""></td><td class="">170</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Lullmage's Familiar</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">UG</td><td class="">U</td><td class="">2217</td><td class="">4.18</td><td class="">435</td><td class="">5.11</td><td class="">1188</td><td class="">53.5%</td><td class="">313</td><td class="">56.2%</td><td class="">518</td><td class="">57.3%</td><td class="">831</td><td class="">56.9%</td><td class="">514</td><td class="">50.0%</td><td class="">6.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Moss-Pit Skeleton</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">BG</td><td class="">U</td><td class="">2084</td><td class="">3.86</td><td class="">184</td><td class="">5.19</td><td class="">514</td><td class=""></td><td class="">101</td><td class=""></td><td class="">259</td><td class="">56.4%</td><td class="">360</td><td class="">53.3%</td><td class="">261</td><td class="">52.1%</td><td class="">1.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Murasa Rootgrazer</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WG</td><td class="">U</td><td class="">1610</td><td class="">3.22</td><td class="">168</td><td class="">3.99</td><td class="">507</td><td class=""></td><td class="">110</td><td class=""></td><td class="">136</td><td class=""></td><td class="">246</td><td class="">54.9%</td><td class="">286</td><td class="">48.6%</td><td class="">6.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Nahiri, Heir of the Ancients</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WR</td><td class="">M</td><td class="">84</td><td class="">1.20</td><td class="">39</td><td class="">1.18</td><td class="">146</td><td class=""></td><td class="">21</td><td class=""></td><td class="">29</td><td class=""></td><td class="">50</td><td class=""></td><td class="">96</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Nissa of Shadowed Boughs</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">BG</td><td class="">M</td><td class="">71</td><td class="">1.00</td><td class="">40</td><td class="">1.00</td><td class="">102</td><td class=""></td><td class="">22</td><td class=""></td><td class="">30</td><td class=""></td><td class="">52</td><td class=""></td><td class="">50</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Omnath, Locus of Creation</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WURG</td><td class="">M</td><td class="">190</td><td class="">2.32</td><td class="">71</td><td class="">2.61</td><td class="">119</td><td class=""></td><td class="">14</td><td class=""></td><td class="">37</td><td class=""></td><td class="">51</td><td class=""></td><td class="">70</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Orah, Skyclave Hierophant</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WB</td><td class="">R</td><td class="">185</td><td class="">1.22</td><td class="">106</td><td class="">1.18</td><td class="">435</td><td class=""></td><td class="">67</td><td class=""></td><td class="">129</td><td class=""></td><td class="">196</td><td class=""></td><td class="">266</td><td class="">53.0%</td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Phylath, World Sculptor</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">RG</td><td class="">R</td><td class="">164</td><td class="">1.00</td><td class="">102</td><td class="">1.00</td><td class="">498</td><td class=""></td><td class="">76</td><td class=""></td><td class="">126</td><td class=""></td><td class="">202</td><td class="">67.8%</td><td class="">297</td><td class="">48.5%</td><td class="">19.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Ravager's Mace</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">BR</td><td class="">U</td><td class="">2979</td><td class="">6.46</td><td class="">540</td><td class="">8.32</td><td class="">1023</td><td class="">55.8%</td><td class="">189</td><td class=""></td><td class="">296</td><td class="">59.5%</td><td class="">485</td><td class="">56.1%</td><td class="">582</td><td class="">55.3%</td><td class="">0.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Soaring Thought-Thief</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">UB</td><td class="">U</td><td class="">1425</td><td class="">2.81</td><td class="">420</td><td class="">2.77</td><td class="">1820</td><td class="">58.9%</td><td class="">460</td><td class="">68.3%</td><td class="">695</td><td class="">66.2%</td><td class="">1155</td><td class="">67.0%</td><td class="">853</td><td class="">50.9%</td><td class="">16.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Spoils of Adventure</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WU</td><td class="">U</td><td class="">2144</td><td class="">4.24</td><td class="">335</td><td class="">5.48</td><td class="">828</td><td class="">53.4%</td><td class="">171</td><td class=""></td><td class="">324</td><td class="">62.3%</td><td class="">495</td><td class="">59.0%</td><td class="">413</td><td class="">49.9%</td><td class="">9.1pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Umara Mystic</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">UR</td><td class="">U</td><td class="">2037</td><td class="">3.73</td><td class="">258</td><td class="">4.32</td><td class="">681</td><td class=""></td><td class="">160</td><td class=""></td><td class="">311</td><td class="">51.8%</td><td class="">471</td><td class="">54.4%</td><td class="">283</td><td class="">53.0%</td><td class="">1.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Verazol, the Split Current</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">UG</td><td class="">R</td><td class="">160</td><td class="">1.05</td><td class="">78</td><td class="">1.03</td><td class="">277</td><td class=""></td><td class="">47</td><td class=""></td><td class="">89</td><td class=""></td><td class="">136</td><td class=""></td><td class="">146</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Yasharn, Implacable Earth</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WG</td><td class="">R</td><td class="">174</td><td class="">1.24</td><td class="">73</td><td class="">1.16</td><td class="">215</td><td class=""></td><td class="">36</td><td class=""></td><td class="">69</td><td class=""></td><td class="">105</td><td class=""></td><td class="">117</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Zagras, Thief of Heartbeats</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">BR</td><td class="">R</td><td class="">193</td><td class="">1.32</td><td class="">144</td><td class="">1.32</td><td class="">696</td><td class=""></td><td class="">125</td><td class=""></td><td class="">186</td><td class=""></td><td class="">311</td><td class="">62.7%</td><td class="">399</td><td class="">56.4%</td><td class="">6.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Zareth San, the Trickster</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">UB</td><td class="">R</td><td class="">199</td><td class="">1.23</td><td class="">125</td><td class="">1.13</td><td class="">539</td><td class=""></td><td class="">93</td><td class=""></td><td class="">166</td><td class=""></td><td class="">259</td><td class="">61.4%</td><td class="">297</td><td class="">51.5%</td><td class="">9.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Cliffhaven Kitesail</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">C</td><td class="">5119</td><td class="">3.61</td><td class="">209</td><td class="">5.42</td><td class="">735</td><td class=""></td><td class="">129</td><td class=""></td><td class="">189</td><td class=""></td><td class="">318</td><td class="">49.7%</td><td class="">419</td><td class="">49.4%</td><td class="">0.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Forsaken Monument</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">M</td><td class="">92</td><td class="">1.32</td><td class="">28</td><td class="">1.39</td><td class="">22</td><td class=""></td><td class="">3</td><td class=""></td><td class="">4</td><td class=""></td><td class="">7</td><td class=""></td><td class="">15</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Lithoform Engine</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">M</td><td class="">65</td><td class="">1.12</td><td class="">23</td><td class="">1.09</td><td class="">82</td><td class=""></td><td class="">14</td><td class=""></td><td class="">27</td><td class=""></td><td class="">41</td><td class=""></td><td class="">41</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Myriad Construct</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">R</td><td class="">190</td><td class="">1.20</td><td class="">118</td><td class="">1.21</td><td class="">598</td><td class=""></td><td class="">102</td><td class=""></td><td class="">188</td><td class=""></td><td class="">290</td><td class="">55.5%</td><td class="">320</td><td class="">54.7%</td><td class="">0.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Relic Amulet</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">U</td><td class="">1927</td><td class="">3.77</td><td class="">368</td><td class="">4.77</td><td class="">1274</td><td class="">54.8%</td><td class="">274</td><td class="">57.7%</td><td class="">459</td><td class="">54.0%</td><td class="">733</td><td class="">55.4%</td><td class="">614</td><td class="">54.1%</td><td class="">1.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Relic Axe</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">U</td><td class="">2107</td><td class="">4.12</td><td class="">255</td><td class="">5.89</td><td class="">921</td><td class="">58.3%</td><td class="">160</td><td class=""></td><td class="">213</td><td class="">54.5%</td><td class="">373</td><td class="">56.8%</td><td class="">559</td><td class="">59.2%</td><td class="">-2.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Relic Golem</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">U</td><td class="">2439</td><td class="">4.42</td><td class="">399</td><td class="">5.74</td><td class="">1416</td><td class="">57.1%</td><td class="">290</td><td class="">56.6%</td><td class="">493</td><td class="">58.8%</td><td class="">783</td><td class="">58.0%</td><td class="">721</td><td class="">56.2%</td><td class="">1.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Relic Vial</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">U</td><td class="">2515</td><td class="">4.82</td><td class="">576</td><td class="">5.81</td><td class="">1792</td><td class="">53.9%</td><td class="">381</td><td class="">54.3%</td><td class="">497</td><td class="">54.7%</td><td class="">878</td><td class="">54.6%</td><td class="">986</td><td class="">52.7%</td><td class="">1.8pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Sea Gate Colossus</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">C</td><td class="">7649</td><td class="">5.54</td><td class="">911</td><td class="">7.94</td><td class="">2738</td><td class="">54.6%</td><td class="">490</td><td class="">56.3%</td><td class="">837</td><td class="">55.8%</td><td class="">1327</td><td class="">56.0%</td><td class="">1524</td><td class="">53.8%</td><td class="">2.2pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Skyclave Relic</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">R</td><td class="">350</td><td class="">2.24</td><td class="">96</td><td class="">2.42</td><td class="">204</td><td class=""></td><td class="">41</td><td class=""></td><td class="">49</td><td class=""></td><td class="">90</td><td class=""></td><td class="">114</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Skyclave Sentinel</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">C</td><td class="">8339</td><td class="">6.89</td><td class="">1620</td><td class="">9.16</td><td class="">3830</td><td class="">51.2%</td><td class="">817</td><td class="">46.1%</td><td class="">1435</td><td class="">52.3%</td><td class="">2252</td><td class="">50.1%</td><td class="">1896</td><td class="">51.4%</td><td class="">-1.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Spare Supplies</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">C</td><td class="">8425</td><td class="">7.62</td><td class="">1035</td><td class="">10.53</td><td class="">1369</td><td class="">55.0%</td><td class="">290</td><td class="">55.9%</td><td class="">397</td><td class="">55.4%</td><td class="">687</td><td class="">55.6%</td><td class="">729</td><td class="">54.2%</td><td class="">1.4pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Stonework Packbeast</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">C</td><td class="">5585</td><td class="">3.88</td><td class="">1439</td><td class="">5.20</td><td class="">6164</td><td class="">55.9%</td><td class="">1486</td><td class="">56.3%</td><td class="">1990</td><td class="">56.1%</td><td class="">3476</td><td class="">56.2%</td><td class="">3104</td><td class="">55.1%</td><td class="">1.0pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Utility Knife</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">C</td><td class="">8597</td><td class="">8.24</td><td class="">760</td><td class="">11.47</td><td class="">480</td><td class=""></td><td class="">105</td><td class=""></td><td class="">126</td><td class=""></td><td class="">231</td><td class="">48.9%</td><td class="">263</td><td class="">50.2%</td><td class="">-1.3pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Base Camp</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">U</td><td class="">3014</td><td class="">6.62</td><td class="">430</td><td class="">8.98</td><td class="">872</td><td class="">50.1%</td><td class="">178</td><td class=""></td><td class="">248</td><td class="">48.0%</td><td class="">426</td><td class="">47.9%</td><td class="">477</td><td class="">51.4%</td><td class="">-3.5pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Branchloft Pathway</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WG</td><td class="">R</td><td class="">277</td><td class="">1.93</td><td class="">55</td><td class="">2.00</td><td class="">82</td><td class=""></td><td class="">18</td><td class=""></td><td class="">18</td><td class=""></td><td class="">36</td><td class=""></td><td class="">48</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Brightclimb Pathway</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WB</td><td class="">R</td><td class="">307</td><td class="">1.89</td><td class="">59</td><td class="">2.22</td><td class="">202</td><td class=""></td><td class="">29</td><td class=""></td><td class="">49</td><td class=""></td><td class="">78</td><td class=""></td><td class="">124</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Clearwater Pathway</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">UB</td><td class="">R</td><td class="">309</td><td class="">1.92</td><td class="">79</td><td class="">2.05</td><td class="">216</td><td class=""></td><td class="">28</td><td class=""></td><td class="">50</td><td class=""></td><td class="">78</td><td class=""></td><td class="">138</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Cragcrown Pathway</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">RG</td><td class="">R</td><td class="">308</td><td class="">1.94</td><td class="">68</td><td class="">2.06</td><td class="">108</td><td class=""></td><td class="">19</td><td class=""></td><td class="">28</td><td class=""></td><td class="">47</td><td class=""></td><td class="">65</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Crawling Barrens</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">R</td><td class="">186</td><td class="">1.27</td><td class="">114</td><td class="">1.26</td><td class="">618</td><td class=""></td><td class="">99</td><td class=""></td><td class="">137</td><td class=""></td><td class="">236</td><td class="">59.3%</td><td class="">385</td><td class="">51.4%</td><td class="">7.9pp</td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Needleverge Pathway</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">WR</td><td class="">R</td><td class="">295</td><td class="">2.15</td><td class="">67</td><td class="">2.21</td><td class="">141</td><td class=""></td><td class="">22</td><td class=""></td><td class="">30</td><td class=""></td><td class="">52</td><td class=""></td><td class="">89</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Riverglide Pathway</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class="">UR</td><td class="">R</td><td class="">312</td><td class="">1.92</td><td class="">55</td><td class="">2.07</td><td class="">97</td><td class=""></td><td class="">28</td><td class=""></td><td class="">21</td><td class=""></td><td class="">49</td><td class=""></td><td class="">51</td><td class=""></td><td class=""></td></tr><tr class=""><td class=""><div class="list_card"><div class="list_card_name">Throne of Makindi</div><div class="tier_card_preview"><img src="znr_card_ratings_files/card_preview.png"></div></div></td><td class=""></td><td class="">R</td><td class="">423</td><td class="">2.51</td><td class="">61</td><td class="">2.62</td><td class="">206</td><td class=""></td><td class="">40</td><td class=""></td><td class="">48</td><td class=""></td><td class="">88</td><td class=""></td><td class="">119</td><td class=""></td><td class=""></td></tr></tbody></table></div><div></div></div></div>
+<script type="text/javascript" src="znr_card_ratings_files/card_ratings.js"></script>
+
+
+
+
+    <script src="znr_card_ratings_files/jquery-3.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="znr_card_ratings_files/popper.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="znr_card_ratings_files/bootstrap.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+  
+</body></html>

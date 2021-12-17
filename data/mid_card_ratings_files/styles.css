@@ -1,0 +1,848 @@
+html, body {
+    background-color: #292929;
+}
+
+/* This site follows the type scale of base font size 15px and a ratio of 1.333.
+ * https://type-scale.com/?size=15&scale=1.333&text=17%20Lands%20type%20scale&font=Lato&fontweight=400&bodyfont=body_font_default&bodyfontweight=400&lineheight=1.75&backgroundcolor=%23292929&fontcolor=%23e5e5e5&preview=false
+ *
+ * This means mostly using these rem sizes for fonts:
+ * 0.75, 1, 1.333, 1.777, 3.157 and 4.209
+ *
+*/
+
+
+html {
+    font-size: 15px;
+}
+
+body {
+    font-size: 1rem;
+}
+
+.main-text {
+    color: #E5E5E5;
+}
+.wide-container {
+    color: #E5E5E5;
+    margin: 5px;
+}
+.tier-container {
+    margin-left: 35px;
+    margin-right: 35px;
+}
+.about_image {
+    border-style: solid;
+    width: 100%;
+    border-width: 2px;
+    border-radius: 2px;
+    border-color: #e9ecef;
+    margin-bottom: 3px;
+}
+.getting-started-image {
+    width: 600px;
+}
+.center {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+.text-anchor-middle {
+    text-anchor: middle;
+}
+.vertical-center-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    text-align: center;
+}
+.mtg-bg-w {
+    background-color: #F0F2C0;
+}
+.mtg-bg-u {
+    background-color: #B5CDE3;
+}
+.mtg-bg-b {
+    background-color: #ACA29A;
+}
+.mtg-bg-r {
+    background-color: #DB8664;
+}
+.mtg-bg-g {
+    background-color: #93B483;
+}
+.mtg-fg-w {
+    color: #fae9ba;
+}
+.mtg-fg-u {
+    color: #0e68ab;
+}
+.mtg-fg-b {
+    color: #160b00;
+}
+.mtg-fg-r {
+    color: #d3202a;
+}
+.mtg-fg-g {
+    color: #00733e;
+}
+.mtg-fg-z {
+    color: #fcf4df;
+}
+.mana-symbols {
+    white-space: nowrap;
+}
+.mana-splash {
+    font-size: 1.5em;
+    vertical-align: -3px;
+}
+.mtg-splash-fg-w {
+    color: #F0F2C0;
+}
+.mtg-splash-fg-u {
+    color: #B5CDE3;
+}
+.mtg-splash-fg-b {
+    color: #7F7976;
+}
+.mtg-splash-fg-r {
+    color: #DB8664;
+}
+.mtg-splash-fg-g {
+    color: #93B483;
+}
+.trophy {
+    color: #fad671;
+}
+.event-info-bar {
+    background: #444;
+    padding: 5px 15px;
+    margin: -5px -5px 5px -5px;
+}
+.event-info-bar .sep {
+    color: #999;
+}
+.deck {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+.pile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.card_slot {
+    position: relative;
+    margin-right: 3px;
+    width: 149px;
+}
+.deck_card {
+    width: 100%;
+}
+.card_slot div.card_preview {
+    display: none;
+}
+.card_slot:hover div.card_preview {
+    z-index: 10;
+    display: inline;
+    position: absolute;
+    box-shadow: 0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.72);
+    border-style: solid;
+    border-width: 5px;
+    border-radius: 5px;
+    border-color: #4d4d4d;
+    background: #4d4d4d;
+}
+.card_slot:hover img.card_preview {
+    width: 340px;
+    height: 480px;
+}
+.card_slot:hover div.left {
+    left: 20px;
+}
+.card_slot:hover div.right {
+    right: 20px;
+}
+.card_slot:hover div.top {
+    top: 46px;
+}
+.card_slot:hover div.bottom {
+    bottom: 46px;
+}
+.card_slot:hover div.bottom_bottom {
+    bottom: 228px;
+}
+.pick_options_preview_text {
+    margin-top: 2px;
+    margin-bottom: 2px;
+    text-align: center;
+}
+.under {
+    width: 149px;
+    height: 26px;
+    object-fit: cover;
+    object-position: top;
+}
+.over {
+    width: 149px;
+    height: 208px;
+    object-position: top;
+}
+.ui.accordion .title:not(.ui) {
+    color: #E5E5E5;
+}
+.draft_section {
+    margin-bottom: 15px;
+}
+.draft_pick_options {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+}
+.pick {
+    z-index: 1;
+    outline:  2px solid #29E529;
+}
+.suggested {
+    z-index: 1;
+    outline:  2px solid #C683F2;
+}
+.pick_and_suggested {
+    z-index: 1;
+    outline:  2px dashed #29E529;
+    box-shadow:  0 0 0 2px #C683F2;
+}
+.pick_legend {
+    padding-left: 3px;
+    padding-right: 3px;
+    margin-right: 10px;
+}
+.prev_pick {
+    border-style: solid;
+    border-width: 2px;
+    border-color: #E5E529;
+}
+h2 {
+    font-size: 1.777rem;
+    margin-block-start: 0.2em;
+    margin-block-end: 0.2em;
+}
+h3 {
+    margin-block-start: 0.2em;
+    margin-block-end: 0.2em;
+}
+h4 {
+    margin-block-start: 0.2em;
+    margin-block-end: 0.2em;
+}
+.alert.fitted {
+    width: fit-content;
+}
+.ui.accordion .title:not(.ui) {
+    color: #E5E5E5;
+}
+.ui.buttons:after {
+    margin-right: 3px;
+}
+.card-body {
+    background-color: #292929;
+    color: #E5E5E5;
+}
+.accordion.installer {
+    max-width: 900px;
+}
+div.user-filter {
+    align-items: center;
+    margin: 0.75rem 0px;
+}
+
+.user-filter-selector {
+    margin-bottom: 0.563rem;
+    margin-right: 0.563rem;
+}
+
+.table.color-performance {
+    max-width: 500px;
+}
+div.record-data {
+    margin: 5px;
+}
+.DateRangePicker {
+    z-index: 2;
+}
+
+.ui.checkbox.card-performance-checkbox label {
+    padding-left: 20px;
+}
+.card-performance-checkbox {
+    margin-left: 11px;
+}
+.performance-chart-label {
+    font-size: 0.75rem;
+}
+.list_card {
+    display: flex;
+}
+.list_card_name {
+    flex: 1;
+}
+
+div.embedded_card_tiers_wrapper {
+    margin: 3px;
+}
+div.tier-grid {
+    display: grid;
+    flex-direction: column;
+}
+div.tier-column-header {
+    grid-row: 1;
+    text-align: center;
+}
+
+div.tiers-input {
+    display: flex;
+    flex-direction: horizontal;
+    align-items: baseline;
+}
+.tiers-name {
+    flex: 1;
+    max-width: 30em;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+.tier_card_preview {
+    position: relative;
+}
+.tier_card_preview div.card_preview {
+    display: none;
+}
+.tier_card_preview:hover div.card_preview {
+    z-index: 10;
+    display: inline;
+    position: absolute;
+    border-style: solid;
+    border-width: 4px;
+    border-radius: 3px;
+    border-color: #E5E5E5;
+    background-color: #292929;
+}
+div.flip_card_wrapper {
+    display: flex;
+    width: fit-content;
+}
+@media (max-width: 900px) {
+    div.flip_card_wrapper {
+        display: inline;
+    }
+}
+.tier_card_preview:hover img.card_preview {
+    width: 340px;
+    height: 480px;
+}
+.tier_card_preview:hover div.left {
+    left: 20px;
+}
+.tier_card_preview:hover div.right {
+    right: 20px;
+}
+.tier_card_preview:hover div.top {
+    top: 46px;
+}
+.tier_card_preview:hover div.mid {
+    top: -240px;
+}
+.tier_card_preview:hover div.bottom {
+    bottom: 46px;
+}
+
+.tier_card {
+    border-left: 3px solid;
+    border-radius: 2px;
+    background-color: #EEEEEE;
+    color: black;
+    margin-bottom: 0.25rem;
+    cursor: move;
+    float: left;
+    display: flex;
+}
+.tier_card.dragging {
+    opacity: 0.4;
+}
+.tier_card_name {
+    flex: 1;
+}
+.tier_card_comment {
+    color: #EEEEEE;
+    padding: 0.3em;
+}
+
+.tier_card.rarity_M {
+    border-color: #DA2D00;
+}
+.tier_card.rarity_R {
+    border-color: #BEAA00;
+}
+.tier_card.rarity_U {
+    border-color: #B7B7B7;
+}
+.tier_card.rarity_C {
+    border-color: black;
+}
+.tier_card.filtered_out {
+    background-color: #666666;
+}
+
+.tier_bucket {
+    margin-right: 0.25rem;
+    margin-bottom: 0.25rem;
+    background-color: #454545;
+    padding: 0.5rem;
+    text-align: center;
+    line-height: normal;
+    float: left;
+    display: flex;
+    flex-direction: column;
+}
+.tier_bucket.CFB.W {
+    background-color: #d3d4cb;
+}
+.tier_bucket.CFB.U {
+    background-color: #9dafbf;
+}
+.tier_bucket.CFB.B {
+    background-color: #828282;
+}
+.tier_bucket.CFB.R {
+    background-color: #bfa79d;
+}
+.tier_bucket.CFB.G {
+    background-color: #a8bf9d;
+}
+.tier_bucket.CFB.M {
+    background-color: #bfbf9d;
+}
+.tier_bucket.CFB.C {
+    background-color: #b09dbf;
+}
+.tier_bucket.CFB.L {
+    background-color: #bfaf9d;
+}
+.tier_bucket.active {
+    background-color: darkgreen;
+}
+.tier_bucket.droppable {
+    background-color: darkkhaki;
+}
+
+.modal_comment {
+    width: fit-content;
+}
+.modal-content {
+    width: fit-content;
+}
+.modal_comment .card-image {
+    width: 340px;
+    height: 480px;
+}
+.modal_comment form {
+    margin-top: 10px;
+}
+
+@media (max-width: 400px) {
+    .modal_comment .card-image {
+        width: 320px;
+    }
+}
+@media (max-width: 350px) {
+    .modal_comment .card-image {
+        width: 260px;
+    }
+}
+@media (max-width: 300px) {
+    .modal_comment .card-image {
+        width: 200px;
+    }
+}
+
+.tier_comparison_card {
+    display: flex;
+}
+.tier_comparison_card_name {
+    flex: 1;
+}
+.tiers-url {
+    flex: 1;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+.tier_text {
+    font-size: 1rem;
+}
+.embedded_tiers_context {
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.right-pad {
+    margin-right: 4px;
+}
+
+.color-summary {
+    background-color: #888888;
+}
+
+/* Site draft decks */
+
+div.deck-grid {
+    display: grid;
+    flex-direction: column;
+    width: fit-content;
+}
+.deck_pile {
+    grid-row: 1;
+    width: 166px;
+    min-height: 222px;
+    margin-right: 0.25rem;
+    margin-bottom: 0.25rem;
+    background-color: #454545;
+    padding: 0.5rem;
+    text-align: center;
+    line-height: normal;
+    float: left;
+    display: flex;
+    flex-direction: column;
+}
+.deck_pile.active {
+    background-color: darkgreen;
+}
+.deck_pile.droppable {
+    background-color: darkkhaki;
+}
+.card_slot_2 {
+    position: relative;
+    margin-right: 3px;
+    width: 149px;
+    object-position: top;
+}
+.card_slot_2.behind {
+    height: 26px;
+    object-fit: cover;
+}
+.card_slot_2.front {
+    height: 208px;
+}
+
+@media (max-width: 1370px) {
+    .deck_pile {
+        width: 140px;
+        min-height: 186px;
+    }
+    .card_slot_2 {
+        width: 125px;
+    }
+    .card_slot_2.behind {
+        height: 21px;
+    }
+    .card_slot_2.front {
+        height: 175px;
+    }
+}
+
+@media (max-width: 1154px) {
+    .deck_pile {
+        width: 115px;
+        min-height: 154px;
+    }
+    .card_slot_2 {
+        width: 103px;
+    }
+    .card_slot_2.behind {
+        height: 18px;
+    }
+    .card_slot_2.front {
+        height: 144px;
+    }
+}
+
+@media (max-width: 955px) {
+    .deck_pile {
+        width: 95px;
+        min-height: 127px;
+    }
+    .card_slot_2 {
+        width: 85px;
+    }
+    .card_slot_2.behind {
+        height: 15px;
+    }
+    .card_slot_2.front {
+        height: 119px;
+    }
+}
+
+/* Blogs */
+
+.blog-post {
+    background-color: #F0F0F0;
+    color: black;
+    max-width: 800px;
+    margin: 30px auto;
+    padding: 15px 20px;
+}
+.blog-post p {
+    line-height: 1.55em;
+}
+.scrollable-blog-table {
+    height: 250px;
+    overflow-y: scroll;
+}
+.scrollable-xy-blog-table {
+    max-height: 350px;
+    max-width: 100%;
+    overflow-y: scroll;
+    overflow-x: scroll;
+    margin: 12px 0 20px 0
+}
+.blog-plot {
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    width: 350px;
+}
+.blog-plot-title {
+    margin-left: 60px;
+    text-align: center;
+}
+.blog-plot-wide {
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    width: 450px;
+}
+.custom-tooltip-wrapper {
+    margin: 0px;
+    padding: 3px;
+    background-color: white;
+    color: black;
+    border: 1px solid #454545;
+    border-radius: 2px;
+    white-space: nowrap;
+}
+.top-legend {
+    margin-right: 60px;
+}
+.blog-table-small {
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    width: 400px;
+    margin-bottom: 10px;
+}
+.blog-draft-layout {
+    min-width: 50%;
+    max-width: 100%;
+    width: 450px;
+}
+.blog-figure-small {
+    max-width: 100%;
+    width: 200px;
+}
+.blog-figure-wide {
+    min-width: 50%;
+    max-width: 100%;
+    width: 750px;
+}
+.blog-figure-caption {
+    text-align: center;
+    margin-bottom: 1em;
+}
+.table-division-bottom {
+    border-bottom: 1px solid #D0D0D0;
+}
+img.blog-llu-mana {
+    max-width: 550px;
+}
+@media (max-width: 611px) {
+    img.blog-llu-mana {
+        max-width: 90%;
+    }
+}
+
+.tier_card_long_form {
+    max-width: 300px;
+    border-style: solid;
+    border-width: 0px;
+    border-radius: 10px;
+    background-color: #292929;
+}
+.set_review_text {
+    padding-top: 10px;
+}
+.set_review_card_name {
+    padding-top: 16px;
+}
+.grade_header {
+    background-color: #F0F0F0;
+}
+.ui.checkbox label {
+    color: #F0F0F0 !important;
+}
+.chart-symbol-wrapper {
+  width: 32px;
+  height: 32px;
+}
+
+.inventory-area {
+    float: right;
+    margin-top: 6px;
+    color: #aaa;
+}
+.inventory-toggle {
+    margin-left: 20px;
+}
+.packs-needed-popup {
+    padding-left: 20px;
+    margin-bottom: 0px;
+}
+
+.ui.table th {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    background: #202020 !important;
+}
+
+.scrolling-table {
+    width: 100%;
+    height: 100vh;
+    overflow: auto;
+}
+
+.ui-chart-tooltip {
+  pointer-events: none;
+  opacity: 0;
+  z-index: 10;
+  width: 350px;
+}
+.ui-chart-tooltip-content {
+  box-shadow: 0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.72);
+  background-color: #292929;
+  opacity: 0.65;
+  padding: 5px 5px;
+}
+img.draft_metagame_card {
+    width: 340px;
+    height: 480px;
+}
+
+.error-container {
+  padding: 20px;
+}
+.error-message {
+  width: 1000px;
+  height: 400px;
+  resize: none;
+}
+
+div.mouse_card_preview {
+    z-index: 100;
+    position: fixed;
+    box-shadow: 0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.72);
+    border-style: solid;
+    border-width: 5px;
+    border-radius: 5px;
+    border-color: #4d4d4d;
+    background: #4d4d4d;
+    pointer-events: none;
+}
+div.draft_card_space {
+    width: 149px;
+    height: 208px;
+}
+
+.keyboard-hint {
+    margin: 0px 10px;
+}
+
+div.compact-selection-row {
+    display: flex;
+    width: fit-content;
+    align-items: baseline;
+}
+
+@media (max-width: 425px) {
+    h2 {
+        font-size: 1.333rem;
+    }
+    body {
+        font-size: 1rem;
+    }
+    .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+    .ui.table thead th {
+        padding: 5px;
+    }
+    .form-control {
+        font-size: 0.75rem;
+        padding: .15rem;
+    }
+    .DateInput_input {
+        font-size: 0.75em;
+        padding: .15rem;
+    }
+    .ui.checkbox.card-performance-checkbox label {
+        font-size: 0.75em;
+        padding-left: 20px;
+    }
+    .card-performance-checkbox {
+        margin-left: 6px;
+    }
+    .keyboard-hint {
+        display: none;
+    }
+}
+
+@media (max-width: 1000px) {
+    .tier_text {
+        font-size: .8rem;
+    }
+
+}
+@media (max-width: 800px) {
+    .tier_text {
+        font-size: .7rem;
+    }
+}
+@media (max-width: 700px) {
+    .tier_text {
+        font-size: .6rem;
+    }
+    .tier_bucket {
+        margin-right: 0.1rem;
+        margin-bottom: 0.1rem;
+        padding: 0.1rem;
+    }
+}
+@media (max-width: 600px) {
+    .tier_text {
+        font-size: .5rem;
+    }
+    .tier_card {
+        border-left: 0px;
+        border-radius: 1px;
+        margin-bottom: 0.1rem;
+        margin-right: 0.04rem;
+        margin-bottom: 0.04rem;
+    }
+}
+@media (max-width: 400px) {
+    .tier_text {
+        font-size: .35rem;
+    }
+}
