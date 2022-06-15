@@ -51,7 +51,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.31.p'
+CLIENT_VERSION = '0.1.32.p'
 
 TOKEN_ENTRY_TITLE = 'MTGA Log Client Token'
 TOKEN_ENTRY_MESSAGE = 'Please enter your client token from 17lands.com/account: '
@@ -102,8 +102,11 @@ TIME_FORMATS = (
     '%m/%d/%Y %H:%M:%S',
     '%Y/%m/%d %I:%M:%S %p',
     '%Y/%m/%d %H:%M:%S',
+    '%Y/%m/%d %I:%M:%S %p',
     '%d/%m/%Y %H:%M:%S',
+    '%d/%m/%Y %I:%M:%S %p',
     '%d.%m.%Y %H:%M:%S'
+    '%d.%m.%Y %I:%M:%S %p'
 )
 OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
 
