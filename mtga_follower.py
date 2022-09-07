@@ -12,6 +12,7 @@ details.
 """
 
 import argparse
+import copy
 import datetime
 import json
 import getpass
@@ -223,6 +224,7 @@ class Follower:
         self.user_screen_name = None
         self.screen_names = defaultdict(lambda: '')
         self.game_history_events = []
+        self.pending_game_submission = None
 
 
     def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME, use_gzip=False):
@@ -441,6 +443,12 @@ class Follower:
         elif 'Reconnect result : Connected' in full_log:
             self.__handle_reconnect_result()
 
+        if self.pending_game_submission:
+            logger.info(f'Submitting game with {len(self.pending_game_submission["history"]["events"])} history events')
+            response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=self.pending_game_submission, use_gzip=True)
+            self.__clear_game_data()
+            self.pending_game_submission = None
+
     def __try_decode(self, blob, key):
         try:
             json_obj, _ = self.json_decoder.raw_decode(blob[key])
@@ -523,7 +531,7 @@ class Follower:
             self.game_history_events.append(message_blob)
 
         if message_blob['type'] == 'GREMessageType_ConnectResp':
-            self.__handle_gre_connect_response(message_blob):
+            self.__handle_gre_connect_response(message_blob)
 
         elif message_blob['type'] == 'GREMessageType_GameStateMessage':
             system_seat_ids = message_blob.get('systemSeatIds', [])
@@ -741,6 +749,7 @@ class Follower:
             'opponent_rank': self.cur_opponent_level,
             'maindeck_card_ids': self.current_game_maindeck,
             'sideboard_card_ids': self.current_game_sideboard,
+            ## TODO: companion
             'service_metadata': self.game_service_metadata,
             'client_metadata': self.game_client_metadata,
         }
@@ -756,8 +765,7 @@ class Follower:
             'events': self.game_history_events,
         }
 
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=game, use_gzip=True)
-        self.__clear_game_data()
+        self.pending_game_submission = copy.deepcopy(game)
 
     def __handle_login(self, json_obj):
         """Handle 'Client.Connected' messages."""
