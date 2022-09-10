@@ -434,8 +434,8 @@ class Follower:
             self.__handle_self_rank_info(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj: # Doesn't exist any more
             self.__handle_collection(json_obj)
-        elif 'InventoryInfo' in json_obj:
-            self.__handle_inventory(json_obj['InventoryInfo'])
+        elif 'DTO_InventoryInfo' in json_obj:
+            self.__handle_inventory(json_obj['DTO_InventoryInfo'])
         elif 'NodeStates' in json_obj and 'RewardTierUpgrade' in json_obj['NodeStates']:
             self.__handle_player_progress(json_obj)
         elif 'FrontDoorConnection.Close ' in full_log:
@@ -916,7 +916,7 @@ class Follower:
 
     def __handle_inventory(self, json_obj):
         """Handle 'InventoryInfo' messages."""
-        json_obj = {k: v for k, v in json_obj.items() if k in (
+        json_obj = {k: v for k, v in json_obj.items() if k in {
             'Gems',
             'Gold',
             'TotalVaultProgress',
@@ -928,7 +928,8 @@ class Follower:
             'DraftTokens',
             'SealedTokens',
             'Boosters',
-        )}
+            'Changes',
+        }}
         blob = {
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
