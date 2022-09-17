@@ -12,6 +12,7 @@ details.
 """
 
 import argparse
+import copy
 import datetime
 import json
 import getpass
@@ -51,7 +52,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.32.p'
+CLIENT_VERSION = '0.1.33.p'
 
 TOKEN_ENTRY_TITLE = 'MTGA Log Client Token'
 TOKEN_ENTRY_MESSAGE = 'Please enter your client token from 17lands.com/account: '
@@ -105,7 +106,7 @@ TIME_FORMATS = (
     '%Y/%m/%d %I:%M:%S %p',
     '%d/%m/%Y %H:%M:%S',
     '%d/%m/%Y %I:%M:%S %p',
-    '%d.%m.%Y %H:%M:%S'
+    '%d.%m.%Y %H:%M:%S',
     '%d.%m.%Y %I:%M:%S %p'
 )
 OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
@@ -210,6 +211,10 @@ class Follower:
         self.starting_team_id = None
         self.seat_id = None
         self.turn_count = 0
+        self.current_game_maindeck = None
+        self.current_game_sideboard = None
+        self.game_service_metadata = None
+        self.game_client_metadata = None
         self.objects_by_owner = defaultdict(dict)
         self.opening_hand_count_by_seat = defaultdict(int)
         self.opening_hand = defaultdict(list)
@@ -219,6 +224,7 @@ class Follower:
         self.user_screen_name = None
         self.screen_names = defaultdict(lambda: '')
         self.game_history_events = []
+        self.pending_game_submission = None
 
 
     def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME, use_gzip=False):
@@ -264,6 +270,7 @@ class Follower:
                          all the initial lines.
         """
         while True:
+            self.__clear_match_data()
             last_read_time = time.time()
             last_file_size = 0
             try:
@@ -427,14 +434,20 @@ class Follower:
             self.__handle_self_rank_info(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj: # Doesn't exist any more
             self.__handle_collection(json_obj)
-        elif 'InventoryInfo' in json_obj:
-            self.__handle_inventory(json_obj['InventoryInfo'])
+        elif 'DTO_InventoryInfo' in json_obj:
+            self.__handle_inventory(json_obj['DTO_InventoryInfo'])
         elif 'NodeStates' in json_obj and 'RewardTierUpgrade' in json_obj['NodeStates']:
             self.__handle_player_progress(json_obj)
         elif 'FrontDoorConnection.Close ' in full_log:
             self.__reset_current_user()
         elif 'Reconnect result : Connected' in full_log:
             self.__handle_reconnect_result()
+
+        if self.pending_game_submission:
+            logger.info(f'Submitting game with {len(self.pending_game_submission["history"]["events"])} history events')
+            response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=self.pending_game_submission, use_gzip=True)
+            self.__clear_game_data()
+            self.pending_game_submission = None
 
     def __try_decode(self, blob, key):
         try:
@@ -496,16 +509,17 @@ class Follower:
                 self.cur_opponent_match_id = game_room_config.get('matchId')
                 logger.info(f'Parsed opponent rank info as limited {self.cur_opponent_level} in match {self.cur_opponent_match_id}')
 
+        if 'serviceMetadata' in game_room_config:
+            self.game_service_metadata = game_room_config['serviceMetadata']
+
+        if 'clientMetadata' in game_room_config:
+            self.game_client_metadata = game_room_config['clientMetadata']
+
         if 'finalMatchResult' in game_room_info:
             # If the regular game end message is lost, try to submit remaining game data on match end.
             results = game_room_info['finalMatchResult'].get('resultList', [])
-            result = next((r for r in reversed(results) if r.get('scope') == 'MatchScope_Game'), None)
-            if result:
-                self.__send_game_end(
-                    won=self.seat_id == result['winningTeamId'],
-                    win_type=result['result'],
-                    game_end_reason='',
-                )
+            if results:
+                self.__send_game_end(results)
             self.__clear_match_data()
 
     def __handle_gre_to_client_message(self, message_blob):
@@ -516,7 +530,10 @@ class Follower:
         elif message_blob['type'] == 'GREMessageType_UIMessage' and 'onChat' in message_blob['uiMessage']:
             self.game_history_events.append(message_blob)
 
-        if message_blob['type'] == 'GREMessageType_GameStateMessage':
+        if message_blob['type'] == 'GREMessageType_ConnectResp':
+            self.__handle_gre_connect_response(message_blob)
+
+        elif message_blob['type'] == 'GREMessageType_GameStateMessage':
             system_seat_ids = message_blob.get('systemSeatIds', [])
             if len(system_seat_ids) > 0:
                 self.seat_id = system_seat_ids[0]
@@ -576,6 +593,12 @@ class Follower:
 
             self.__maybe_handle_game_over_stage(game_state_message)
 
+    def __handle_gre_connect_response(self, blob):
+        deck_info = blob.get('connectResp', {}).get('deckMessage', {})
+        self.current_game_maindeck = deck_info.pop('deckCards', [])
+        self.current_game_sideboard = deck_info.pop('sideboardCards', [])
+        self.current_game_additional_deck_info = deck_info
+
     def __handle_client_to_gre_message(self, payload):
         if payload['type'] == 'ClientMessageType_SelectNResp':
             self.game_history_events.append(payload)
@@ -602,14 +625,10 @@ class Follower:
         if game_info.get('stage') != 'GameStage_GameOver':
             return
 
-        results = game_info.get('results', [])
-        result = next((r for r in reversed(results) if r.get('scope') == 'MatchScope_Game'), None)
-        if result:
-            self.__send_game_end(
-                won=self.seat_id == result['winningTeamId'],
-                win_type=result['result'],
-                game_end_reason=result['reason'],
-            )
+        results = game_info.get('results')
+        if results:
+            self.__send_game_end(results)
+
         if game_info.get('matchState') == 'MatchState_MatchComplete':
             self.__clear_match_data()
 
@@ -625,9 +644,15 @@ class Follower:
         self.drawn_cards_by_instance_id.clear()
         self.starting_team_id = None
         self.game_history_events.clear()
+        self.current_game_maindeck = None
+        self.current_game_sideboard = None
+        self.current_game_additional_deck_info = None
+        self.game_service_metadata = None
+        self.game_client_metadata = None
 
     def __clear_match_data(self):
         self.screen_names.clear()
+        self.__clear_game_data()
 
     def __maybe_handle_account_info(self, line):
         match = ACCOUNT_INFO_REGEX.match(line)
@@ -668,13 +693,28 @@ class Follower:
             'event_name': json_obj['InternalEventName'],
             'time': self.cur_log_time.isoformat(),
             'draft_id': json_obj['DraftId'],
+            'course_id': json_obj['CourseId'],
+            'card_pool': json_obj['CardPool'],
         }
         logger.info(f'Event course: {event}')
         self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_COURSE_SUBMISSION}', blob=event)
 
-    def __send_game_end(self, won, win_type, game_end_reason):
+    def __send_game_end(self, results):
         if not self.__has_pending_game_data():
             return
+
+        game_results = [r for r in results if r.get('scope') == 'MatchScope_Game']
+        this_game_result = game_results[-1]
+        won = self.seat_id == this_game_result.get('winningTeamId')
+        game_number = max(1, len(game_results))
+        win_type = this_game_result.get('result')
+        game_end_reason = this_game_result.get('reason')
+
+        match_result = next((r for r in results if r.get('scope') == 'MatchScope_Match'), {})
+        won_match = self.seat_id == match_result.get('winningTeamId')
+        match_result_type = match_result.get('result')
+        match_end_reason = match_result.get('reason')
+
 
         logger.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
 
@@ -689,10 +729,14 @@ class Follower:
             'event_name': self.event_name,
             'match_id': self.match_id,
             'time': self.cur_log_time.isoformat(),
+            'game_number': game_number,
             'on_play': self.seat_id == self.starting_team_id,
             'won': won,
             'win_type': win_type,
             'game_end_reason': game_end_reason,
+            'won_match': won_match,
+            'match_result_type': match_result_type,
+            'match_end_reason': match_end_reason,
             'opening_hand': self.opening_hand[self.seat_id],
             'mulligans': self.drawn_hands[self.seat_id][:-1],
             'drawn_hands': self.drawn_hands[self.seat_id],
@@ -705,6 +749,11 @@ class Follower:
             'limited_rank': self.cur_limited_level,
             'constructed_rank': self.cur_constructed_level,
             'opponent_rank': self.cur_opponent_level,
+            'maindeck_card_ids': self.current_game_maindeck,
+            'sideboard_card_ids': self.current_game_sideboard,
+            'additional_deck_info': self.current_game_additional_deck_info,
+            'service_metadata': self.game_service_metadata,
+            'client_metadata': self.game_client_metadata,
         }
         logger.info(f'Completed game: {game}')
 
@@ -718,8 +767,7 @@ class Follower:
             'events': self.game_history_events,
         }
 
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=game, use_gzip=True)
-        self.__clear_game_data()
+        self.pending_game_submission = copy.deepcopy(game)
 
     def __handle_login(self, json_obj):
         """Handle 'Client.Connected' messages."""
@@ -870,7 +918,7 @@ class Follower:
 
     def __handle_inventory(self, json_obj):
         """Handle 'InventoryInfo' messages."""
-        json_obj = {k: v for k, v in json_obj.items() if k in (
+        json_obj = {k: v for k, v in json_obj.items() if k in {
             'Gems',
             'Gold',
             'TotalVaultProgress',
@@ -882,7 +930,8 @@ class Follower:
             'DraftTokens',
             'SealedTokens',
             'Boosters',
-        )}
+            'Changes',
+        }}
         blob = {
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
