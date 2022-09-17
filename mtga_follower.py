@@ -595,8 +595,9 @@ class Follower:
 
     def __handle_gre_connect_response(self, blob):
         deck_info = blob.get('connectResp', {}).get('deckMessage', {})
-        self.current_game_maindeck = deck_info.get('deckCards')
-        self.current_game_sideboard = deck_info.get('sideboardCards')
+        self.current_game_maindeck = deck_info.pop('deckCards', [])
+        self.current_game_sideboard = deck_info.pop('sideboardCards', [])
+        self.current_game_additional_deck_info = deck_info
 
     def __handle_client_to_gre_message(self, payload):
         if payload['type'] == 'ClientMessageType_SelectNResp':
@@ -645,6 +646,7 @@ class Follower:
         self.game_history_events.clear()
         self.current_game_maindeck = None
         self.current_game_sideboard = None
+        self.current_game_additional_deck_info = None
         self.game_service_metadata = None
         self.game_client_metadata = None
 
@@ -749,7 +751,7 @@ class Follower:
             'opponent_rank': self.cur_opponent_level,
             'maindeck_card_ids': self.current_game_maindeck,
             'sideboard_card_ids': self.current_game_sideboard,
-            ## TODO: companion
+            'additional_deck_info': self.current_game_additional_deck_info,
             'service_metadata': self.game_service_metadata,
             'client_metadata': self.game_client_metadata,
         }
