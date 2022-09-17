@@ -106,7 +106,7 @@ TIME_FORMATS = (
     '%Y/%m/%d %I:%M:%S %p',
     '%d/%m/%Y %H:%M:%S',
     '%d/%m/%Y %I:%M:%S %p',
-    '%d.%m.%Y %H:%M:%S'
+    '%d.%m.%Y %H:%M:%S',
     '%d.%m.%Y %I:%M:%S %p'
 )
 OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
