@@ -619,7 +619,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.1.36.w";
+        public const string CLIENT_VERSION = "0.2.1.0.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -698,9 +698,13 @@ namespace mtga_log_client
         private string currentOpponentMatchId = null;
         private string currentMatchId = null;
         private string currentEventName = null;
+        private List<int> currentGameMaindeck = new List<int>();
+        private List<int> currentGameSideboard = new List<int>();
+        private JObject currentGameAdditionalDeckInfo = new JObject();
         private int startingTeamId = -1;
         private int seatId = 0;
         private int turnCount = 0;
+        private JObject pendingGameSubmission = null;
         private readonly Dictionary<int, string> screenNames = new Dictionary<int, string>();
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
         private readonly Dictionary<int, List<int>> cardsInHand = new Dictionary<int, List<int>>();
@@ -743,6 +747,7 @@ namespace mtga_log_client
 
             while (!worker.CancellationPending)
             {
+                ClearMatchData();
                 ParseRemainderOfLog(worker);
                 Thread.Sleep(SLEEP_TIME);
             }
@@ -967,6 +972,13 @@ namespace mtga_log_client
             // if (MaybeHandleDraftNotification(fullLog, blob)) return;
             if (MaybeHandleFrontDoorConnectionClose(fullLog, blob)) return;
             if (MaybeHandleReconnectResult(fullLog, blob)) return;
+
+            if (pendingGameSubmission != null)
+            {
+                apiClient.PostGame(pendingGameSubmission);
+                ClearGameData();
+                pendingGameSubmission = null;
+            }
         }
 
         private JObject TryDecode(JObject blob, String key)
@@ -1109,11 +1121,15 @@ namespace mtga_log_client
             startingTeamId = -1;
             seatId = -1;
             turnCount = 0;
+            currentGameMaindeck = new List<int>();
+            currentGameSideboard = new List<int>();
+            currentGameAdditionalDeckInfo = new JObject();
         }
 
         private void ClearMatchData()
         {
             screenNames.Clear();
+            ClearGameData();
         }
 
         private void ResetCurrentUser()
@@ -1197,12 +1213,43 @@ namespace mtga_log_client
             }
         }
 
-        private bool SendHandleGameEnd(bool won, string winType, string gameEndReason)
+        private bool SendHandleGameEnd(JArray results)
         {
             if (!HasPendingGameData()) return false;
 
             try
             {
+                var gameResults = new List<JObject>();
+                var matchResult = new JObject();
+                for (int i = 0; i < results.Count; i++)
+                {
+                    var result = results[i].Value<JObject>();
+                    var scope = result["scope"]?.Value<String>();
+                    if (scope == "MatchScope_Game")
+                    {
+                        gameResults.Add(result);
+                    }
+                    else if (scope == "MatchScope_Match")
+                    {
+                        matchResult = result;
+                    }
+
+                }
+
+                if (gameResults.Count == 0)
+                {
+                    return true;
+                }
+                var thisGameResult = gameResults.Last();
+                var won = seatId.Equals(thisGameResult["winningTeamId"].Value<int>());
+                var gameNumber = gameResults.Count;
+                var winType = thisGameResult["result"].Value<String>();
+                var gameEndReason = thisGameResult["reason"].Value<String>();
+
+                var wonMatch = seatId == matchResult["winningTeamId"]?.Value<int>();
+                var matchResultType = matchResult["result"]?.Value<String>();
+                var matchEndReason = matchResult["reason"]?.Value<String>();
+
                 var opponentId = seatId == 1 ? 2 : 1;
                 var opponentCardIds = new List<int>();
                 if (objectsByOwner.ContainsKey(opponentId))
@@ -1223,20 +1270,17 @@ namespace mtga_log_client
                     currentOpponentLevel = null;
                 }
 
-                JObject game = new JObject();
-
-                game.Add("token", JToken.FromObject(apiToken));
-                game.Add("client_version", JToken.FromObject(CLIENT_VERSION));
-                game.Add("player_id", JToken.FromObject(currentUser));
-                game.Add("time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)));
-                game.Add("utc_time", JToken.FromObject(GetDatetimeString(lastUtcTime.Value)));
-
+                var game = CreateObjectWithBaseData();
                 game.Add("event_name", JToken.FromObject(currentEventName));
                 game.Add("match_id", JToken.FromObject(currentMatchId));
+                game.Add("game_number", JToken.FromObject(gameNumber));
                 game.Add("on_play", JToken.FromObject(seatId.Equals(startingTeamId)));
                 game.Add("won", JToken.FromObject(won));
                 game.Add("win_type", JToken.FromObject(winType));
                 game.Add("game_end_reason", JToken.FromObject(gameEndReason));
+                game.Add("won_match", JToken.FromObject(wonMatch));
+                game.Add("match_result_type", matchResultType == null ? null : JToken.FromObject(matchResultType));
+                game.Add("match_end_reason", matchEndReason == null ? null : JToken.FromObject(matchEndReason));
 
 
                 if (openingHand.ContainsKey(seatId) && openingHand[seatId].Count > 0)
@@ -1276,6 +1320,10 @@ namespace mtga_log_client
                 game.Add("duration", JToken.FromObject(-1));
                 game.Add("opponent_card_ids", JToken.FromObject(opponentCardIds));
 
+                game.Add("maindeck_card_ids", JToken.FromObject(currentGameMaindeck));
+                game.Add("sideboard_card_ids", JToken.FromObject(currentGameSideboard));
+                game.Add("additional_deck_info", currentGameAdditionalDeckInfo);
+
                 LogMessage(String.Format("Posting game of {0}", game.ToString(Formatting.None)), Level.Info);
                 if (gameHistoryEnabled && apiClient.ShouldSubmitGameHistory(apiToken))
                 {
@@ -1290,8 +1338,7 @@ namespace mtga_log_client
                     game.Add("history", history);
                 }
 
-                apiClient.PostGame(game);
-                ClearGameData();
+                pendingGameSubmission = (JObject) game.DeepClone();
 
                 return true;
             }
@@ -1731,17 +1778,13 @@ namespace mtga_log_client
 
             try
             {
-                EventCourse event_ = new EventCourse();
-                event_.token = apiToken;
-                event_.client_version = CLIENT_VERSION;
-                event_.time = GetDatetimeString(currentLogTime.Value);
-                event_.utc_time = GetDatetimeString(lastUtcTime.Value);
-                event_.player_id = currentUser;
+                var eventCourse = CreateObjectWithBaseData();
+                eventCourse.Add("event_name", blob["InternalEventName"].Value<String>());
+                eventCourse.Add("draft_id", blob["DraftId"].Value<String>());
+                eventCourse.Add("course_id", blob["CourseId"].Value<String>());
+                eventCourse.Add("card_pool", blob["CardPool"]);
 
-                event_.event_name = blob["InternalEventName"].Value<String>();
-                event_.draft_id = blob["DraftId"].Value<String>();
-
-                apiClient.PostEventCourse(event_);
+                apiClient.PostEventCourse(eventCourse);
 
                 return true;
             }
@@ -1801,6 +1844,45 @@ namespace mtga_log_client
                 LogError(String.Format("Error {0} parsing GRE deck submission from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
+        }
+
+        private bool MaybeHandleGreConnectResponse(JToken blob)
+        {
+            if (!"GREMessageType_ConnectResp".Equals(blob["type"].Value<string>())) return false;
+
+            try
+            {
+                currentGameAdditionalDeckInfo = blob?["connectResp"]?["deckMessage"]?.Value<JObject>();
+                if (currentGameAdditionalDeckInfo != null)
+                {
+                    if (currentGameAdditionalDeckInfo["deckCards"] != null)
+                    {
+                        currentGameMaindeck = JArrayToIntList(currentGameAdditionalDeckInfo["deckCards"].Value<JArray>());
+                        currentGameAdditionalDeckInfo.Remove("deckCards");
+                    } 
+                    else
+                    {
+                        currentGameMaindeck = new List<int>();
+                    }
+
+                    if (currentGameAdditionalDeckInfo["sideboardCards"] != null)
+                    {
+                        currentGameMaindeck = JArrayToIntList(currentGameAdditionalDeckInfo["sideboardCards"].Value<JArray>());
+                        currentGameAdditionalDeckInfo.Remove("sideboardCards");
+                    }
+                    else
+                    {
+                        currentGameMaindeck = new List<int>();
+                    }
+                }
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing GRE connect response from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+
         }
 
         private bool MaybeHandleGreMessage_GameState(JToken blob)
@@ -1969,22 +2051,13 @@ namespace mtga_log_client
             if (!gameInfo.ContainsKey("results")) return false;
 
             var results = gameInfo["results"].Value<JArray>();
-            for (int i = results.Count - 1; i >= 0; i--)
+            if (results.Count > 0)
             {
-                var result = results[i].Value<JObject>();
-                if (!result.ContainsKey("scope") || !result["scope"].Value<String>().Equals("MatchScope_Game")) continue;
-
-                var won = seatId.Equals(result["winningTeamId"].Value<int>());
-                var winType = result["result"].Value<String>();
-                var gameEndReason = result["reason"].Value<String>();
-
-                var success = SendHandleGameEnd(won, winType, gameEndReason);
-
+                var success = SendHandleGameEnd(results);
                 if (gameInfo.ContainsKey("matchState") && gameInfo["matchState"].Value<String>().Equals("MatchState_MatchComplete"))
                 {
                     ClearMatchData();
                 }
-
                 return success;
             }
             return false;
@@ -2044,20 +2117,13 @@ namespace mtga_log_client
                 var finalMatchResult = gameRoomInfo["finalMatchResult"].Value<JObject>();
                 if (finalMatchResult.ContainsKey("resultList")) {
                     var results = finalMatchResult["resultList"].Value<JArray>();
-                    for (int i = results.Count - 1; i >= 0; i--)
+                    if (results.Count > 0)
                     {
-                        var result = results[i].Value<JObject>();
-                        if (!result.ContainsKey("scope") || !result["scope"].Value<String>().Equals("MatchScope_Game")) continue;
-
-                        var won = seatId.Equals(result["winningTeamId"].Value<int>());
-                        var winType = result["result"].Value<String>();
-
-                        var success = SendHandleGameEnd(won, winType, "");
+                        var success = SendHandleGameEnd(results);
                         ClearMatchData();
                         return success;
                     }
                 }
-                return false;
             }
 
             return false;
@@ -2073,6 +2139,7 @@ namespace mtga_log_client
                 foreach (JToken message in blob["greToClientEvent"]["greToClientMessages"])
                 {
                     AddGameHistoryEvents(message);
+                    if (MaybeHandleGreConnectResponse(message)) continue;
                     if (MaybeHandleGreMessage_GameState(message)) continue;
                 }
                 return true;
@@ -2290,11 +2357,11 @@ namespace mtga_log_client
 
         private bool MaybeHandleInventory(String fullLog, JObject blob)
         {
-            if (!blob.ContainsKey("InventoryInfo")) return false;
+            if (!blob.ContainsKey("DTO_InventoryInfo")) return false;
 
             try
             {
-                var inventoryInfo = blob["InventoryInfo"].Value<JObject>();
+                var inventoryInfo = blob["DTO_InventoryInfo"].Value<JObject>();
 
                 JObject inventory = new JObject();
                 inventory.Add("token", JToken.FromObject(apiToken));
@@ -2391,6 +2458,18 @@ namespace mtga_log_client
             return value.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
         }
 
+        private JObject CreateObjectWithBaseData()
+        {
+            return new JObject
+            {
+                { "token", JToken.FromObject(apiToken) },
+                { "client_version", JToken.FromObject(CLIENT_VERSION) },
+                { "player_id", currentUser == null ? null : JToken.FromObject(currentUser) },
+                { "time", JToken.FromObject(GetDatetimeString(currentLogTime.Value)) },
+                { "utc_time", JToken.FromObject(GetDatetimeString(lastUtcTime.Value)) }
+            };
+        }
+
         private List<int> JArrayToIntList(JArray arr)
         {
             var output = new List<int>();
@@ -2460,7 +2539,6 @@ namespace mtga_log_client
         private static readonly DataContractJsonSerializer SERIALIZER_HUMAN_DRAFT_PACK = new DataContractJsonSerializer(typeof(HumanDraftPack));
         private static readonly DataContractJsonSerializer SERIALIZER_DECK = new DataContractJsonSerializer(typeof(Deck));
         private static readonly DataContractJsonSerializer SERIALIZER_EVENT = new DataContractJsonSerializer(typeof(Event));
-        private static readonly DataContractJsonSerializer SERIALIZER_EVENT_COURSE = new DataContractJsonSerializer(typeof(EventCourse));
         private static readonly DataContractJsonSerializer SERIALIZER_COLLECTION = new DataContractJsonSerializer(typeof(Collection), SIMPLE_SERIALIZER_SETTINGS);
         private static readonly DataContractJsonSerializer SERIALIZER_ERROR_INFO = new DataContractJsonSerializer(typeof(ErrorInfo));
 
@@ -2530,7 +2608,7 @@ namespace mtga_log_client
         {
             if (!skipLogging)
             {
-                LogMessage(String.Format("Posting {0} of {1}", endpoint, blob), Level.Info);
+                LogMessage(message: $"Posting {endpoint} of {(blob.Substring(0, length: Math.Min(blob.Length, 2000)))}", Level.Info);
             }
             for (int tryNumber = 0; tryNumber < POST_TRIES; tryNumber++)
             {
@@ -2675,12 +2753,9 @@ namespace mtga_log_client
             PostJson(ENDPOINT_EVENT, jsonString);
         }
 
-        public void PostEventCourse(EventCourse event_)
+        public void PostEventCourse(JObject eventCourse)
         {
-            MemoryStream stream = new MemoryStream();
-            SERIALIZER_EVENT_COURSE.WriteObject(stream, event_);
-            string jsonString = Encoding.UTF8.GetString(stream.ToArray());
-            PostJson(ENDPOINT_EVENT_COURSE, jsonString);
+            PostJson(ENDPOINT_EVENT_COURSE, eventCourse.ToString(Formatting.None));
         }
 
         public void PostCollection(Collection collection)
@@ -2898,24 +2973,6 @@ namespace mtga_log_client
         internal int losses;
         [DataMember]
         internal string utc_time;
-    }
-    [DataContract]
-    internal class EventCourse
-    {
-        [DataMember]
-        internal string client_version;
-        [DataMember]
-        internal string token;
-        [DataMember]
-        internal string time;
-        [DataMember]
-        internal string utc_time;
-        [DataMember]
-        internal string player_id;
-        [DataMember]
-        internal string draft_id;
-        [DataMember]
-        internal string event_name;
     }
     [DataContract]
     internal class ErrorInfo
