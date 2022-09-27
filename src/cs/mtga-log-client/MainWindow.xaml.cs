@@ -2608,7 +2608,7 @@ namespace mtga_log_client
         {
             if (!skipLogging)
             {
-                LogMessage(message: $"Posting {endpoint} of {(blob.Substring(0, length: Math.Min(blob.Length, 2000)))}", Level.Info);
+                LogMessage(message: $"Posting {endpoint} of {blob}", Level.Info);
             }
             for (int tryNumber = 0; tryNumber < POST_TRIES; tryNumber++)
             {
@@ -2742,7 +2742,7 @@ namespace mtga_log_client
 
         public void PostGame(JObject game)
         {
-            PostJson(ENDPOINT_GAME, game.ToString(Formatting.None), useGzip: true, skipLogging: false);
+            PostJson(ENDPOINT_GAME, game.ToString(Formatting.None), useGzip: true, skipLogging: true);
         }
 
         public void PostEvent(Event event_)
