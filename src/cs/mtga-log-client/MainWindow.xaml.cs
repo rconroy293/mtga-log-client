@@ -747,7 +747,6 @@ namespace mtga_log_client
 
             while (!worker.CancellationPending)
             {
-                ClearMatchData();
                 ParseRemainderOfLog(worker);
                 Thread.Sleep(SLEEP_TIME);
             }
@@ -761,6 +760,11 @@ namespace mtga_log_client
                     bool catchingUp = first || filestream.Length < farthestReadPosition;
                     if (catchingUp)
                     {
+                        if (!first)
+                        {
+                            LogMessage("Restarting parsing of " + filePath, Level.Info);
+                        }
+                        ClearMatchData();
                         filestream.Position = 0;
                         farthestReadPosition = filestream.Length;
                     }
