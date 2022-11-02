@@ -1805,42 +1805,29 @@ namespace mtga_log_client
 
             try
             {
-                objectsByOwner.Clear();
-
-                Deck deck = new Deck();
-                deck.token = apiToken;
-                deck.client_version = CLIENT_VERSION;
-                deck.player_id = currentUser;
-                deck.time = GetDatetimeString(currentLogTime.Value);
-                deck.utc_time = GetDatetimeString(lastUtcTime.Value);
-
-                deck.event_name = null;
-                JToken deckInfo = blob["submitDeckResp"]["deck"];
-                deck.maindeck_card_ids = JArrayToIntList(deckInfo["deckCards"].Value<JArray>());
-                if (deckInfo["sideboardCards"] == null) {
-                    deck.sideboard_card_ids = new List<int>();
-                }
-                else
+                currentGameAdditionalDeckInfo = blob?["submitDeckResp"]?["deck"]?.Value<JObject>();
+                if (currentGameAdditionalDeckInfo != null)
                 {
-                    deck.sideboard_card_ids = JArrayToIntList(blob["submitDeckResp"]["deck"]["sideboardCards"].Value<JArray>());
-                }
+                    if (currentGameAdditionalDeckInfo["deckCards"] != null)
+                    {
+                        currentGameMaindeck = JArrayToIntList(currentGameAdditionalDeckInfo["deckCards"].Value<JArray>());
+                        currentGameAdditionalDeckInfo.Remove("deckCards");
+                    }
+                    else
+                    {
+                        currentGameMaindeck = new List<int>();
+                    }
 
-                if (deckInfo["companionGRPId"] != null)
-                {
-                    deck.companion = deckInfo["companionGRPId"].Value<int>();
+                    if (currentGameAdditionalDeckInfo["sideboardCards"] != null)
+                    {
+                        currentGameSideboard = JArrayToIntList(currentGameAdditionalDeckInfo["sideboardCards"].Value<JArray>());
+                        currentGameAdditionalDeckInfo.Remove("sideboardCards");
+                    }
+                    else
+                    {
+                        currentGameSideboard = new List<int>();
+                    }
                 }
-                else if (deckInfo["companion"] != null)
-                {
-                    deck.companion = deckInfo["companion"].Value<int>();
-                }
-                else if (deckInfo["deckMessageFieldFour"] != null)
-                {
-                    deck.companion = deckInfo["deckMessageFieldFour"].Value<int>();
-                }
-
-                deck.is_during_match = true;
-
-                apiClient.PostDeck(deck);
                 return true;
             }
             catch (Exception e)
@@ -1871,12 +1858,12 @@ namespace mtga_log_client
 
                     if (currentGameAdditionalDeckInfo["sideboardCards"] != null)
                     {
-                        currentGameMaindeck = JArrayToIntList(currentGameAdditionalDeckInfo["sideboardCards"].Value<JArray>());
+                        currentGameSideboard = JArrayToIntList(currentGameAdditionalDeckInfo["sideboardCards"].Value<JArray>());
                         currentGameAdditionalDeckInfo.Remove("sideboardCards");
                     }
                     else
                     {
-                        currentGameMaindeck = new List<int>();
+                        currentGameSideboard = new List<int>();
                     }
                 }
                 return true;

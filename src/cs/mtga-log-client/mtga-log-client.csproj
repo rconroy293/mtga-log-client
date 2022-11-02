@@ -60,10 +60,11 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>AE0D7B6D7680CBF8A79F90581B2B5B38252081D3</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>9A09224F691354F5145D54BB5FEDD097B215DC43</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>mtga-log-client_4_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>
+    </ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <GenerateManifests>true</GenerateManifests>
