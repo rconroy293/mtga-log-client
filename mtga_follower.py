@@ -52,7 +52,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.33.p'
+CLIENT_VERSION = '0.1.34.p'
 
 TOKEN_ENTRY_TITLE = 'MTGA Log Client Token'
 TOKEN_ENTRY_MESSAGE = 'Please enter your client token from 17lands.com/account: '
@@ -605,16 +605,9 @@ class Follower:
 
         if payload['type'] == 'ClientMessageType_SubmitDeckResp':
             deck_info = payload['submitDeckResp']['deck']
-            deck = {
-                'player_id': self.cur_user,
-                'time': self.cur_log_time.isoformat(),
-                'maindeck_card_ids': deck_info['deckCards'],
-                'sideboard_card_ids': deck_info.get('sideboardCards', []),
-                'companion': deck_info.get('companionGRPId', deck_info.get('companion', deck_info.get('deckMessageFieldFour', 0))),
-                'is_during_match': True,
-            }
-            logger.info(f'Deck submission (ClientMessageType_SubmitDeckResp): {deck}')
-            response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+            self.current_game_maindeck = deck_info.pop('deckCards', [])
+            self.current_game_sideboard = deck_info.pop('sideboardCards', [])
+            self.current_game_additional_deck_info = deck_info
 
     def __handle_client_to_gre_ui_message(self, payload):
         if 'onChat' in payload['uiMessage']:
