@@ -1,6 +1,7 @@
 output_log*.txt
 Player*.log
 sample_logs/
+cert/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

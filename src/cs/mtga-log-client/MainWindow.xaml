@@ -28,7 +28,6 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
@@ -44,16 +43,13 @@
         <TextBox Grid.Row="1" Grid.Column="1" Name="ClientTokenTextBox" Margin="3" KeyDown="ClientTokenTextBox_onKeyDown" GotFocus="ClientTokenTextBox_onGotFocus" LostFocus="ClientTokenTextBox_onLostFocus"/>
         <Button Grid.Row="1" Grid.Column="2" Margin="3" Content=" Find my token " Click="OpenAccountPageInBrowser"/>
 
-        <!--<Button Grid.Row="2" Grid.Column="2" Name="ApplyButton" Margin="3" Content=" Apply Changes " Click="ApplyChanges_onClick" IsEnabled="False"/>-->
-
         <Label Grid.Row="2" Grid.Column="0" Content="Recent Messages:"/>
         <ListBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Name="MessageListBox" Margin="3" />
 
         <CheckBox Grid.Row="3" Grid.Column="0" Name="StartMinimizedCheckbox" Content="Start Minimized" Margin="3" Click="StartMinimizedCheckbox_onClick" IsChecked="False"/>
         <CheckBox Grid.Row="3" Grid.Column="1" Name="RunAtStartupCheckbox" Content="Run at Startup" Margin="3" Click="RunAtStartupCheckbox_onClick" IsChecked="True"/>
 
-        <CheckBox Grid.Row="4" Grid.Column="0" Name="GameHistoryCheckbox" Content="Game Details" Margin="3" Click="GameHistoryCheckbox_onClick" IsChecked="True"/>
-        <Button Grid.Row="4" Grid.Column="1" HorizontalAlignment="Right" Margin="3" Content=" View My Data " Click="OpenUserPageInBrowser"/>
-        <Button Grid.Row="4" Grid.Column="2" Name="StartButton" Margin="3" Content="Start Parsing" Click="StartButton_onClick"/>
+        <Button Grid.Row="3" Grid.Column="1" HorizontalAlignment="Right" Margin="3" Content=" View My Data " Click="OpenUserPageInBrowser"/>
+        <Button Grid.Row="3" Grid.Column="2" Name="StartButton" Margin="3" Content="Start Parsing" Click="StartButton_onClick"/>
     </Grid>
 </Window>
