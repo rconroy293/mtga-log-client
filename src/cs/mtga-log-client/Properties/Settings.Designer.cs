@@ -94,17 +94,5 @@ namespace mtga_log_client.Properties {
                 this["minimized_at_startup"] = value;
             }
         }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("True")]
-        public bool game_history_enabled {
-            get {
-                return ((bool)(this["game_history_enabled"]));
-            }
-            set {
-                this["game_history_enabled"] = value;
-            }
-        }
     }
 }

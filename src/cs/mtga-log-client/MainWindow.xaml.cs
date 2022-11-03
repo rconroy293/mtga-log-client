@@ -51,7 +51,6 @@ namespace mtga_log_client
         private string userToken;
         private bool runAtStartup;
         private bool minimizeAtStartup;
-        private bool gameHistoryEnabled;
         private bool exitingFromTray = false;
 
         public MainWindow()
@@ -188,14 +187,6 @@ namespace mtga_log_client
             Properties.Settings.Default.minimized_at_startup = false;
             StartMinimizedCheckbox.IsChecked = false;
 
-            Properties.Settings.Default.game_history_enabled = true;
-            gameHistoryEnabled = true;
-            GameHistoryCheckbox.IsChecked = true;
-            if (parser != null)
-            {
-                parser.SetGameHistoryEnabled(true);
-            }
-
             Properties.Settings.Default.Save();
         }
 
@@ -211,12 +202,10 @@ namespace mtga_log_client
             filePath = Properties.Settings.Default.mtga_log_filename;
             runAtStartup = Properties.Settings.Default.run_at_startup;
             minimizeAtStartup = Properties.Settings.Default.minimized_at_startup;
-            gameHistoryEnabled = Properties.Settings.Default.game_history_enabled;
 
             filePath = MaybeSwitchLogFile(filePath);
 
             StartMinimizedCheckbox.IsChecked = minimizeAtStartup;
-            GameHistoryCheckbox.IsChecked = gameHistoryEnabled;
             RunAtStartupCheckbox.IsChecked = runAtStartup;
             LogFileTextBox.Text = filePath;
             ClientTokenTextBox.Text = ObfuscateToken(userToken);
@@ -256,7 +245,6 @@ namespace mtga_log_client
             Properties.Settings.Default.mtga_log_filename = filePath;
             Properties.Settings.Default.run_at_startup = runAtStartup;
             Properties.Settings.Default.minimized_at_startup = minimizeAtStartup;
-            Properties.Settings.Default.game_history_enabled = gameHistoryEnabled;
             Properties.Settings.Default.Save();
         }
 
@@ -297,7 +285,7 @@ namespace mtga_log_client
             StartButton.IsEnabled = false;
             StartButton.Content = "Catching Up";
 
-            parser = new LogParser(client, userToken, filePath, gameHistoryEnabled, LogMessage, SetStatusButtonText);
+            parser = new LogParser(client, userToken, filePath, LogMessage, SetStatusButtonText);
 
             worker = new BackgroundWorker();
             worker.DoWork += parser.ResumeParsing;
@@ -395,16 +383,6 @@ namespace mtga_log_client
         private void StartMinimizedCheckbox_onClick(object sender, EventArgs e)
         {
             minimizeAtStartup = StartMinimizedCheckbox.IsChecked.GetValueOrDefault(false);
-            SaveSettings();
-        }
-
-        private void GameHistoryCheckbox_onClick(object sender, EventArgs e)
-        {
-            gameHistoryEnabled = GameHistoryCheckbox.IsChecked.GetValueOrDefault(false);
-            if (parser != null)
-            {
-                parser.SetGameHistoryEnabled(gameHistoryEnabled);
-            }
             SaveSettings();
         }
 
@@ -721,23 +699,16 @@ namespace mtga_log_client
         private readonly ApiClient apiClient;
         private readonly string apiToken;
         private readonly string filePath;
-        private bool gameHistoryEnabled;
         private readonly LogMessageFunction messageFunction;
         private readonly UpdateStatusFunction statusFunction;
 
-        public LogParser(ApiClient apiClient, string apiToken, string filePath, bool gameHistoryEnabled, LogMessageFunction messageFunction, UpdateStatusFunction statusFunction)
+        public LogParser(ApiClient apiClient, string apiToken, string filePath, LogMessageFunction messageFunction, UpdateStatusFunction statusFunction)
         {
             this.apiClient = apiClient;
             this.apiToken = apiToken;
             this.filePath = filePath;
-            this.gameHistoryEnabled = gameHistoryEnabled;
             this.messageFunction = messageFunction;
             this.statusFunction = statusFunction;
-        }
-
-        public void SetGameHistoryEnabled(bool flag)
-        {
-            gameHistoryEnabled = flag;
         }
 
         public void ResumeParsing(object sender, DoWorkEventArgs e)
@@ -1250,7 +1221,7 @@ namespace mtga_log_client
                 var winType = thisGameResult["result"].Value<String>();
                 var gameEndReason = thisGameResult["reason"].Value<String>();
 
-                var wonMatch = seatId == matchResult["winningTeamId"]?.Value<int>();
+                var wonMatch = seatId.Equals(matchResult["winningTeamId"]?.Value<int>());
                 var matchResultType = matchResult["result"]?.Value<String>();
                 var matchEndReason = matchResult["reason"]?.Value<String>();
 
@@ -1329,7 +1300,7 @@ namespace mtga_log_client
                 game.Add("additional_deck_info", currentGameAdditionalDeckInfo);
 
                 LogMessage(String.Format("Posting game of {0}", game.ToString(Formatting.None)), Level.Info);
-                if (gameHistoryEnabled && apiClient.ShouldSubmitGameHistory(apiToken))
+                if (apiClient.ShouldSubmitGameHistory(apiToken))
                 {
                     LogMessage(String.Format("Including game history of {0} events", gameHistoryEvents.Count()), Level.Info);
                     JObject history = new JObject();
@@ -2144,8 +2115,6 @@ namespace mtga_log_client
 
         private void AddGameHistoryEvents(JToken message)
         {
-            if (!gameHistoryEnabled) return;
-
             if (GAME_HISTORY_MESSAGE_TYPES.Contains(message["type"].Value<String>()))
             {
                 gameHistoryEvents.Add(message);
@@ -2173,7 +2142,7 @@ namespace mtga_log_client
                 if (blob.ContainsKey("payload"))
                 {
                     var payload = blob["payload"].Value<JObject>();
-                    if (gameHistoryEnabled && payload["type"].Value<String>().Equals("ClientMessageType_SelectNResp"))
+                    if (payload["type"].Value<String>().Equals("ClientMessageType_SelectNResp"))
                     {
                         gameHistoryEvents.Add(payload);
                     }
@@ -2196,18 +2165,15 @@ namespace mtga_log_client
 
             try
             {
-                if (gameHistoryEnabled)
+                if (blob.ContainsKey("payload"))
                 {
-                    if (blob.ContainsKey("payload"))
+                    var payload = blob["payload"].Value<JObject>();
+                    if (payload.ContainsKey("uiMessage"))
                     {
-                        var payload = blob["payload"].Value<JObject>();
-                        if (payload.ContainsKey("uiMessage"))
+                        var uiMessage = payload["uiMessage"].Value<JObject>();
+                        if (uiMessage.ContainsKey("onChat"))
                         {
-                            var uiMessage = payload["uiMessage"].Value<JObject>();
-                            if (uiMessage.ContainsKey("onChat"))
-                            {
-                                gameHistoryEvents.Add(payload);
-                            }
+                            gameHistoryEvents.Add(payload);
                         }
                     }
                 }
