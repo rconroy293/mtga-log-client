@@ -52,7 +52,10 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.34.p'
+CLIENT_VERSION = '0.1.35.p'
+
+UPDATE_CHECK_INTERVAL = datetime.timedelta(hours=1)
+UPDATE_PROMPT_FREQUENCY = 24
 
 TOKEN_ENTRY_TITLE = 'MTGA Log Client Token'
 TOKEN_ENTRY_MESSAGE = 'Please enter your client token from 17lands.com/account: '
@@ -1081,7 +1084,7 @@ def show_update_message(response_data):
 
     show_message(title, message)
 
-def verify_version(host):
+def verify_version(host, prompt_if_update_required):
     for i in range(3):
         response = requests.get(f'{host}/{ENDPOINT_CLIENT_VERSION}', params={
             'client': 'python',
@@ -1094,7 +1097,7 @@ def verify_version(host):
         time.sleep(DEFAULT_RETRY_SLEEP_TIME)
     else:
         logger.warning('Could not get response from server for minimum client version. Assuming version is valid.')
-        return
+        return True
 
     logger.info(f'Got minimum client version response: {response.text}')
     blob = json.loads(response.text)
@@ -1103,10 +1106,12 @@ def verify_version(host):
     logger.info(f'Minimum supported version: {min_supported_version}; this version: {this_version}')
 
     if this_version >= min_supported_version:
-        return
+        return True
 
-    show_update_message(blob)
-    exit(1)
+    if prompt_if_update_required:
+        show_update_message(blob)
+
+    return False
 
 
 def processing_loop(args, token):
@@ -1152,7 +1157,13 @@ def main():
 
     args = parser.parse_args()
 
-    verify_version(args.host)
+    check_count = 0
+    while not verify_version(
+        host=args.host,
+        prompt_if_update_required=check_count % UPDATE_PROMPT_FREQUENCY == 0,
+    ):
+        check_count += 1
+        time.sleep(UPDATE_CHECK_INTERVAL.total_seconds())
 
     token = get_config()
     logger.info(f'Using token {token[:4]}...{token[-4:]}')
