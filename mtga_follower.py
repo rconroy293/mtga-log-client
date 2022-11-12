@@ -655,6 +655,7 @@ class Follower:
         self.screen_names.clear()
         self.current_match_id = None
         self.current_event_id = None
+        self.seat_id = None
         self.__clear_game_data()
 
     def __maybe_handle_account_info(self, line):
