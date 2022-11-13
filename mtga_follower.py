@@ -52,7 +52,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.35.p'
+CLIENT_VERSION = '0.1.37.p'
 
 UPDATE_CHECK_INTERVAL = datetime.timedelta(hours=1)
 UPDATE_PROMPT_FREQUENCY = 24
@@ -208,9 +208,8 @@ class Follower:
         self.cur_limited_level = None
         self.cur_opponent_level = None
         self.cur_opponent_match_id = None
-        self.current_match_event_id = None
-        self.match_id = None
-        self.event_name = None
+        self.current_match_id = None
+        self.current_event_id = None
         self.starting_team_id = None
         self.seat_id = None
         self.turn_count = 0
@@ -487,8 +486,8 @@ class Follower:
         game_room_info = blob.get('matchGameRoomStateChangedEvent', {}).get('gameRoomInfo', {})
         game_room_config = game_room_info.get('gameRoomConfig', {})
 
-        if 'eventId' in game_room_config and 'matchId' in game_room_config:
-            self.current_match_event_id = (game_room_config['matchId'], game_room_config['eventId'])
+        updated_match_id = game_room_config.get('matchId')
+        updated_event_id = game_room_config.get('eventId')
 
         if 'reservedPlayers' in game_room_config:
             oppo_player_id = ''
@@ -497,6 +496,7 @@ class Follower:
                 # Backfill the current user's screen name when possible
                 if player['userId'] == self.cur_user:
                     self.__update_screen_name(player['playerName'])
+                    updated_event_id = player.get('eventId', updated_event_id)
                 else:
                     oppo_player_id = player['userId']
 
@@ -511,6 +511,10 @@ class Follower:
                 )
                 self.cur_opponent_match_id = game_room_config.get('matchId')
                 logger.info(f'Parsed opponent rank info as limited {self.cur_opponent_level} in match {self.cur_opponent_match_id}')
+
+        if updated_match_id and updated_event_id:
+            self.current_match_id = updated_match_id
+            self.current_event_id = updated_event_id
 
         if 'serviceMetadata' in game_room_config:
             self.game_service_metadata = game_room_config['serviceMetadata']
@@ -543,10 +547,11 @@ class Follower:
 
             game_state_message = message_blob.get('gameStateMessage', {})
 
-            game_info = game_state_message.get('gameInfo', {})
-            self.match_id = game_info.get('matchID', self.match_id)
-            if self.current_match_event_id is not None and self.current_match_event_id[0] == self.match_id:
-                self.event_name = self.current_match_event_id[1]
+            if 'gameInfo' in game_state_message:
+                game_info = game_state_message['gameInfo']
+                if game_info.get('matchID', self.current_match_id) != self.current_match_id:
+                    self.current_match_id = game_info['matchID']
+                    self.current_event_id = None
 
             turn_info = game_state_message.get('turnInfo', {})
             players = game_state_message.get('players', [])
@@ -648,6 +653,9 @@ class Follower:
 
     def __clear_match_data(self):
         self.screen_names.clear()
+        self.current_match_id = None
+        self.current_event_id = None
+        self.seat_id = None
         self.__clear_game_data()
 
     def __maybe_handle_account_info(self, line):
@@ -717,13 +725,13 @@ class Follower:
         opponent_id = 2 if self.seat_id == 1 else 1
         opponent_card_ids = [c for c in self.objects_by_owner.get(opponent_id, {}).values()]
 
-        if self.match_id != self.cur_opponent_match_id:
+        if self.current_match_id != self.cur_opponent_match_id:
             self.cur_opponent_level = None
 
         game = {
             'player_id': self.cur_user,
-            'event_name': self.event_name,
-            'match_id': self.match_id,
+            'event_name': self.current_event_id,
+            'match_id': self.current_match_id,
             'time': self.cur_log_time.isoformat(),
             'game_number': game_number,
             'on_play': self.seat_id == self.starting_team_id,
