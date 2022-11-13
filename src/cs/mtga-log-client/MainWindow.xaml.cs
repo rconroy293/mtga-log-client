@@ -1973,7 +1973,7 @@ namespace mtga_log_client
                     if (playerId.Equals(currentUser))
                     {
                         UpdateScreenName(player["playerName"].Value<String>());
-                        updatedEventName = gameRoomConfig["eventId"]?.Value<string>() ?? updatedEventName;
+                        updatedEventName = player["eventId"]?.Value<string>() ?? updatedEventName;
                     }
                     else
                     {
