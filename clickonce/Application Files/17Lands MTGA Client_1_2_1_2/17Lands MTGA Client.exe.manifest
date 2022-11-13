@@ -1,0 +1,108 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<asmv1:assembly xsi:schemaLocation="urn:schemas-microsoft-com:asm.v1 assembly.adaptive.xsd" manifestVersion="1.0" xmlns:asmv1="urn:schemas-microsoft-com:asm.v1" xmlns="urn:schemas-microsoft-com:asm.v2" xmlns:asmv2="urn:schemas-microsoft-com:asm.v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:co.v1="urn:schemas-microsoft-com:clickonce.v1" xmlns:asmv3="urn:schemas-microsoft-com:asm.v3" xmlns:dsig="http://www.w3.org/2000/09/xmldsig#" xmlns:co.v2="urn:schemas-microsoft-com:clickonce.v2">
+  <asmv1:assemblyIdentity name="17Lands MTGA Client.exe" version="1.2.1.2" publicKeyToken="a8061b41e9f14dd0" language="neutral" processorArchitecture="msil" type="win32" />
+  <description asmv2:iconFile="icon.ico" xmlns="urn:schemas-microsoft-com:asm.v1" />
+  <application />
+  <entryPoint>
+    <assemblyIdentity name="17Lands MTGA Client" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
+    <commandLine file="17Lands MTGA Client.exe" parameters="" />
+  </entryPoint>
+  <trustInfo>
+    <security>
+      <applicationRequestMinimum>
+        <PermissionSet Unrestricted="true" ID="Custom" SameSite="site" />
+        <defaultAssemblyRequest permissionSetReference="Custom" />
+      </applicationRequestMinimum>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <!--
+          UAC Manifest Options
+          If you want to change the Windows User Account Control level replace the
+          requestedExecutionLevel node with one of the following.
+
+        <requestedExecutionLevel  level="asInvoker" uiAccess="false" />
+        <requestedExecutionLevel  level="requireAdministrator" uiAccess="false" />
+        <requestedExecutionLevel  level="highestAvailable" uiAccess="false" />
+
+         If you want to utilize File and Registry Virtualization for backward
+         compatibility then delete the requestedExecutionLevel node.
+    -->
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <dependency>
+    <dependentOS>
+      <osVersionInfo>
+        <os majorVersion="5" minorVersion="1" buildNumber="2600" servicePackMajor="0" />
+      </osVersionInfo>
+    </dependentOS>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="preRequisite" allowDelayedBinding="true">
+      <assemblyIdentity name="Microsoft.Windows.CommonLanguageRuntime" version="4.0.30319.0" />
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="17Lands MTGA Client.exe" size="1002328">
+      <assemblyIdentity name="17Lands MTGA Client" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>vvHsDK0zggnH+BuF16UcRansRDPCXt20r3vxEPtfJ48=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="log4net.dll" size="270336">
+      <assemblyIdentity name="log4net" version="2.0.12.0" publicKeyToken="669E0DDF0BB1AA2A" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>iWq5ysQeOXd5K6IDTqhzBhDCd5+lG6tr7UJglOqNPs0=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="Newtonsoft.Json.dll" size="701992">
+      <assemblyIdentity name="Newtonsoft.Json" version="13.0.0.0" publicKeyToken="30AD4FE6B2A6AEED" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>tiSUnfiw46YVP9+3MKfG9JkLZZLuDZIuF4hDPSdmEPM=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <file name="17Lands MTGA Client.exe.config" size="1948">
+    <hash>
+      <dsig:Transforms>
+        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+      </dsig:Transforms>
+      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+      <dsig:DigestValue>93f/xgI4ZJHPviioBVa46vomJwxTda8IoZVC/WejSV0=</dsig:DigestValue>
+    </hash>
+  </file>
+  <file name="icon.ico" size="303340">
+    <hash>
+      <dsig:Transforms>
+        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+      </dsig:Transforms>
+      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+      <dsig:DigestValue>omyJqn5hxVFJSm3PzLeJzXNre4pXGjIoBnAyyid1nIY=</dsig:DigestValue>
+    </hash>
+  </file>
+  <file name="log4net.config" size="1033">
+    <hash>
+      <dsig:Transforms>
+        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+      </dsig:Transforms>
+      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+      <dsig:DigestValue>T0sWn7cQuNoMACbcDLBvjvBV4/ES5kHGoA2Vew5RwHY=</dsig:DigestValue>
+    </hash>
+  </file>
+<publisherIdentity name="CN=Robert Conroy, O=Robert Conroy, S=Colorado, C=US" issuerKeyHash="0f2acb208728b8ec6f48ae2b54a629aa17a4cd0c" /><Signature Id="StrongNameSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>PMmrm4yhvWu4BSJr8wKebgSqyes=</DigestValue></Reference></SignedInfo><SignatureValue>AoLz5qiWckEVINoKbONxh9ISAw81MlLEfWcFuu9p1GzYSmA5Sk1X2vOsfLOWBjiMvt8rdC/KLi9C5FflidY2oDIln3f26BA1S7TibMUqOWgizYtsa99YliBhnh4SHssxIvI/ibrNtEb/GarzM4bhzP24fVOY7jIblQ5IMSYSiVHFWFwv6MONLIEnZyhmHA26m2iMpBqhrvG4wb7770CRSQQniXAyNIO5dLlpgMqEpIbN7EKSBH0dcBrAC58o/syoBzjCztTVBw47kXpCBE65apbOux29cpEj3La0YuhrDj8uD19xulrrqciTQ4qs9xQKyLo9p8l7/z7fUlKYUA8CURAne3xVty/5zuuTQAtEKhJyE23jrVr3GDMtLXIB8qug2L93gh/B5iWm95Sa8beerE0OoyteJs+WiwTRefD9NY0FlphIxvdQiwQ546p4eSW0pBXHDs41dK+SFAW31jUEvpe0rHuNQsrWligyVMzkWYFQX38QyQT1hi66r7Hvv4sGZRzWFHO4dhuw/tIS8Gr+dfuK+SFjixOTLYZ5f0rBRveN6snddhyC+4ei2ikWgkBApmIUM/BOAYCERxZLkw6CKE3AnqxZyCIFPefyyJD+pfvqIrojBsWXODzr0iYMbsecgh+mlUHoaOjObjDXAen9gRKQl6A5+mS2Z6ATIKgSxq0=</SignatureValue><KeyInfo Id="StrongNameKeyInfo"><KeyValue><RSAKeyValue><Modulus>iprEuX+RgIlLTMBBXfxqrQuxS4p+kKllLWyVqzDIWH6S0rKf+rqSybjh3PqMVPuqayqUbhyiUkyyIjW+LPcyJOBh29dFWjxBT93aTWMPDqe5zqj2JlLoWdl9Fyk0DkmYz1tMGrHz3ZsNrVEABEJU1ggZYy5sYOxRU6pm7xJTZqPkN/vx1hmmpyjyY/HHPrm4Ri+ryyloTTauNDJ9RX/Xs187H2mIMD4kq5FuqI9VDOe/kTZzAGjZKZjJk7FPfq1m4cZij93p1YvVglPLfm7kamvi6aAFq/iAiLDW50k/VvdM7VyhD2g/36NIxmIgLwx57LmH2Xg68QnIIiiv3P6Dsikl44CQvvOYYKNQp2ZSwXDF46uXILaRdFkMhPlu5PtxkUC4q3Ggnma6mCVV9gPxSIxfiuXcUhTJDg6Q926wKxshCIZNewS0jt3CXno7ZXaX+4mYZ8etm4v4CMzQQWCOTiLY0CBFmPq/EdwM8NnS8rEFy7ubgDYAvAHOlORulffQvn8RdQDiSK6ZeDY/g+3yCiEFZBI/tzpEf2E4pmg/7rVFR56EO5AuO9CtJsjczyPyLYDW1TgDk98c9myUV1ZTmhjzCge9mnp22K0zyCq5DMoNIX/1OzDadw9HuzDYMbXxmFJFZqp4yit3KABPlpnH/93h4IuFfFmx+AMB1fVmukM=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><msrel:RelData xmlns:msrel="http://schemas.microsoft.com/windows/rel/2005/reldata"><r:license xmlns:r="urn:mpeg:mpeg21:2003:01-REL-R-NS" xmlns:as="http://schemas.microsoft.com/windows/pki/2005/Authenticode"><r:grant><as:ManifestInformation Hash="ebc9aa046e9e02f36b2205b86bbda18c9babc93c" Description="" Url=""><as:assemblyIdentity name="17Lands MTGA Client.exe" version="1.2.1.2" publicKeyToken="a8061b41e9f14dd0" language="neutral" processorArchitecture="msil" type="win32" /></as:ManifestInformation><as:SignedBy /><as:AuthenticodePublisher><as:X509SubjectName>CN=Robert Conroy, O=Robert Conroy, S=Colorado, C=US</as:X509SubjectName></as:AuthenticodePublisher></r:grant><r:issuer><Signature Id="AuthenticodeSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>CcKFUxIeRsSAjwYdUhPGjNT8yQU=</DigestValue></Reference></SignedInfo><SignatureValue>TerA3DX/909afM21gWZKTQoa5Qj2mPl/hrlMQJS14iHJNWP2P1NqmXDSt92rmZm9aUlmjju2/hXHRhzalSb03h1fYT9wQsOL49xlQv/nBGEw8nfcZlt7Q5JQ65HQDw4K1t9oTDtmXt8mRFknBTX4ptUgljGLU8hIB183+0sAvCTOijs6T4pfDcNHzngXdxPQ9WZ6rKLwqWbkFPEJokF9XKQGmGlN3TiyZK1HYlnyY7RMNqBN3nchkJ5pQDASSkPnKX6Gdxl848tZbsrAJnpSuMuhW7c9DQ5gnEntSLtisk1skqWQqp5JE7EVtTxFFbi+/a3pCiC1LbNqV9Shq8qUKpFR4Jad9A0lJ6VRWQF4Ykh/Km4FYtrmK5HhPzlyKBa+Svmpurq5BNZh++ts4Zo2uFvhYzA4tXDH/Ilx9uRPEAI+Z0BkdFUOJDBMkoerayGI25n2twG2DjXFX5P/J9Sl5EeBUk2ZWpvs0Ybe0MfXMunH60TwU2mxVcL9Y7EuuwpnBvWELXMjkRQJhgHH0+nJfaeC8CCAGQkkP2L9pW/a5TqAKPJshb6JgFdS2wT5W8UtOVqw/oQiZ7+ixmeOBzcmK0fWbsKbu6Jjzd9GrRxc3eFnaUnVfudL+n1+dq/yY694hjp/WtdGYEgHClE/D/iPVS+WaQ3e2YrJ6SNUM5WOwTk=</SignatureValue><KeyInfo><KeyValue><RSAKeyValue><Modulus>iprEuX+RgIlLTMBBXfxqrQuxS4p+kKllLWyVqzDIWH6S0rKf+rqSybjh3PqMVPuqayqUbhyiUkyyIjW+LPcyJOBh29dFWjxBT93aTWMPDqe5zqj2JlLoWdl9Fyk0DkmYz1tMGrHz3ZsNrVEABEJU1ggZYy5sYOxRU6pm7xJTZqPkN/vx1hmmpyjyY/HHPrm4Ri+ryyloTTauNDJ9RX/Xs187H2mIMD4kq5FuqI9VDOe/kTZzAGjZKZjJk7FPfq1m4cZij93p1YvVglPLfm7kamvi6aAFq/iAiLDW50k/VvdM7VyhD2g/36NIxmIgLwx57LmH2Xg68QnIIiiv3P6Dsikl44CQvvOYYKNQp2ZSwXDF46uXILaRdFkMhPlu5PtxkUC4q3Ggnma6mCVV9gPxSIxfiuXcUhTJDg6Q926wKxshCIZNewS0jt3CXno7ZXaX+4mYZ8etm4v4CMzQQWCOTiLY0CBFmPq/EdwM8NnS8rEFy7ubgDYAvAHOlORulffQvn8RdQDiSK6ZeDY/g+3yCiEFZBI/tzpEf2E4pmg/7rVFR56EO5AuO9CtJsjczyPyLYDW1TgDk98c9myUV1ZTmhjzCge9mnp22K0zyCq5DMoNIX/1OzDadw9HuzDYMbXxmFJFZqp4yit3KABPlpnH/93h4IuFfFmx+AMB1fVmukM=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><X509Data><X509Certificate>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</X509Certificate><X509Certificate>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</X509Certificate><X509Certificate>MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0BAQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEhMB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAwMFoXDTI4MTIzMTIzNTk1OVowVjELMAkGA1UEBhMCR0IxGDAWBgNVBAoTD1NlY3RpZ28gTGltaXRlZDEtMCsGA1UEAxMkU2VjdGlnbyBQdWJsaWMgQ29kZSBTaWduaW5nIFJvb3QgUjQ2MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAjeeUEiIEJHQu/xYjApKKtq42haxH1CORKz7cfeIxoFFvrISR41KKteKW3tCHYySJiv/vEpM7fbu2ir29BX8nm2tl06UMabG8STma8W1uquSggyfamg0rUOlLW7O4ZDakfko9qXGrYbNzszwLDO/bM1flvjQ345cbXf0fEj2CA3bm+z9m0pQxafptszSswXp43JJQ8mTHqi0Eq8Nq6uAvp6fcbtfo/9ohq0C/ue4NnsbZnpnvxt4fqQx2sycgoda6/YDnAdLv64IplXCN/7sVz/7RDzaiLk8ykHRGa0c1E3cFM09jLrgt4b9lpwRrGNhx+swI8m2JmRCxrds+LOSqGLDGBwF1Z95t6WNjHjZ/aYm+qkU+blpfj6Fby50whjDoA7NAxg0POM1nqFOI+rgwZfpvx+cdsYN0aT6sxGg7seZnM5q2COCABUhA7vaCZEao9XOwBpXybGWfv1VbHJxXGsd4RnxwqpQbghesh+m2yQ6BHEDWFhcp/FycGCvqRfXvvdVnTyheBe6QTHrnxvTQ/PrNPjJGEyA2igTqt6oHRpwNkzoJZplYXCmjuQymMDg80EY2NXycuu7D1fkKdvp+BRtAypI16dV60bV/AK6pkKrFfwGcELEW/MxuGNxvYv6mUKe4e7idFT/+IAx1yCJaE5UZkADpGtXChvHjjuxf9OUCAwEAAaOCARIwggEOMB8GA1UdIwQYMBaAFKARCiM+lvEH7OKvKe+CpX/QMKS0MB0GA1UdDgQWBBQy65Ka/zWWSC8oQEJwIDaRXBeF5jAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zATBgNVHSUEDDAKBggrBgEFBQcDAzAbBgNVHSAEFDASMAYGBFUdIAAwCAYGZ4EMAQQBMEMGA1UdHwQ8MDowOKA2oDSGMmh0dHA6Ly9jcmwuY29tb2RvY2EuY29tL0FBQUNlcnRpZmljYXRlU2VydmljZXMuY3JsMDQGCCsGAQUFBwEBBCgwJjAkBggrBgEFBQcwAYYYaHR0cDovL29jc3AuY29tb2RvY2EuY29tMA0GCSqGSIb3DQEBDAUAA4IBAQASv6Hvi3SamES4aUa1qyQKDKSKZ7g6gb9Fin1SB6iNH04hhTmja14tIIa/ELiueTtTzbT72ES+BtlcY2fUQBaHRIZyKtYyFfUSg8L54V0RQGf2QidyxSPiAjgaTCDi2wH3zUZPJqJ8ZsBRNraJAlTH/Fj7bADu/pimLpWhDFMpH2/YGaZPnvesCepdgsaLr4CnvYFIUoQx2jLsFeSmTD1sOXPUC4U5IOCFGmjhp0g4qdE2JXfBjRkWxYhMZn0vY86Y6GnfrDyoXZ3JHFuu2PMvdM+4fvbXg50RlmKarkUT2n/cR/vfw1Kf5gZV6Z2M8jpiUbzsJA8p1FiAhORFe1rY</X509Certificate></X509Data></KeyInfo></Signature></r:issuer></r:license></msrel:RelData></KeyInfo></Signature></asmv1:assembly>
