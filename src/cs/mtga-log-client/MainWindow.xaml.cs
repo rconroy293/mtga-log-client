@@ -597,7 +597,7 @@ namespace mtga_log_client
 
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.2.1.1.w";
+        public const string CLIENT_VERSION = "0.2.1.2.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -932,7 +932,6 @@ namespace mtga_log_client
             if (MaybeHandleDeckSubmission(fullLog, blob)) return;
             if (MaybeHandleOngoingEvents(fullLog, blob)) return;
             if (MaybeHandleClaimPrize(fullLog, blob)) return;
-            // if (MaybeHandleEventCompletion(blob)) return;
             if (MaybeHandleEventCourse(fullLog, blob)) return;
             if (MaybeHandleScreenNameUpdate(fullLog, blob)) return;
             if (MaybeHandleMatchStateChanged(blob)) return;
@@ -940,11 +939,8 @@ namespace mtga_log_client
             if (MaybeHandleClientToGreMessage(blob)) return;
             if (MaybeHandleClientToGreUiMessage(blob)) return;
             if (MaybeHandleSelfRankInfo(fullLog, blob)) return;
-            // if (MaybeHandleMatchCreated(blob)) return;
-            // if (MaybeHandleCollection(fullLog, blob)) return;
             if (MaybeHandleInventory(fullLog, blob)) return;
             if (MaybeHandlePlayerProgress(fullLog, blob)) return;
-            // if (MaybeHandleDraftNotification(fullLog, blob)) return;
             if (MaybeHandleFrontDoorConnectionClose(fullLog, blob)) return;
             if (MaybeHandleReconnectResult(fullLog, blob)) return;
 
@@ -1104,6 +1100,9 @@ namespace mtga_log_client
         private void ClearMatchData()
         {
             screenNames.Clear();
+            currentMatchId = null;
+            currentEventName = null;
+            seatId = 0;
             ClearGameData();
         }
 
@@ -1521,49 +1520,6 @@ namespace mtga_log_client
                 return false;
             }
         }
-
-        private bool MaybeHandleDraftNotification(String fullLog, JObject blob)
-        {
-            if (!fullLog.Contains("Draft.Notification ")) return false;
-            if (blob.ContainsKey("method")) return false;
-            if (!blob.ContainsKey("PickInfo")) return false;
-            if (blob["PickInfo"].Value<JObject>() == null) return false;
-
-            ClearGameData();
-
-            try
-            {
-                var pickInfo = blob["PickInfo"].Value<JObject>();
-                HumanDraftPack pack = new HumanDraftPack();
-                pack.method = "Draft.Notification";
-                pack.token = apiToken;
-                pack.client_version = CLIENT_VERSION;
-                pack.player_id = currentUser;
-                pack.time = GetDatetimeString(currentLogTime.Value);
-                pack.utc_time = GetDatetimeString(lastUtcTime.Value);
-
-                var cardIds = new List<int>();
-                var cardIdJArray = pickInfo["PackCards"].Value<JArray>();
-                foreach (JToken cardId in cardIdJArray)
-                {
-                    cardIds.Add(cardId.Value<int>());
-                }
-
-                pack.draft_id = blob["DraftId"].Value<String>();
-                pack.pack_number = pickInfo["SelfPack"].Value<int>();
-                pack.pick_number = pickInfo["SelfPick"].Value<int>();
-                pack.card_ids = cardIds;
-                pack.event_name = currentDraftEvent;
-
-                apiClient.PostHumanDraftPack(pack);
-                return true;
-            }
-            catch (Exception e)
-            {
-                LogError(String.Format("Error {0} parsing human draft pack from notification {1}", e, blob), e.StackTrace, Level.Warn);
-                return false;
-            }
-        }
         
         private bool MaybeHandleFrontDoorConnectionClose(String fullLog, JObject blob)
         {
@@ -1710,42 +1666,6 @@ namespace mtga_log_client
             }
         }
 
-        private bool MaybeHandleEventCompletion(JObject blob)
-        {
-            if (!blob.ContainsKey("CurrentEventState")) return false;
-            if (!"DoneWithMatches".Equals(blob["CurrentEventState"].Value<String>())) return false;
-
-            try
-            {
-                Event event_ = new Event();
-                event_.token = apiToken;
-                event_.client_version = CLIENT_VERSION;
-                event_.player_id = currentUser;
-                event_.time = GetDatetimeString(currentLogTime.Value);
-                event_.utc_time = GetDatetimeString(lastUtcTime.Value);
-
-                event_.event_name = blob["InternalEventName"].Value<String>();
-                if (blob["ModuleInstanceData"]["HasPaidEntry"] != null)
-                {
-                    event_.entry_fee = blob["ModuleInstanceData"]["HasPaidEntry"].Value<String>();
-                }
-                else
-                {
-                    event_.entry_fee = "None";
-                }
-                event_.wins = blob["ModuleInstanceData"]["WinLossGate"]["CurrentWins"].Value<int>();
-                event_.losses = blob["ModuleInstanceData"]["WinLossGate"]["CurrentLosses"].Value<int>();
-
-                apiClient.PostEvent(event_);
-                return true;
-            }
-            catch (Exception e)
-            {
-                LogError(String.Format("Error {0} parsing event completion from {1}", e, blob), e.StackTrace, Level.Warn);
-                return false;
-            }
-        }
-
         private bool MaybeHandleEventCourse(String fullLog, JObject blob)
         {
             if (!fullLog.Contains("Draft_CompleteDraft")) return false;
@@ -1869,7 +1789,12 @@ namespace mtga_log_client
                     var gameInfo = gameStateMessage["gameInfo"].Value<JObject>();
                     if (gameInfo.ContainsKey("matchID"))
                     {
-                        currentMatchId = gameInfo["matchID"].Value<string>();
+                        var matchId = gameInfo["matchID"].Value<string>();
+                        if (matchId != currentMatchId)
+                        {
+                            currentMatchId = matchId;
+                            currentEventName = null;
+                        }
                     }
                 }
 
@@ -2034,10 +1959,8 @@ namespace mtga_log_client
             if (!gameRoomInfo.ContainsKey("gameRoomConfig")) return false;
             var gameRoomConfig = gameRoomInfo["gameRoomConfig"].Value<JObject>();
 
-            if (gameRoomConfig.ContainsKey("eventId") && gameRoomConfig.ContainsKey("matchId"))
-            {
-                currentEventName = gameRoomConfig["eventId"].Value<String>();
-            }
+            string updatedMatchId = gameRoomConfig["matchId"]?.Value<string>();
+            string updatedEventName = gameRoomConfig["eventId"]?.Value<string>();
 
             if (gameRoomConfig.ContainsKey("reservedPlayers"))
             {
@@ -2050,6 +1973,7 @@ namespace mtga_log_client
                     if (playerId.Equals(currentUser))
                     {
                         UpdateScreenName(player["playerName"].Value<String>());
+                        updatedEventName = player["eventId"]?.Value<string>() ?? updatedEventName;
                     }
                     else
                     {
@@ -2071,6 +1995,12 @@ namespace mtga_log_client
                     currentOpponentMatchId = gameRoomConfig["matchId"].Value<string>();
                     LogMessage(String.Format("Parsed opponent rank info as {0} in match {1}", currentOpponentLevel, currentOpponentMatchId), Level.Info);
                 }
+            }
+
+            if (updatedMatchId != null && updatedEventName != null)
+            {
+                currentMatchId = updatedMatchId;
+                currentEventName = updatedEventName;
             }
 
             if (gameRoomInfo.ContainsKey("finalMatchResult"))
@@ -2242,72 +2172,6 @@ namespace mtga_log_client
             catch (Exception e)
             {
                 LogError(String.Format("Error {0} parsing self rank info from {1}", e, blob), e.StackTrace, Level.Warn);
-                return false;
-            }
-        }
-
-        private bool MaybeHandleMatchCreated(JObject blob)
-        {
-            if (!blob.ContainsKey("opponentRankingClass")) return false;
-
-            ClearGameData();
-
-            try
-            {
-                currentOpponentLevel = GetRankString(
-                    GetOrEmpty(blob, "opponentRankingClass"),
-                    GetOrEmpty(blob, "opponentRankingTier"),
-                    GetOrEmpty(blob, "opponentMythicPercentile"),
-                    GetOrEmpty(blob, "opponentMythicLeaderboardPlace"),
-                    null
-                );
-
-                if (blob.ContainsKey("matchId"))
-                {
-                    currentMatchId = blob["matchId"].Value<String>();
-                }
-
-                LogMessage(String.Format("Parsed opponent rank info as {0} in match {1}", currentOpponentLevel, currentMatchId), Level.Info);
-
-                return true;
-            }
-            catch (Exception e)
-            {
-                LogError(String.Format("Error {0} parsing match creation from {1}", e, blob), e.StackTrace, Level.Warn);
-                return false;
-            }
-        }
-
-        private bool MaybeHandleCollection(String fullLog, JObject blob)
-        {
-            if (!fullLog.Contains(" PlayerInventory.GetPlayerCardsV3 ")) return false;
-            if (blob.ContainsKey("method")) return false;
-
-            if (currentUser == null)
-            {
-                LogMessage("Skipping collection submission while player id is unknown", Level.Info);
-                return true;
-            }
-
-            try
-            {
-                Collection collection = new Collection();
-                collection.token = apiToken;
-                collection.client_version = CLIENT_VERSION;
-                collection.player_id = currentUser;
-                collection.time = GetDatetimeString(currentLogTime.Value);
-                collection.utc_time = GetDatetimeString(lastUtcTime.Value);
-                collection.card_counts = blob.ToObject<Dictionary<string, int>>();
-
-                apiClient.PostCollection(collection);
-
-                LogMessage(String.Format("Parsed collection"), Level.Info);
-
-                return true;
-            }
-            catch (Exception e)
-            {
-                LogError(String.Format("Error {0} parsing collection from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
