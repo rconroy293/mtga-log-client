@@ -52,7 +52,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.37.p'
+CLIENT_VERSION = '0.1.38.p'
 
 UPDATE_CHECK_INTERVAL = datetime.timedelta(hours=1)
 UPDATE_PROMPT_FREQUENCY = 24
@@ -204,8 +204,7 @@ class Follower:
         self.disconnected_screen_name = None
         self.cur_user = None
         self.cur_draft_event = None
-        self.cur_constructed_level = None
-        self.cur_limited_level = None
+        self.cur_rank_data = None
         self.cur_opponent_level = None
         self.cur_opponent_match_id = None
         self.current_match_id = None
@@ -432,7 +431,7 @@ class Follower:
             self.__handle_client_to_gre_message(json_obj.get('payload', {}))
         elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREUIMessage', ['clientToMatchServiceMessageType'], json_obj):
             self.__handle_client_to_gre_ui_message(json_obj.get('payload', {}))
-        elif 'Rank_GetCombinedRankInfo' in full_log and 'limitedClass' in json_obj:
+        elif 'Rank_GetCombinedRankInfo' in full_log:
             self.__handle_self_rank_info(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj: # Doesn't exist any more
             self.__handle_collection(json_obj)
@@ -750,8 +749,7 @@ class Follower:
             'turns': self.turn_count,
             'duration': -1,
             'opponent_card_ids': opponent_card_ids,
-            'limited_rank': self.cur_limited_level,
-            'constructed_rank': self.cur_constructed_level,
+            'rank_data': self.cur_rank_data,
             'opponent_rank': self.cur_opponent_level,
             'maindeck_card_ids': self.current_game_maindeck,
             'sideboard_card_ids': self.current_game_sideboard,
@@ -883,27 +881,15 @@ class Follower:
 
     def __handle_self_rank_info(self, json_obj):
         """Handle 'Rank_GetCombinedRankInfo' messages."""
-        self.cur_limited_level = get_rank_string(
-            rank_class=json_obj.get('limitedClass'),
-            level=json_obj.get('limitedLevel'),
-            percentile=json_obj.get('limitedPercentile'),
-            place=json_obj.get('limitedLeaderboardPlace'),
-            step=json_obj.get('limitedStep'),
-        )
-        self.cur_constructed_level = get_rank_string(
-            rank_class=json_obj.get('constructedClass'),
-            level=json_obj.get('constructedLevel'),
-            percentile=json_obj.get('constructedPercentile'),
-            place=json_obj.get('constructedLeaderboardPlace'),
-            step=json_obj.get('constructedStep'),
-        )
+        self.cur_rank_data = json_obj
         self.cur_user = json_obj.get('playerId', self.cur_user)
-        logger.info(f'Parsed rank info for {self.cur_user} as limited {self.cur_limited_level} and constructed {self.cur_constructed_level}')
+        logger.info(f'Parsed rank info for {self.cur_user}: {self.cur_rank_data}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_RANK}', blob={
             'player_id':self.cur_user,
             'time': self.cur_log_time.isoformat(),
-            'limited_rank': self.cur_limited_level,
-            'constructed_rank': self.cur_constructed_level,
+            'rank_data': self.cur_rank_data,
+            'limited_rank': None,
+            'constructed_rank': None,
         })
 
     def __handle_collection(self, json_obj):
