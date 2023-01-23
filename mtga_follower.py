@@ -52,7 +52,7 @@ for handler in handlers:
 logger.setLevel(logging.INFO)
 logger.info(f'Saving logs to {LOG_FILENAME}')
 
-CLIENT_VERSION = '0.1.38.p'
+CLIENT_VERSION = '0.1.39.p'
 
 UPDATE_CHECK_INTERVAL = datetime.timedelta(hours=1)
 UPDATE_PROMPT_FREQUENCY = 24
@@ -611,6 +611,7 @@ class Follower:
             self.game_history_events.append(payload)
 
         if payload['type'] == 'ClientMessageType_SubmitDeckResp':
+            self.__clear_game_data()
             deck_info = payload['submitDeckResp']['deck']
             self.current_game_maindeck = deck_info.pop('deckCards', [])
             self.current_game_sideboard = deck_info.pop('sideboardCards', [])
