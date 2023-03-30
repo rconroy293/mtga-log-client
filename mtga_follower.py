@@ -14,11 +14,10 @@ details.
 import argparse
 import copy
 import datetime
-import json
 import getpass
 import gzip
 import itertools
-import logging
+import json
 import logging.handlers
 import os
 import os.path
@@ -29,11 +28,14 @@ import sys
 import time
 import traceback
 import uuid
-
-from collections import defaultdict, namedtuple
+from collections import defaultdict
+from dataclasses import dataclass
+from logging import Handler
+from typing import Any, List, Dict, Optional, Set
 
 import dateutil.parser
 import requests
+from requests import Response
 
 LOG_FOLDER = os.path.join(os.path.expanduser('~'), '.seventeenlands')
 if not os.path.exists(LOG_FOLDER):
@@ -41,7 +43,7 @@ if not os.path.exists(LOG_FOLDER):
 LOG_FILENAME = os.path.join(LOG_FOLDER, 'seventeenlands.log')
 
 log_formatter = logging.Formatter('%(asctime)s,%(levelname)s,%(message)s', datefmt='%Y%m%d %H%M%S')
-handlers = {
+handlers: Set[Handler] = {
     logging.handlers.TimedRotatingFileHandler(LOG_FILENAME, when='D', interval=1, backupCount=7, utc=True),
     logging.StreamHandler(),
 }
@@ -137,8 +139,13 @@ IS_CODE_FOR_RETRY = lambda code: code >= 500 and code < 600
 IS_SUCCESS_CODE = lambda code: code >= 200 and code < 300
 DEFAULT_RETRY_SLEEP_TIME = 1
 
+@dataclass
+class MTGAFollowerCliArgs:
+    log_file: str
+    host: str
+    once: bool
 
-def extract_time(time_str):
+def extract_time(time_str: str) -> datetime.datetime:
     """
     Convert a time string in various formats to a datetime.
 
@@ -147,18 +154,20 @@ def extract_time(time_str):
     :returns: The resulting datetime object.
     :raises ValueError: Raises an exception if it cannot interpret the string.
     """
-    time_str = STRIPPED_TIMESTAMP_REGEX.match(time_str).group(1)
-    if ': ' in time_str:
-        time_str = time_str.split(': ')[0]
+    match = STRIPPED_TIMESTAMP_REGEX.match(time_str)
+    if match is not None:
+        time_str = match.group(1)
+        if ': ' in time_str:
+            time_str = time_str.split(': ')[0]
 
-    for possible_format in TIME_FORMATS:
-        try:
-            return datetime.datetime.strptime(time_str, possible_format)
-        except ValueError:
-            pass
+        for possible_format in TIME_FORMATS:
+            try:
+                return datetime.datetime.strptime(time_str, possible_format)
+            except ValueError:
+                pass
     raise ValueError(f'Unsupported time format: "{time_str}"')
 
-def json_value_matches(expectation, path, blob):
+def json_value_matches(expectation: str, path: List[str], blob: Dict[str, Any]) -> bool:
     """
     Check if the value nested at a given path in a JSON blob matches the expected value.
 
@@ -166,7 +175,7 @@ def json_value_matches(expectation, path, blob):
     :param path:        A list of keys for the nested value.
     :param blob:        The JSON blob to check in.
 
-    :returns: Whether or not the value exists at the given path and it matches expectation.
+    :returns: Whether the value exists at the given path, and it matches expectation.
     """
     for p in path:
         if p in blob:
@@ -175,7 +184,7 @@ def json_value_matches(expectation, path, blob):
             return False
     return blob == expectation
 
-def get_rank_string(rank_class, level, percentile, place, step):
+def get_rank_string(rank_class: str, level: str, percentile: str, place: str, step: Optional[str]) -> str:
     """
     Convert the components of rank into a serializable value for recording
 
@@ -192,43 +201,43 @@ def get_rank_string(rank_class, level, percentile, place, step):
 class Follower:
     """Follows along a log, parses the messages, and passes along the parsed data to the API endpoint."""
 
-    def __init__(self, token, host):
+    def __init__(self, token: str, host: str) -> None:
         self.host = host
         self.token = token
-        self.buffer = []
+        self.buffer: List[str] = []
         self.cur_log_time = datetime.datetime.fromtimestamp(0)
         self.last_utc_time = datetime.datetime.fromtimestamp(0)
         self.last_raw_time = ''
         self.json_decoder = json.JSONDecoder()
-        self.disconnected_user = None
-        self.disconnected_screen_name = None
-        self.cur_user = None
-        self.cur_draft_event = None
-        self.cur_rank_data = None
-        self.cur_opponent_level = None
-        self.cur_opponent_match_id = None
-        self.current_match_id = None
-        self.current_event_id = None
-        self.starting_team_id = None
-        self.seat_id = None
+        self.disconnected_user: Optional[str] = None
+        self.disconnected_screen_name: Optional[str] = None
+        self.cur_user: Optional[str] = None
+        self.cur_draft_event: Optional[str] = None
+        self.cur_rank_data: Optional[Dict[str, Any]] = None
+        self.cur_opponent_level: Optional[str] = None
+        self.cur_opponent_match_id: Optional[str] = None
+        self.current_match_id: Optional[str] = None
+        self.current_event_id: Optional[str] = None
+        self.starting_team_id: Optional[str] = None
+        self.seat_id: Optional[str] = None
         self.turn_count = 0
-        self.current_game_maindeck = None
-        self.current_game_sideboard = None
-        self.game_service_metadata = None
-        self.game_client_metadata = None
-        self.objects_by_owner = defaultdict(dict)
-        self.opening_hand_count_by_seat = defaultdict(int)
-        self.opening_hand = defaultdict(list)
-        self.drawn_hands = defaultdict(list)
-        self.drawn_cards_by_instance_id = defaultdict(dict)
-        self.cards_in_hand = defaultdict(list)
-        self.user_screen_name = None
-        self.screen_names = defaultdict(lambda: '')
-        self.game_history_events = []
-        self.pending_game_submission = None
+        self.current_game_maindeck: Optional[str] = None
+        self.current_game_sideboard: Optional[str] = None
+        self.game_service_metadata: Optional[str] = None
+        self.game_client_metadata: Optional[str] = None
+        self.objects_by_owner: defaultdict[Optional[str], dict] = defaultdict(dict)
+        self.opening_hand_count_by_seat: defaultdict[Optional[str], int] = defaultdict(int)
+        self.opening_hand: defaultdict[Optional[str], list] = defaultdict(list)
+        self.drawn_hands: defaultdict[Optional[str], list] = defaultdict(list)
+        self.drawn_cards_by_instance_id: defaultdict[Optional[str], dict] = defaultdict(dict)
+        self.cards_in_hand: defaultdict[Optional[str], list] = defaultdict(list)
+        self.user_screen_name: Optional[str] = None
+        self.screen_names: defaultdict[Optional[str], str] = defaultdict(lambda: '')
+        self.game_history_events: List[Dict[str, Any]] = []
+        self.pending_game_submission: Optional[Dict[str, Any]] = None
 
 
-    def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME, use_gzip=False):
+    def __retry_post(self, endpoint: str, blob: Dict[str, Any], num_retries: int = RETRIES, sleep_time: int = DEFAULT_RETRY_SLEEP_TIME, use_gzip: bool = False) -> Response:
         """
         Add client version to a JSON blob and send the data to an endpoint via post
         request, retrying on server errors.
@@ -262,12 +271,12 @@ class Follower:
         logger.info(f'{response.status_code} Response: {response.text}')
         return response
 
-    def parse_log(self, filename, follow):
+    def parse_log(self, filename: str, follow: bool) -> None:
         """
         Parse messages from a log file and pass the data along to the API endpoint.
 
         :param filename: The filename for the log file to parse.
-        :param follow:   Whether or not to continue looking for updates to the file after parsing
+        :param follow:   Whether to continue looking for updates to the file after parsing
                          all the initial lines.
         """
         while True:
@@ -303,7 +312,7 @@ class Follower:
                 logger.info('Done processing file.')
                 break
 
-    def __check_detailed_logs(self, line):
+    def __check_detailed_logs(self, line: str) -> None:
         if (line.startswith('DETAILED LOGS: DISABLED')):
             logger.warning('Detailed logs are disabled in MTGA.')
             show_message(
@@ -317,7 +326,7 @@ class Follower:
         elif (line.startswith('DETAILED LOGS: ENABLED')):
             logger.info('Detailed logs enabled in MTGA.')
 
-    def __append_line(self, line):
+    def __append_line(self, line: str) -> None:
         """Add a complete line (not necessarily a complete message) from the log."""
         self.__check_detailed_logs(line)
 
@@ -342,7 +351,7 @@ class Follower:
         else:
             self.buffer.append(line)
 
-    def __handle_complete_log_entry(self):
+    def __handle_complete_log_entry(self) -> None:
         """Mark the current log message complete. Should be called when waiting for more log messages."""
         if len(self.buffer) == 0:
             return
@@ -360,7 +369,7 @@ class Follower:
         self.buffer = []
         # self.cur_log_time = None
 
-    def __maybe_get_utc_timestamp(self, blob):
+    def __maybe_get_utc_timestamp(self, blob: Dict[str, Any]) -> Optional[datetime.datetime]:
         timestamp = None
         if 'timestamp' in blob:
             timestamp = blob['timestamp']
@@ -378,7 +387,7 @@ class Follower:
         except ValueError:
             return dateutil.parser.isoparse(timestamp)
 
-    def __handle_blob(self, full_log):
+    def __handle_blob(self, full_log: str) -> None:
         """Attempt to parse a complete log message and send the data if relevant."""
         match = JSON_START_REGEX.search(full_log)
         if not match:
@@ -450,14 +459,14 @@ class Follower:
             self.__clear_game_data()
             self.pending_game_submission = None
 
-    def __try_decode(self, blob, key):
+    def __try_decode(self, blob: Dict[str, Any], key: str) -> Any:
         try:
             json_obj, _ = self.json_decoder.raw_decode(blob[key])
             return json_obj
         except Exception:
             return blob[key]
 
-    def __extract_payload(self, blob):
+    def __extract_payload(self, blob: Dict[str, Any]) -> Any:
         if type(blob) != dict: return blob
         if 'clientToMatchServiceMessageType' in blob: return blob
 
@@ -468,7 +477,7 @@ class Follower:
 
         return blob
 
-    def __update_screen_name(self, screen_name):
+    def __update_screen_name(self, screen_name: str) -> None:
         if self.user_screen_name == screen_name or '#' not in screen_name:
             return
 
@@ -481,7 +490,7 @@ class Follower:
         logger.info(f'Updating user info: {user_info}')
         self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
 
-    def __handle_match_state_changed(self, blob):
+    def __handle_match_state_changed(self, blob: Dict[str, Dict[str, Any]]) -> None:
         game_room_info = blob.get('matchGameRoomStateChangedEvent', {}).get('gameRoomInfo', {})
         game_room_config = game_room_info.get('gameRoomConfig', {})
 
@@ -528,7 +537,7 @@ class Follower:
                 self.__send_game_end(results)
             self.__clear_match_data()
 
-    def __handle_gre_to_client_message(self, message_blob):
+    def __handle_gre_to_client_message(self, message_blob: Dict[str, Any]) -> None:
         """Handle messages in the 'greToClientEvent' field."""
         # Add to game history before processing the messsage, since we may submit the game right away.
         if message_blob['type'] in ['GREMessageType_QueuedGameStateMessage', 'GREMessageType_GameStateMessage']:
@@ -600,13 +609,13 @@ class Follower:
 
             self.__maybe_handle_game_over_stage(game_state_message)
 
-    def __handle_gre_connect_response(self, blob):
+    def __handle_gre_connect_response(self, blob: Dict[str, Dict[str, Any]]) -> None:
         deck_info = blob.get('connectResp', {}).get('deckMessage', {})
         self.current_game_maindeck = deck_info.pop('deckCards', [])
         self.current_game_sideboard = deck_info.pop('sideboardCards', [])
         self.current_game_additional_deck_info = deck_info
 
-    def __handle_client_to_gre_message(self, payload):
+    def __handle_client_to_gre_message(self, payload: Dict[str, Any]) -> None:
         if payload['type'] == 'ClientMessageType_SelectNResp':
             self.game_history_events.append(payload)
 
@@ -616,11 +625,11 @@ class Follower:
             self.current_game_sideboard = deck_info.pop('sideboardCards', [])
             self.current_game_additional_deck_info = deck_info
 
-    def __handle_client_to_gre_ui_message(self, payload):
+    def __handle_client_to_gre_ui_message(self, payload: Dict[str, Any]) -> None:
         if 'onChat' in payload['uiMessage']:
             self.game_history_events.append(payload)
 
-    def __maybe_handle_game_over_stage(self, game_state_message):
+    def __maybe_handle_game_over_stage(self, game_state_message: Dict[str, Any]) -> None:
         game_info = game_state_message.get('gameInfo', {})
         if game_info.get('stage') != 'GameStage_GameOver':
             return
@@ -632,10 +641,10 @@ class Follower:
         if game_info.get('matchState') == 'MatchState_MatchComplete':
             self.__clear_match_data()
 
-    def __has_pending_game_data(self):
+    def __has_pending_game_data(self) -> bool:
         return len(self.drawn_cards_by_instance_id) > 0 and len(self.game_history_events) > 5
 
-    def __clear_game_data(self):
+    def __clear_game_data(self) -> None:
         self.turn_count = 0
         self.objects_by_owner.clear()
         self.opening_hand_count_by_seat.clear()
@@ -650,14 +659,14 @@ class Follower:
         self.game_service_metadata = None
         self.game_client_metadata = None
 
-    def __clear_match_data(self):
+    def __clear_match_data(self) -> None:
         self.screen_names.clear()
         self.current_match_id = None
         self.current_event_id = None
         self.seat_id = None
         self.__clear_game_data()
 
-    def __maybe_handle_account_info(self, line):
+    def __maybe_handle_account_info(self, line: str) -> None:
         match = ACCOUNT_INFO_REGEX.match(line)
         if match:
             screen_name = match.group(1)
@@ -669,7 +678,7 @@ class Follower:
         if match:
             self.cur_user = match.group(2) or match.group(3)
 
-    def __handle_ongoing_events(self, json_obj):
+    def __handle_ongoing_events(self, json_obj: Dict[str, Any]) -> None:
         """Handle 'Event_GetCourses' messages."""
         event = {
             'player_id': self.cur_user,
@@ -677,9 +686,9 @@ class Follower:
             'courses': json_obj['Courses'],
         }
         logger.info(f'Updated ongoing events')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_ONGOING_EVENTS}', blob=event)
+        self.__retry_post(f'{self.host}/{ENDPOINT_ONGOING_EVENTS}', blob=event)
 
-    def __handle_claim_prize(self, json_obj):
+    def __handle_claim_prize(self, json_obj: Dict[str, Any]) -> None:
         """Handle 'Event_ClaimPrize' messages."""
         event = {
             'player_id': self.cur_user,
@@ -687,9 +696,9 @@ class Follower:
             'event_name': json_obj['EventName'],
         }
         logger.info(f'Event ended: {event}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_ENDED}', blob=event)
+        self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_ENDED}', blob=event)
 
-    def __handle_event_course(self, json_obj):
+    def __handle_event_course(self, json_obj: Dict[str, Any]) -> None:
         """Handle messages linking draft id to event name."""
         event = {
             'player_id': self.cur_user,
@@ -702,7 +711,7 @@ class Follower:
         logger.info(f'Event course: {event}')
         self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_COURSE_SUBMISSION}', blob=event)
 
-    def __send_game_end(self, results):
+    def __send_game_end(self, results: List[Dict[str, Any]]) -> None:
         if not self.__has_pending_game_data():
             return
 
@@ -713,7 +722,7 @@ class Follower:
         win_type = this_game_result.get('result')
         game_end_reason = this_game_result.get('reason')
 
-        match_result = next((r for r in results if r.get('scope') == 'MatchScope_Match'), {})
+        match_result: Dict[str, Any] = next((r for r in results if r.get('scope') == 'MatchScope_Match'), {})
         won_match = self.seat_id == match_result.get('winningTeamId')
         match_result_type = match_result.get('result')
         match_end_reason = match_result.get('reason')
@@ -722,7 +731,7 @@ class Follower:
         logger.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
 
         opponent_id = 2 if self.seat_id == 1 else 1
-        opponent_card_ids = [c for c in self.objects_by_owner.get(opponent_id, {}).values()]
+        opponent_card_ids = [c for c in self.objects_by_owner.get(str(opponent_id), {}).values()]
 
         if self.current_match_id != self.cur_opponent_match_id:
             self.cur_opponent_level = None
@@ -745,7 +754,7 @@ class Follower:
             'drawn_hands': self.drawn_hands[self.seat_id],
             'drawn_cards': list(self.drawn_cards_by_instance_id[self.seat_id].values()),
             'mulligan_count': self.opening_hand_count_by_seat[self.seat_id] - 1,
-            'opponent_mulligan_count': self.opening_hand_count_by_seat[opponent_id] - 1,
+            'opponent_mulligan_count': self.opening_hand_count_by_seat[str(opponent_id)] - 1,
             'turns': self.turn_count,
             'duration': -1,
             'opponent_card_ids': opponent_card_ids,
@@ -765,13 +774,13 @@ class Follower:
             'seat_id': self.seat_id,
             'opponent_seat_id': opponent_id,
             'screen_name': self.screen_names[self.seat_id],
-            'opponent_screen_name': self.screen_names[opponent_id],
+            'opponent_screen_name': self.screen_names[str(opponent_id)],
             'events': self.game_history_events,
         }
 
         self.pending_game_submission = copy.deepcopy(game)
 
-    def __handle_login(self, json_obj):
+    def __handle_login(self, json_obj: Dict[str, Dict[str, Dict[str, Any]]]) -> None:
         """Handle 'Client.Connected' messages."""
         self.__clear_game_data()
 
@@ -779,7 +788,7 @@ class Follower:
         screen_name = json_obj['params']['payloadObject']['screenName']
         self.__update_screen_name(screen_name)
 
-    def __handle_bot_draft_pack(self, json_obj):
+    def __handle_bot_draft_pack(self, json_obj: Dict[str, Any]) -> None:
         """Handle 'DraftStatus' messages."""
         if json_obj['DraftStatus'] == 'PickNext':
             self.__clear_game_data()
@@ -793,9 +802,9 @@ class Follower:
                 'card_ids': [int(x) for x in json_obj['DraftPack']],
             }
             logger.info(f'Draft pack: {pack}')
-            response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PACK}', blob=pack)
+            self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PACK}', blob=pack)
 
-    def __handle_bot_draft_pick(self, json_obj):
+    def __handle_bot_draft_pick(self, json_obj: Dict[str, Any]) -> None:
         """Handle 'Draft.MakePick messages."""
         self.__clear_game_data()
         self.cur_draft_event = json_obj['EventName']
@@ -808,16 +817,16 @@ class Follower:
             'card_id': int(json_obj['CardId']),
         }
         logger.info(f'Draft pick: {pick}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PICK}', blob=pick)
+        self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PICK}', blob=pick)
 
-    def __handle_joined_pod(self, json_obj):
+    def __handle_joined_pod(self, json_obj: Dict[str, Any]) -> None:
         """Handle 'Event_Join' messages."""
         self.__clear_game_data()
         self.cur_draft_event = json_obj['EventName']
 
         logger.info(f'Joined draft pod: {self.cur_draft_event}')
 
-    def __handle_human_draft_combined(self, json_obj):
+    def __handle_human_draft_combined(self, json_obj: Dict[str, Any]) -> None:
         """Handle combined human draft pack/pick messages."""
         self.__clear_game_data()
         self.cur_draft_event = json_obj['EventId']
@@ -832,7 +841,7 @@ class Follower:
             'method': 'LogBusiness',
         }
         logger.info(f'Human draft pack (combined): {pack}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
+        self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
         pick = {
             'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
@@ -847,7 +856,7 @@ class Follower:
         logger.info(f'Human draft pick (combined): {pick}')
         response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
 
-    def __handle_human_draft_pack(self, json_obj):
+    def __handle_human_draft_pack(self, json_obj: Dict[str, Any]) -> None:
         """Handle 'Draft.Notify' messages."""
         self.__clear_game_data()
         pack = {
@@ -861,9 +870,9 @@ class Follower:
             'method': 'Draft.Notify',
         }
         logger.info(f'Human draft pack (Draft.Notify): {pack}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
+        self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
 
-    def __handle_deck_submission(self, json_obj):
+    def __handle_deck_submission(self, json_obj: Dict[str, Any]) -> None:
         """Handle 'Event_SetDeck' messages."""
         self.__clear_game_data()
         decks = json_obj['Deck']
@@ -877,14 +886,14 @@ class Follower:
             'is_during_match': False,
         }
         logger.info(f'Deck submission (Event_SetDeck): {deck}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+        self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
 
-    def __handle_self_rank_info(self, json_obj):
+    def __handle_self_rank_info(self, json_obj: Dict[str, Any]) -> None:
         """Handle 'Rank_GetCombinedRankInfo' messages."""
         self.cur_rank_data = json_obj
         self.cur_user = json_obj.get('playerId', self.cur_user)
         logger.info(f'Parsed rank info for {self.cur_user}: {self.cur_rank_data}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_RANK}', blob={
+        self.__retry_post(f'{self.host}/{ENDPOINT_RANK}', blob={
             'player_id':self.cur_user,
             'time': self.cur_log_time.isoformat(),
             'rank_data': self.cur_rank_data,
@@ -892,7 +901,7 @@ class Follower:
             'constructed_rank': None,
         })
 
-    def __handle_collection(self, json_obj):
+    def __handle_collection(self, json_obj: Dict[str, Any]) -> None:
         """Handle 'PlayerInventory.GetPlayerCardsV3' messages."""
         if self.cur_user is None:
             logger.info(f'Skipping collection submission because player id is still unknown')
@@ -906,7 +915,7 @@ class Follower:
         logger.info(f'Collection submission of {len(json_obj)} cards')
         self.__retry_post(f'{self.host}/{ENDPOINT_COLLECTION}', blob=collection)
 
-    def __handle_inventory(self, json_obj):
+    def __handle_inventory(self, json_obj: Dict[str, Any]) -> None:
         """Handle 'InventoryInfo' messages."""
         json_obj = {k: v for k, v in json_obj.items() if k in {
             'Gems',
@@ -930,7 +939,7 @@ class Follower:
         logger.info(f'Submitting inventory: {blob}')
         self.__retry_post(f'{self.host}/{ENDPOINT_INVENTORY}', blob=blob)
 
-    def __handle_player_progress(self, json_obj):
+    def __handle_player_progress(self, json_obj: Dict[str, Any]) -> None:
         """Handle mastery pass messages."""
         blob = {
             'player_id': self.cur_user,
@@ -940,7 +949,7 @@ class Follower:
         logger.info(f'Submitting mastery progress')
         self.__retry_post(f'{self.host}/{ENDPOINT_PLAYER_PROGRESS}', blob=blob)
 
-    def __reset_current_user(self):
+    def __reset_current_user(self) -> None:
         logger.info('User logged out from MTGA')
         if self.cur_user is not None:
             self.disconnected_user = self.cur_user
@@ -949,14 +958,14 @@ class Follower:
         self.cur_user = None
         self.user_screen_name = None
 
-    def __handle_reconnect_result(self):
+    def __handle_reconnect_result(self) -> None:
         logger.info('Reconnected - restoring prior user info')
 
         self.cur_user = self.disconnected_user
         self.user_screen_name = self.disconnected_screen_name
 
 
-def validate_uuid_v4(maybe_uuid):
+def validate_uuid_v4(maybe_uuid: Optional[str]) -> Optional[str]:
     if maybe_uuid is None:
         return None
     try:
@@ -965,7 +974,7 @@ def validate_uuid_v4(maybe_uuid):
     except ValueError:
         return None
 
-def get_client_token_mac():
+def get_client_token_mac() -> str:
     message = TOKEN_ENTRY_MESSAGE
     while True:
         token = subprocess.run(['osascript', '-e', f'text returned of (display dialog "{message}" default answer "" with title "{TOKEN_ENTRY_TITLE}")'],
@@ -980,8 +989,7 @@ def get_client_token_mac():
         else:
             return token
 
-def get_client_token_tkinter():
-    import tkinter
+def get_client_token_tkinter() -> str:
     import tkinter.simpledialog
     import tkinter.messagebox
 
@@ -1001,13 +1009,13 @@ def get_client_token_tkinter():
         else:
             return token
 
-def get_client_token_visual():
+def get_client_token_visual() -> str:
     if sys.platform == 'darwin':
         return get_client_token_mac()
     else:
         return get_client_token_tkinter()
 
-def get_client_token_cli():
+def get_client_token_cli() -> str:
     message = TOKEN_ENTRY_MESSAGE
     while True:
         token = input(message)
@@ -1021,7 +1029,7 @@ def get_client_token_cli():
         else:
             return token
 
-def get_config():
+def get_config() -> str:
     import configparser
     token = None
     config = configparser.ConfigParser()
@@ -1044,17 +1052,16 @@ def get_config():
 
     return token
 
-def show_dialog_mac(title, message):
+def show_dialog_mac(title: str, message: str) -> None:
     subprocess.run(['osascript', '-e', f'display dialog "{message}" with title "{title}" buttons {{"OK"}} default button "OK"'], capture_output=True)
 
-def show_dialog_tkinter(title, message):
-    import tkinter
+def show_dialog_tkinter(title: str, message: str) -> None:
     import tkinter.messagebox
     window = tkinter.Tk()
     window.wm_withdraw()
     tkinter.messagebox.showerror(title, message)
 
-def show_message(title, message):
+def show_message(title: str, message: str) -> None:
     try:
         if sys.platform == 'darwin':
             return show_dialog_mac(title, message)
@@ -1064,7 +1071,7 @@ def show_message(title, message):
         logger.exception('Could not suitably show message')
         logger.warning(message)
 
-def show_update_message(response_data):
+def show_update_message(response_data: Dict[str, Any]) -> None:
     title = '17Lands'
     if 'upgrade_instructions' in response_data:
         message = response_data['upgrade_instructions']
@@ -1078,7 +1085,7 @@ def show_update_message(response_data):
 
     show_message(title, message)
 
-def verify_version(host, prompt_if_update_required):
+def verify_version(host: str, prompt_if_update_required: bool) -> bool:
     for i in range(3):
         response = requests.get(f'{host}/{ENDPOINT_CLIENT_VERSION}', params={
             'client': 'python',
@@ -1108,10 +1115,10 @@ def verify_version(host, prompt_if_update_required):
     return False
 
 
-def processing_loop(args, token):
+def processing_loop(args: MTGAFollowerCliArgs, token: str) -> None:
     filepaths = POSSIBLE_CURRENT_FILEPATHS
     if args.log_file is not None:
-        filepaths = (args.log_file, )
+        filepaths = [args.log_file, ]
 
     follow = not args.once
 
@@ -1140,7 +1147,10 @@ def processing_loop(args, token):
     logger.info(f'Exiting')
 
 
-def main():
+
+
+
+def main() -> None:
     parser = argparse.ArgumentParser(description='MTGA log follower')
     parser.add_argument('-l', '--log_file',
         help=f'Log filename to process. If not specified, will try one of {POSSIBLE_CURRENT_FILEPATHS}')
@@ -1149,7 +1159,7 @@ def main():
     parser.add_argument('--once', action='store_true',
         help='Whether to stop after parsing the file once (default is to continue waiting for updates to the file)')
 
-    args = parser.parse_args()
+    args = MTGAFollowerCliArgs(**vars(parser.parse_args()))
 
     check_count = 0
     while not verify_version(
