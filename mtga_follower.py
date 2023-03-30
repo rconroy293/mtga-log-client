@@ -63,11 +63,12 @@ TOKEN_ENTRY_TITLE = 'MTGA Log Client Token'
 TOKEN_ENTRY_MESSAGE = 'Please enter your client token from 17lands.com/account: '
 TOKEN_MISSING_TITLE = 'Error: Client Token Needed'
 TOKEN_MISSING_MESSAGE = 'Error: The program cannot continue without specifying a client token. Exiting.'
-TOKEN_INVALID_MESSAGE = 'That token is invalid. Please specify a valid client token. See 17lands.com/getting_started for more details.'
+TOKEN_INVALID_MESSAGE = ('That token is invalid. Please specify a valid client token. See ' +
+                         '17lands.com/getting_started for more details.')
 
 FILE_UPDATED_FORCE_REFRESH_SECONDS = 60
 
-OSX_LOG_ROOT = os.path.join('Library','Logs')
+OSX_LOG_ROOT = os.path.join('Library', 'Logs')
 WINDOWS_LOG_ROOT = os.path.join('users', getpass.getuser(), 'AppData', 'LocalLow')
 LOG_INTERMEDIATE = os.path.join('Wizards Of The Coast', 'MTGA')
 CURRENT_LOG = 'Player.log'
@@ -82,13 +83,20 @@ POSSIBLE_ROOTS = (
     # Lutris
     os.path.join(os.path.expanduser('~'), 'Games', 'magic-the-gathering-arena', 'drive_c', WINDOWS_LOG_ROOT),
     # Wine
-    os.path.join(os.environ.get('WINEPREFIX', os.path.join(os.path.expanduser('~'), '.wine')), 'drive_c', WINDOWS_LOG_ROOT),
+    os.path.join(
+        os.environ.get('WINEPREFIX', os.path.join(os.path.expanduser('~'), '.wine')),
+        'drive_c',
+        WINDOWS_LOG_ROOT),
     # OSX
     os.path.join(os.path.expanduser('~'), OSX_LOG_ROOT),
 )
 
-POSSIBLE_CURRENT_FILEPATHS = list(map(lambda root_and_path: os.path.join(*root_and_path), itertools.product(POSSIBLE_ROOTS, (CURRENT_LOG_PATH, ))))
-POSSIBLE_PREVIOUS_FILEPATHS = list(map(lambda root_and_path: os.path.join(*root_and_path), itertools.product(POSSIBLE_ROOTS, (PREVIOUS_LOG_PATH, ))))
+POSSIBLE_CURRENT_FILEPATHS = list(map(
+    lambda root_and_path: os.path.join(*root_and_path),
+    itertools.product(POSSIBLE_ROOTS, (CURRENT_LOG_PATH, ))))
+POSSIBLE_PREVIOUS_FILEPATHS = list(map(
+    lambda root_and_path: os.path.join(*root_and_path),
+    itertools.product(POSSIBLE_ROOTS, (PREVIOUS_LOG_PATH, ))))
 
 CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.mtga_follower.ini')
 
@@ -135,15 +143,19 @@ ENDPOINT_ONGOING_EVENTS = 'ongoing_events'
 ENDPOINT_EVENT_ENDED = 'event_ended'
 
 RETRIES = 2
-IS_CODE_FOR_RETRY = lambda code: code >= 500 and code < 600
-IS_SUCCESS_CODE = lambda code: code >= 200 and code < 300
 DEFAULT_RETRY_SLEEP_TIME = 1
+
 
 @dataclass
 class MTGAFollowerCliArgs:
     log_file: str
     host: str
     once: bool
+
+
+def is_code_for_retry(code: int) -> bool:
+    return code >= 500 and code < 600
+
 
 def extract_time(time_str: str) -> datetime.datetime:
     """
@@ -167,6 +179,7 @@ def extract_time(time_str: str) -> datetime.datetime:
                 pass
     raise ValueError(f'Unsupported time format: "{time_str}"')
 
+
 def json_value_matches(expectation: str, path: List[str], blob: Dict[str, Any]) -> bool:
     """
     Check if the value nested at a given path in a JSON blob matches the expected value.
@@ -184,6 +197,7 @@ def json_value_matches(expectation: str, path: List[str], blob: Dict[str, Any]) 
             return False
     return blob == expectation
 
+
 def get_rank_string(rank_class: str, level: str, percentile: str, place: str, step: Optional[str]) -> str:
     """
     Convert the components of rank into a serializable value for recording
@@ -197,6 +211,7 @@ def get_rank_string(rank_class: str, level: str, percentile: str, place: str, st
     :returns: Serialized rank string (e.g. "Gold-3-0.0-0-2")
     """
     return '-'.join(str(x) for x in [rank_class, level, percentile, place, step])
+
 
 class Follower:
     """Follows along a log, parses the messages, and passes along the parsed data to the API endpoint."""
@@ -236,8 +251,14 @@ class Follower:
         self.game_history_events: List[Dict[str, Any]] = []
         self.pending_game_submission: Optional[Dict[str, Any]] = None
 
-
-    def __retry_post(self, endpoint: str, blob: Dict[str, Any], num_retries: int = RETRIES, sleep_time: int = DEFAULT_RETRY_SLEEP_TIME, use_gzip: bool = False) -> Response:
+    def __retry_post(
+            self,
+            endpoint: str,
+            blob: Dict[str, Any],
+            num_retries: int = RETRIES,
+            sleep_time: int = DEFAULT_RETRY_SLEEP_TIME,
+            use_gzip: bool = False
+    ) -> Response:
         """
         Add client version to a JSON blob and send the data to an endpoint via post
         request, retrying on server errors.
@@ -264,7 +285,7 @@ class Follower:
                 })
             else:
                 response = requests.post(endpoint, json=blob)
-            if not IS_CODE_FOR_RETRY(response.status_code):
+            if not is_code_for_retry(response.status_code):
                 break
             logger.warning(f'Got response code {response.status_code}; retrying {tries_left} more times')
             time.sleep(sleep_time)
@@ -296,10 +317,16 @@ class Follower:
                             self.__handle_complete_log_entry()
                             last_modified_time = os.stat(filename).st_mtime
                             if file_size < last_file_size:
-                                logger.info(f'Starting from beginning of file as file is smaller than before (previous = {last_file_size}; current = {file_size})')
+                                log_msg = ('Starting from beginning of file as file is smaller than before ' +
+                                           f'(previous = {last_file_size}; current = {file_size})')
+                                logger.info(log_msg)
                                 break
                             elif last_modified_time > last_read_time + FILE_UPDATED_FORCE_REFRESH_SECONDS:
-                                logger.info(f'Starting from beginning of file as file has been updated much more recently than the last read (previous = {last_read_time}; current = {last_modified_time})')
+                                log_msg = ('Starting from beginning of file as file has been updated much more ' +
+                                           f'recently than the last read (previous = {last_read_time}; ' +
+                                           f'current = {last_modified_time})')
+                                logger.info(log_msg)
+
                                 break
                             elif follow:
                                 time.sleep(SLEEP_TIME)
@@ -400,16 +427,17 @@ class Follower:
             return
 
         json_obj = self.__extract_payload(json_obj)
-        if type(json_obj) != dict: return
+        if type(json_obj) != dict:
+            return
 
         try:
             maybe_time = self.__maybe_get_utc_timestamp(json_obj)
             if maybe_time is not None:
                 self.last_utc_time = maybe_time
-        except:
+        except Exception:
             pass
 
-        if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj): # Doesn't exist any more
+        if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj):  # Doesn't exist any more
             self.__handle_login(json_obj)
         elif 'Event_Join' in full_log and 'EventName' in json_obj:
             self.__handle_joined_pod(json_obj)
@@ -436,13 +464,15 @@ class Follower:
         elif 'greToClientEvent' in json_obj and 'greToClientMessages' in json_obj['greToClientEvent']:
             for message in json_obj['greToClientEvent']['greToClientMessages']:
                 self.__handle_gre_to_client_message(message)
-        elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREMessage', ['clientToMatchServiceMessageType'], json_obj):
+        elif json_value_matches(
+                'ClientToMatchServiceMessageType_ClientToGREMessage', ['clientToMatchServiceMessageType'], json_obj):
             self.__handle_client_to_gre_message(json_obj.get('payload', {}))
-        elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREUIMessage', ['clientToMatchServiceMessageType'], json_obj):
+        elif json_value_matches(
+                'ClientToMatchServiceMessageType_ClientToGREUIMessage', ['clientToMatchServiceMessageType'], json_obj):
             self.__handle_client_to_gre_ui_message(json_obj.get('payload', {}))
         elif 'Rank_GetCombinedRankInfo' in full_log:
             self.__handle_self_rank_info(json_obj)
-        elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj: # Doesn't exist any more
+        elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj:  # Doesn't exist anymore
             self.__handle_collection(json_obj)
         elif 'DTO_InventoryInfo' in json_obj:
             self.__handle_inventory(json_obj['DTO_InventoryInfo'])
@@ -455,7 +485,7 @@ class Follower:
 
         if self.pending_game_submission:
             logger.info(f'Submitting game with {len(self.pending_game_submission["history"]["events"])} history events')
-            response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=self.pending_game_submission, use_gzip=True)
+            self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=self.pending_game_submission, use_gzip=True)
             self.__clear_game_data()
             self.pending_game_submission = None
 
@@ -467,8 +497,10 @@ class Follower:
             return blob[key]
 
     def __extract_payload(self, blob: Dict[str, Any]) -> Any:
-        if type(blob) != dict: return blob
-        if 'clientToMatchServiceMessageType' in blob: return blob
+        if type(blob) != dict:
+            return blob
+        if 'clientToMatchServiceMessageType' in blob:
+            return blob
 
         for key in ('payload', 'Payload', 'request'):
             if key in blob:
@@ -518,7 +550,8 @@ class Follower:
                     step=None,
                 )
                 self.cur_opponent_match_id = game_room_config.get('matchId')
-                logger.info(f'Parsed opponent rank info as limited {self.cur_opponent_level} in match {self.cur_opponent_match_id}')
+                logger.info((f'Parsed opponent rank info as limited {self.cur_opponent_level} ' +
+                             f'in match {self.cur_opponent_match_id}'))
 
         if updated_match_id and updated_event_id:
             self.current_match_id = updated_match_id
@@ -584,7 +617,9 @@ class Follower:
                     owner = zone['ownerSeatId']
                     player_objects = self.objects_by_owner[owner]
                     hand_card_ids = zone.get('objectInstanceIds', [])
-                    self.cards_in_hand[owner] = [player_objects.get(instance_id) for instance_id in hand_card_ids if instance_id]
+                    self.cards_in_hand[owner] = [
+                        player_objects.get(instance_id) for instance_id in hand_card_ids if instance_id]
+
                     for instance_id in hand_card_ids:
                         card_id = player_objects.get(instance_id)
                         if instance_id is not None and card_id is not None:
@@ -603,7 +638,10 @@ class Follower:
                 if mulligan_count == len(self.drawn_hands[player_id]):
                     self.drawn_hands[player_id].append(self.cards_in_hand[player_id].copy())
 
-            if len(self.opening_hand) == 0 and ('Phase_Beginning', 'Step_Upkeep', 1) == (turn_info.get('phase'), turn_info.get('step'), turn_info.get('turnNumber')):
+            if (len(self.opening_hand) == 0 and
+                ('Phase_Beginning', 'Step_Upkeep', 1) ==
+                    (turn_info.get('phase'), turn_info.get('step'), turn_info.get('turnNumber'))):
+
                 for (owner, hand) in self.cards_in_hand.items():
                     self.opening_hand[owner] = hand.copy()
 
@@ -685,7 +723,7 @@ class Follower:
             'time': self.cur_log_time.isoformat(),
             'courses': json_obj['Courses'],
         }
-        logger.info(f'Updated ongoing events')
+        logger.info('Updated ongoing events')
         self.__retry_post(f'{self.host}/{ENDPOINT_ONGOING_EVENTS}', blob=event)
 
     def __handle_claim_prize(self, json_obj: Dict[str, Any]) -> None:
@@ -726,7 +764,6 @@ class Follower:
         won_match = self.seat_id == match_result.get('winningTeamId')
         match_result_type = match_result.get('result')
         match_end_reason = match_result.get('reason')
-
 
         logger.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
 
@@ -854,7 +891,7 @@ class Follower:
             'time_remaining': json_obj['TimeRemainingOnPick'],
         }
         logger.info(f'Human draft pick (combined): {pick}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
+        self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
 
     def __handle_human_draft_pack(self, json_obj: Dict[str, Any]) -> None:
         """Handle 'Draft.Notify' messages."""
@@ -894,7 +931,7 @@ class Follower:
         self.cur_user = json_obj.get('playerId', self.cur_user)
         logger.info(f'Parsed rank info for {self.cur_user}: {self.cur_rank_data}')
         self.__retry_post(f'{self.host}/{ENDPOINT_RANK}', blob={
-            'player_id':self.cur_user,
+            'player_id': self.cur_user,
             'time': self.cur_log_time.isoformat(),
             'rank_data': self.cur_rank_data,
             'limited_rank': None,
@@ -904,7 +941,7 @@ class Follower:
     def __handle_collection(self, json_obj: Dict[str, Any]) -> None:
         """Handle 'PlayerInventory.GetPlayerCardsV3' messages."""
         if self.cur_user is None:
-            logger.info(f'Skipping collection submission because player id is still unknown')
+            logger.info('Skipping collection submission because player id is still unknown')
             return
 
         collection = {
@@ -946,7 +983,7 @@ class Follower:
             'time': self.cur_log_time.isoformat(),
             'progress': json_obj,
         }
-        logger.info(f'Submitting mastery progress')
+        logger.info('Submitting mastery progress')
         self.__retry_post(f'{self.host}/{ENDPOINT_PLAYER_PROGRESS}', blob=blob)
 
     def __reset_current_user(self) -> None:
@@ -974,10 +1011,14 @@ def validate_uuid_v4(maybe_uuid: Optional[str]) -> Optional[str]:
     except ValueError:
         return None
 
+
 def get_client_token_mac() -> str:
     message = TOKEN_ENTRY_MESSAGE
     while True:
-        token = subprocess.run(['osascript', '-e', f'text returned of (display dialog "{message}" default answer "" with title "{TOKEN_ENTRY_TITLE}")'],
+        token = subprocess.run([
+            'osascript',
+            '-e',
+            f'text returned of (display dialog "{message}" default answer "" with title "{TOKEN_ENTRY_TITLE}")'],
             capture_output=True, text=True).stdout.strip()
 
         if token == '':
@@ -988,6 +1029,7 @@ def get_client_token_mac() -> str:
             message = TOKEN_INVALID_MESSAGE
         else:
             return token
+
 
 def get_client_token_tkinter() -> str:
     import tkinter.simpledialog
@@ -1009,11 +1051,13 @@ def get_client_token_tkinter() -> str:
         else:
             return token
 
+
 def get_client_token_visual() -> str:
     if sys.platform == 'darwin':
         return get_client_token_mac()
     else:
         return get_client_token_tkinter()
+
 
 def get_client_token_cli() -> str:
     message = TOKEN_ENTRY_MESSAGE
@@ -1028,6 +1072,7 @@ def get_client_token_cli() -> str:
             message = f'{TOKEN_INVALID_MESSAGE} Token: '
         else:
             return token
+
 
 def get_config() -> str:
     import configparser
@@ -1052,14 +1097,21 @@ def get_config() -> str:
 
     return token
 
+
 def show_dialog_mac(title: str, message: str) -> None:
-    subprocess.run(['osascript', '-e', f'display dialog "{message}" with title "{title}" buttons {{"OK"}} default button "OK"'], capture_output=True)
+    subprocess.run([
+        'osascript',
+        '-e',
+        f'display dialog "{message}" with title "{title}" buttons {{"OK"}} default button "OK"'],
+        capture_output=True)
+
 
 def show_dialog_tkinter(title: str, message: str) -> None:
     import tkinter.messagebox
     window = tkinter.Tk()
     window.wm_withdraw()
     tkinter.messagebox.showerror(title, message)
+
 
 def show_message(title: str, message: str) -> None:
     try:
@@ -1071,19 +1123,21 @@ def show_message(title: str, message: str) -> None:
         logger.exception('Could not suitably show message')
         logger.warning(message)
 
+
 def show_update_message(response_data: Dict[str, Any]) -> None:
     title = '17Lands'
     if 'upgrade_instructions' in response_data:
         message = response_data['upgrade_instructions']
     else:
         message = ('17Lands update required! The minimum supported version for the client is '
-            + f'{response_data.get("min_version", "newer than your current version")}. '
-            + f'Your current version is {CLIENT_VERSION}. Please update with one of the following '
-            + 'commands in the terminal, depending on your installation method:\n'
-            + 'brew update && brew upgrade seventeenlands\n'
-            + 'pip3 install --user --upgrade seventeenlands')
+                   + f'{response_data.get("min_version", "newer than your current version")}. '
+                   + f'Your current version is {CLIENT_VERSION}. Please update with one of the following '
+                   + 'commands in the terminal, depending on your installation method:\n'
+                   + 'brew update && brew upgrade seventeenlands\n'
+                   + 'pip3 install --user --upgrade seventeenlands')
 
     show_message(title, message)
+
 
 def verify_version(host: str, prompt_if_update_required: bool) -> bool:
     for i in range(3):
@@ -1092,7 +1146,7 @@ def verify_version(host: str, prompt_if_update_required: bool) -> bool:
             'version': CLIENT_VERSION[:-2],
         })
 
-        if not IS_CODE_FOR_RETRY(response.status_code):
+        if not is_code_for_retry(response.status_code):
             break
         logger.warning(f'Got response code {response.status_code}; retrying')
         time.sleep(DEFAULT_RETRY_SLEEP_TIME)
@@ -1142,21 +1196,25 @@ def processing_loop(args: MTGAFollowerCliArgs, token: str) -> None:
             follower.parse_log(filename=filename, follow=follow)
 
     if not any_found:
-        logger.warning("Found no files to parse. Try to find Arena's Player.log file and pass it as an argument with -l")
+        logger.warning(
+            "Found no files to parse. Try to find Arena's Player.log file and pass it as an argument with -l")
 
-    logger.info(f'Exiting')
-
-
-
+    logger.info('Exiting')
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='MTGA log follower')
-    parser.add_argument('-l', '--log_file',
+    parser.add_argument(
+        '-l',
+        '--log_file',
         help=f'Log filename to process. If not specified, will try one of {POSSIBLE_CURRENT_FILEPATHS}')
-    parser.add_argument('--host', default=API_ENDPOINT,
+    parser.add_argument(
+        '--host',
+        default=API_ENDPOINT,
         help=f'Host to submit requests to. If not specified, will use {API_ENDPOINT}')
-    parser.add_argument('--once', action='store_true',
+    parser.add_argument(
+        '--once',
+        action='store_true',
         help='Whether to stop after parsing the file once (default is to continue waiting for updates to the file)')
 
     args = MTGAFollowerCliArgs(**vars(parser.parse_args()))

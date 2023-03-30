@@ -36,6 +36,16 @@ mypy --install-types --non-interactive
 mypy seventeenlands
 ```
 
+### Flake8
+
+[Flake8](http://flake8.pycqa.org/en/latest/) handles some other more specific
+linting. It takes care of line length for docstrings and comments. It also handles the
+ordering of imports. In order to run flake8, run the following from inside the virtualenv:
+
+```shell
+flake8 seventeenlands
+```
+
 ## Notes
 
 Licensed under GNU GPL v3.0 (see included LICENSE).
