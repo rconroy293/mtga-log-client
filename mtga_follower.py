@@ -1142,10 +1142,15 @@ def processing_loop(args, token):
 
 def main():
     parser = argparse.ArgumentParser(description='MTGA log follower')
+
+    config_token = get_config()
+
     parser.add_argument('-l', '--log_file',
         help=f'Log filename to process. If not specified, will try one of {POSSIBLE_CURRENT_FILEPATHS}')
     parser.add_argument('--host', default=API_ENDPOINT,
         help=f'Host to submit requests to. If not specified, will use {API_ENDPOINT}')
+    parser.add_argument('--token', default=config_token,
+                        help=f'Token of the user. If not specified, will use the token at {CONFIG_FILE}')
     parser.add_argument('--once', action='store_true',
         help='Whether to stop after parsing the file once (default is to continue waiting for updates to the file)')
 
@@ -1159,7 +1164,7 @@ def main():
         check_count += 1
         time.sleep(UPDATE_CHECK_INTERVAL.total_seconds())
 
-    token = get_config()
+    token = args.token
     logger.info(f'Using token {token[:4]}...{token[-4:]}')
 
     processing_loop(args, token)
