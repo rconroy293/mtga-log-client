@@ -110,6 +110,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="ApiClient.cs" />
     <Compile Include="ExitConfirmation.xaml.cs">
       <DependentUpon>ExitConfirmation.xaml</DependentUpon>
     </Compile>
@@ -121,6 +122,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="LogParser.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
