@@ -1071,6 +1071,8 @@ namespace mtga_log_client
         {
             if (!"ClientMessageType_SubmitDeckResp".Equals(blob["type"].Value<string>())) return false;
 
+            ClearGameData();
+
             try
             {
                 currentGameAdditionalDeckInfo = blob?["submitDeckResp"]?["deck"]?.Value<JObject>();
