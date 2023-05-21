@@ -41,7 +41,7 @@ namespace mtga_log_client
             "GREMessageType_QueuedGameStateMessage"
         };
 
-        private static readonly List<string> TIME_FORMATS = new List<string>() {
+        private List<string> timeFormats = new List<string>() {
             "yyyy-MM-dd h:mm:ss tt",
             "yyyy-MM-dd HH:mm:ss",
             "M/d/yyyy h:mm:ss tt",
@@ -134,10 +134,29 @@ namespace mtga_log_client
             LogMessage("Starting parsing of " + filePath, Level.Info);
             BackgroundWorker worker = sender as BackgroundWorker;
 
+            updateTimeFormats();
+
             while (!worker.CancellationPending)
             {
                 ParseRemainderOfLog(worker);
                 Thread.Sleep(SLEEP_TIME);
+            }
+        }
+
+        void updateTimeFormats()
+        {
+            try
+            {
+                List<string> updatedFormats = apiClient.GetTimeFormats();
+                if (updatedFormats != null)
+                {
+                    LogMessage(String.Format("Updating to use {0} time formats", updatedFormats.Count), Level.Info);
+                    timeFormats = updatedFormats;
+                }
+            }
+            catch (Exception)
+            {
+
             }
         }
 
@@ -214,7 +233,7 @@ namespace mtga_log_client
             }
 
             DateTime readDate;
-            foreach (string format in TIME_FORMATS)
+            foreach (string format in timeFormats)
             {
                 if (DateTime.TryParseExact(dateString, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out readDate))
                 {

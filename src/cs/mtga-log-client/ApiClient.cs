@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.Serialization;
@@ -34,6 +35,7 @@ namespace mtga_log_client
         private const string ENDPOINT_RANK = "api/rank";
         private const string ENDPOINT_ONGOING_EVENTS = "ongoing_events";
         private const string ENDPOINT_EVENT_ENDED = "event_ended";
+        private const string ENDPOINT_TIME_FORMATS = "data/client_time_formats";
 
         private HttpClient client;
         private readonly LogMessageFunction messageFunction;
@@ -52,6 +54,13 @@ namespace mtga_log_client
             internal bool is_supported;
             [DataMember]
             internal string latest_version;
+        }
+
+        [DataContract]
+        public class TimeFormatsResponse
+        {
+            [DataMember]
+            internal List<string> formats;
         }
 
         [DataContract]
@@ -110,7 +119,6 @@ namespace mtga_log_client
 
         private Stream GetJson(string endpoint)
         {
-
             HttpResponseMessage sendRequest()
             {
                 return client.GetAsync(endpoint).Result;
@@ -201,13 +209,24 @@ namespace mtga_log_client
         {
             var jsonResponse = GetJson(ENDPOINT_CLIENT_VERSION_VALIDATION
                 + "?client=" + LogParser.CLIENT_TYPE + "&version="
-                + LogParser.CLIENT_VERSION.TrimEnd(new char [] { '.', 'w'}));
+                + LogParser.CLIENT_VERSION.TrimEnd(new char[] { '.', 'w' }));
             if (jsonResponse == null)
             {
                 return null;
             }
             DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(VersionValidationResponse));
             return ((VersionValidationResponse)serializer.ReadObject(jsonResponse));
+        }
+
+        public List<string> GetTimeFormats()
+        {
+            var jsonResponse = GetJson(ENDPOINT_TIME_FORMATS + "?client=" + LogParser.CLIENT_TYPE);
+            if (jsonResponse == null)
+            {
+                return null;
+            }
+            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(TimeFormatsResponse));
+            return ((TimeFormatsResponse)serializer.ReadObject(jsonResponse)).formats;
         }
 
         public TokenValidationResponse GetTokenValidation(string token)
