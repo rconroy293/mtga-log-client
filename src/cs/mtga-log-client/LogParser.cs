@@ -185,7 +185,11 @@ namespace mtga_log_client
             }
             catch (FileNotFoundException e)
             {
-                LogMessage(String.Format("File not found error while parsing log. If this message persists, please email seventeenlands@gmail.com: {0}", e), Level.Warn);
+                LogMessage(String.Format("File not found error while parsing log. If this message persists, please email support@17lands.com: {0}", e), Level.Warn);
+            }
+            catch (IOException e)
+            {
+                LogMessage(String.Format("File access error while parsing log. If this message persists, please email support@17lands.com: {0}", e), Level.Warn);
             }
             catch (Exception e)
             {
