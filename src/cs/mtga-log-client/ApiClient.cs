@@ -15,7 +15,7 @@ namespace mtga_log_client
 {
     class ApiClient
     {
-        private const string API_BASE_URL = "https://www.17lands.com";
+        private const string API_BASE_URL = "https://api.17lands.com";
         private const string ENDPOINT_ACCOUNT = "api/account";
         private const string ENDPOINT_COLLECTION = "collection";
         private const string ENDPOINT_DECK = "deck";
@@ -41,8 +41,9 @@ namespace mtga_log_client
         private const int ERROR_COOLDOWN_MINUTES = 2;
         private DateTime? lastErrorPosted = null;
 
-        private const int POST_TRIES = 3;
-        private const int POST_RETRY_INTERVAL_MILLIS = 10000;
+        private TimeSpan INITIAL_RETRY_DELAY = TimeSpan.FromSeconds(1);
+        private TimeSpan MAX_RETRY_DELAY = TimeSpan.FromMinutes(10);
+        private TimeSpan MAX_TOTAL_RETRY_DURATION = TimeSpan.FromHours(24);
 
         [DataContract]
         public class VersionValidationResponse
@@ -79,16 +80,61 @@ namespace mtga_log_client
             client.Dispose();
         }
 
+        T RetryApiCall<T>(Func<T> callback, Func<T, bool> isValidResponse)
+        {
+            bool shouldRetryError (Exception e)
+            {
+                LogMessage(String.Format("Error {0}\n{1}", e, e.StackTrace), Level.Warn);
+
+                if (e is HttpRequestException)
+                {
+                    return true;
+                }
+                if (e is AggregateException)
+                {
+                    return e.InnerException is HttpRequestException;
+                }
+
+                return false;
+            }
+
+            return RetryUtils.RetryUntilSuccessful(
+                callback,
+                isValidResponse,
+                shouldRetryError,
+                INITIAL_RETRY_DELAY,
+                MAX_RETRY_DELAY,
+                MAX_TOTAL_RETRY_DURATION
+            );
+        }
+
         private Stream GetJson(string endpoint)
         {
-            HttpResponseMessage response = client.GetAsync(endpoint).Result;
-            if (response.IsSuccessStatusCode)
+
+            HttpResponseMessage sendRequest()
             {
-                return response.Content.ReadAsStreamAsync().Result;
+                return client.GetAsync(endpoint).Result;
             }
-            else
+
+            bool isValidResponse(HttpResponseMessage response)
             {
-                LogMessage(String.Format("Got error response {0} ({1})", (int) response.StatusCode, response.ReasonPhrase), Level.Warn);
+                if (response.IsSuccessStatusCode)
+                {
+                    return true;
+                }
+                else
+                {
+                    LogMessage(String.Format("Got error response {0} ({1})", (int)response.StatusCode, response.ReasonPhrase), Level.Warn);
+                    return false;
+                }
+            }
+
+            try
+            {
+                HttpResponseMessage successfulResponse = RetryApiCall(sendRequest, isValidResponse);
+                return successfulResponse.Content.ReadAsStreamAsync().Result;
+            } catch (RetryLimitExceededException e)
+            {
                 return null;
             }
         }
@@ -100,9 +146,9 @@ namespace mtga_log_client
             {
                 LogMessage(message: $"Posting {endpoint} of {stringifiedBlob}", Level.Info);
             }
-            for (int tryNumber = 0; tryNumber < POST_TRIES; tryNumber++)
+
+            HttpResponseMessage sendRequest()
             {
-                HttpResponseMessage response;
                 if (useGzip)
                 {
                     using (var stream = new MemoryStream())
@@ -114,32 +160,40 @@ namespace mtga_log_client
                         }
 
                         stream.Position = 0;
-                        var content = new StreamContent(stream);
+                        HttpContent content = new StreamContent(stream);
                         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
                         content.Headers.ContentEncoding.Add("gzip");
                         content.Headers.ContentLength = stream.Length;
-                        response = client.PostAsync(endpoint, content).Result;
+                        return client.PostAsync(endpoint, content).Result;
                     }
                 }
                 else
                 {
-                    var content = new StringContent(stringifiedBlob, Encoding.UTF8, "application/json");
-                    response = client.PostAsync(endpoint, content).Result;
+                    HttpContent content = new StringContent(stringifiedBlob, Encoding.UTF8, "application/json");
+                    return client.PostAsync(endpoint, content).Result;
                 }
+            }
+
+            bool validateResponse(HttpResponseMessage response)
+            {
                 if (response.IsSuccessStatusCode)
                 {
-                    break;
+                    return true;
                 }
-                else 
+                else
                 {
-                    LogMessage(
-                        String.Format(
-                            "Got error response {0} ({1}) on try {2} of {3}",
-                            (int)response.StatusCode, response.ReasonPhrase, tryNumber + 1, POST_TRIES
-                        ),
-                        Level.Warn);
-                    Thread.Sleep(POST_RETRY_INTERVAL_MILLIS);
+                    LogMessage(String.Format("Got error response {0} ({1})", (int)response.StatusCode, response.ReasonPhrase), Level.Warn);
+                    return false;
                 }
+            }
+
+            try
+            {
+                RetryApiCall(sendRequest, validateResponse);
+            }
+            catch (RetryLimitExceededException e)
+            {
+                LogMessage(String.Format("Exceeded retry limit posting to {0}. Skipping.", endpoint), Level.Error);
             }
         }
 
