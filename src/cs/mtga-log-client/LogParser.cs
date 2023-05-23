@@ -652,7 +652,7 @@ namespace mtga_log_client
                     return true;
                 }
                 var thisGameResult = gameResults.Last();
-                var won = seatId.Equals(thisGameResult["winningTeamId"].Value<int>());
+                var won = seatId.Equals(thisGameResult["winningTeamId"]?.Value<int>());
                 var gameNumber = gameResults.Count;
                 var winType = thisGameResult["result"].Value<String>();
                 var gameEndReason = thisGameResult["reason"].Value<String>();
