@@ -66,7 +66,23 @@ TOKEN_INVALID_MESSAGE = 'That token is invalid. Please specify a valid client to
 FILE_UPDATED_FORCE_REFRESH_SECONDS = 60
 
 OSX_LOG_ROOT = os.path.join('Library','Logs')
-WINDOWS_LOG_ROOT = os.path.join('users', getpass.getuser(), 'AppData', 'LocalLow')
+WINDOWS_LOG_ROOT = os.path.join(
+    'users',
+    getpass.getuser(),
+    'AppData',
+    'LocalLow',
+)
+STEAM_LOG_ROOT = os.path.join(
+    'steamapps',
+    'compatdata',
+    '2141910',
+    'pfx',
+    'drive_c',
+    'users',
+    'steamuser',
+    'AppData',
+    'LocalLow',
+)
 LOG_INTERMEDIATE = os.path.join('Wizards Of The Coast', 'MTGA')
 CURRENT_LOG = 'Player.log'
 PREVIOUS_LOG = 'Player-prev.log'
@@ -74,15 +90,46 @@ CURRENT_LOG_PATH = os.path.join(LOG_INTERMEDIATE, CURRENT_LOG)
 PREVIOUS_LOG_PATH = os.path.join(LOG_INTERMEDIATE, PREVIOUS_LOG)
 
 POSSIBLE_ROOTS = (
+    # OSX
+    os.path.join(os.path.expanduser('~'), OSX_LOG_ROOT),
+
+    # Steam
+    os.path.join(
+        os.path.expanduser('~'),
+        '.steam',
+        'steam',
+        STEAM_LOG_ROOT,
+    ),
+    os.path.join(
+        os.path.expanduser('~'),
+        '.local',
+        'share',
+        'Steam',
+        STEAM_LOG_ROOT,
+    ),
+
     # Windows
     os.path.join('C:/', WINDOWS_LOG_ROOT),
     os.path.join('D:/', WINDOWS_LOG_ROOT),
+
     # Lutris
-    os.path.join(os.path.expanduser('~'), 'Games', 'magic-the-gathering-arena', 'drive_c', WINDOWS_LOG_ROOT),
+    os.path.join(
+        os.path.expanduser('~'),
+        'Games',
+        'magic-the-gathering-arena',
+        'drive_c',
+        WINDOWS_LOG_ROOT,
+    ),
+
     # Wine
-    os.path.join(os.environ.get('WINEPREFIX', os.path.join(os.path.expanduser('~'), '.wine')), 'drive_c', WINDOWS_LOG_ROOT),
-    # OSX
-    os.path.join(os.path.expanduser('~'), OSX_LOG_ROOT),
+    os.path.join(
+        os.environ.get(
+            'WINEPREFIX',
+            os.path.join(os.path.expanduser('~'), '.wine'),
+        ),
+        'drive_c',
+        WINDOWS_LOG_ROOT,
+    ),
 )
 
 POSSIBLE_CURRENT_FILEPATHS = list(map(lambda root_and_path: os.path.join(*root_and_path), itertools.product(POSSIBLE_ROOTS, (CURRENT_LOG_PATH, ))))
