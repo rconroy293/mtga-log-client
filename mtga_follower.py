@@ -658,6 +658,7 @@ class Follower:
             self.game_history_events.append(payload)
 
         if payload['type'] == 'ClientMessageType_SubmitDeckResp':
+            self.__clear_game_data()
             deck_info = payload['submitDeckResp']['deck']
             self.current_game_maindeck = deck_info.pop('deckCards', [])
             self.current_game_sideboard = deck_info.pop('sideboardCards', [])
