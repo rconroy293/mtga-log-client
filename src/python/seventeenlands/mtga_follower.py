@@ -145,6 +145,8 @@ TIME_FORMATS = (
 )
 OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
 
+_ERROR_LINES_RECENCY = 10
+
 
 def extract_time(time_str):
     """
@@ -238,6 +240,9 @@ class Follower:
         self.game_history_events = []
         self.pending_game_submission = None
 
+        self.current_debug_blob = ''
+        self.recent_lines = []
+
         self._api_client = seventeenlands.api_client.ApiClient(host=host)
 
     def _add_base_api_data(self, blob):
@@ -287,10 +292,24 @@ class Follower:
                                 break
             except FileNotFoundError:
                 time.sleep(SLEEP_TIME)
+            except Exception as e:
+                self._log_error(
+                    message=f'Error parsing log: {e}',
+                    error=e,
+                    stacktrace=traceback.format_exc(),
+                )
 
             if not follow:
                 logger.info('Done processing file.')
                 break
+
+    def _log_error(self, message: str, error: Exception, stacktrace: str):
+        logger.error(message)
+        self._api_client.submit_error_info(self._add_base_api_data({
+            "blob": self.current_debug_blob,
+            "recent_lines": self.recent_lines,
+            "stacktrace": traceback.format_exc(),
+        }))
 
     def __check_detailed_logs(self, line):
         if (line.startswith('DETAILED LOGS: DISABLED')):
@@ -308,6 +327,10 @@ class Follower:
 
     def __append_line(self, line):
         """Add a complete line (not necessarily a complete message) from the log."""
+        if len(self.recent_lines) >= _ERROR_LINES_RECENCY:
+            self.recent_lines.pop(0)
+        self.recent_lines.append(line)
+
         self.__check_detailed_logs(line)
 
         self.__maybe_handle_account_info(line)
@@ -340,11 +363,15 @@ class Follower:
             return
 
         full_log = ''.join(self.buffer)
+        self.current_debug_blob = full_log
         try:
             self.__handle_blob(full_log)
         except Exception as e:
-            logger.error(f'Error {e} while processing {full_log}')
-            logger.error(traceback.format_exc())
+            self._log_error(
+                message=f'Error {e} while processing {full_log}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
         self.buffer = []
         # self.cur_log_time = None
@@ -414,8 +441,15 @@ class Follower:
         elif 'matchGameRoomStateChangedEvent' in json_obj:
             self.__handle_match_state_changed(json_obj)
         elif 'greToClientEvent' in json_obj and 'greToClientMessages' in json_obj['greToClientEvent']:
-            for message in json_obj['greToClientEvent']['greToClientMessages']:
-                self.__handle_gre_to_client_message(message)
+            try:
+                for message in json_obj['greToClientEvent']['greToClientMessages']:
+                    self.__handle_gre_to_client_message(message)
+            except Exception as e:
+                self._log_error(
+                    message=f'Error {e} parsing GRE to client messages from {json_obj}',
+                    error=e,
+                    stacktrace=traceback.format_exc(),
+                )
         elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREMessage', ['clientToMatchServiceMessageType'], json_obj):
             self.__handle_client_to_gre_message(json_obj.get('payload', {}))
         elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREUIMessage', ['clientToMatchServiceMessageType'], json_obj):
@@ -458,16 +492,24 @@ class Follower:
         return blob
 
     def __update_screen_name(self, screen_name):
-        if self.user_screen_name == screen_name or '#' not in screen_name:
-            return
+        try:
+            if self.user_screen_name == screen_name or '#' not in screen_name:
+                return
 
-        self.user_screen_name = screen_name
-        user_info = {
-            'player_id': self.cur_user,
-            'screen_name': self.user_screen_name,
-        }
-        logger.info(f'Updating user info: {user_info}')
-        self._api_client.submit_user(self._add_base_api_data(user_info))
+            self.user_screen_name = screen_name
+            user_info = {
+                'player_id': self.cur_user,
+                'screen_name': self.user_screen_name,
+            }
+            logger.info(f'Updating user info: {user_info}')
+            self._api_client.submit_user(self._add_base_api_data(user_info))
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing screen name from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __handle_match_state_changed(self, blob):
         game_room_info = blob.get('matchGameRoomStateChangedEvent', {}).get('gameRoomInfo', {})
@@ -518,7 +560,7 @@ class Follower:
 
     def __handle_gre_to_client_message(self, message_blob):
         """Handle messages in the 'greToClientEvent' field."""
-        # Add to game history before processing the messsage, since we may submit the game right away.
+        # Add to game history before processing the message, since we may submit the game right away.
         if message_blob['type'] in ['GREMessageType_QueuedGameStateMessage', 'GREMessageType_GameStateMessage']:
             self.game_history_events.append(message_blob)
         elif message_blob['type'] == 'GREMessageType_UIMessage' and 'onChat' in message_blob['uiMessage']:
@@ -528,86 +570,127 @@ class Follower:
             self.__handle_gre_connect_response(message_blob)
 
         elif message_blob['type'] == 'GREMessageType_GameStateMessage':
-            system_seat_ids = message_blob.get('systemSeatIds', [])
-            if len(system_seat_ids) > 0:
-                self.seat_id = system_seat_ids[0]
+            try:
+                system_seat_ids = message_blob.get('systemSeatIds', [])
+                if len(system_seat_ids) > 0:
+                    self.seat_id = system_seat_ids[0]
 
-            game_state_message = message_blob.get('gameStateMessage', {})
+                game_state_message = message_blob.get('gameStateMessage', {})
 
-            if 'gameInfo' in game_state_message:
-                game_info = game_state_message['gameInfo']
-                if game_info.get('matchID', self.current_match_id) != self.current_match_id:
-                    self.current_match_id = game_info['matchID']
-                    self.current_event_id = None
+                if 'gameInfo' in game_state_message:
+                    game_info = game_state_message['gameInfo']
+                    if game_info.get('matchID', self.current_match_id) != self.current_match_id:
+                        self.current_match_id = game_info['matchID']
+                        self.current_event_id = None
 
-            turn_info = game_state_message.get('turnInfo', {})
-            players = game_state_message.get('players', [])
+                turn_info = game_state_message.get('turnInfo', {})
+                players = game_state_message.get('players', [])
 
-            if turn_info.get('turnNumber'):
-                self.turn_count = turn_info.get('turnNumber')
-            else:
-                turns_sum = sum(p.get('turnNumber', 0) for p in players)
-                self.turn_count = max(self.turn_count, turns_sum)
+                if turn_info.get('turnNumber'):
+                    self.turn_count = turn_info.get('turnNumber')
+                else:
+                    turns_sum = sum(p.get('turnNumber', 0) for p in players)
+                    self.turn_count = max(self.turn_count, turns_sum)
 
-            for game_object in game_state_message.get('gameObjects', []):
-                if game_object['type'] not in ('GameObjectType_Card', 'GameObjectType_SplitCard'):
-                    continue
-                owner = game_object['ownerSeatId']
-                instance_id = game_object['instanceId']
-                card_id = game_object['overlayGrpId']
+                for game_object in game_state_message.get('gameObjects', []):
+                    if game_object['type'] not in ('GameObjectType_Card', 'GameObjectType_SplitCard'):
+                        continue
+                    owner = game_object['ownerSeatId']
+                    instance_id = game_object['instanceId']
+                    card_id = game_object['overlayGrpId']
 
-                self.objects_by_owner[owner][instance_id] = card_id
+                    self.objects_by_owner[owner][instance_id] = card_id
 
-            for zone in game_state_message.get('zones', []):
-                if zone['type'] == 'ZoneType_Hand':
-                    owner = zone['ownerSeatId']
-                    player_objects = self.objects_by_owner[owner]
-                    hand_card_ids = zone.get('objectInstanceIds', [])
-                    self.cards_in_hand[owner] = [player_objects.get(instance_id) for instance_id in hand_card_ids if instance_id]
-                    for instance_id in hand_card_ids:
-                        card_id = player_objects.get(instance_id)
-                        if instance_id is not None and card_id is not None:
-                            self.drawn_cards_by_instance_id[owner][instance_id] = card_id
+                for zone in game_state_message.get('zones', []):
+                    if zone['type'] == 'ZoneType_Hand':
+                        owner = zone['ownerSeatId']
+                        player_objects = self.objects_by_owner[owner]
+                        hand_card_ids = zone.get('objectInstanceIds', [])
+                        self.cards_in_hand[owner] = [player_objects.get(instance_id) for instance_id in hand_card_ids if instance_id]
+                        for instance_id in hand_card_ids:
+                            card_id = player_objects.get(instance_id)
+                            if instance_id is not None and card_id is not None:
+                                self.drawn_cards_by_instance_id[owner][instance_id] = card_id
 
-            players_deciding_hand = {
-                (p['systemSeatNumber'], p.get('mulliganCount', 0))
-                for p in players
-                if p.get('pendingMessageType') == 'ClientMessageType_MulliganResp'
-            }
-            for (player_id, mulligan_count) in players_deciding_hand:
-                if self.starting_team_id is None:
-                    self.starting_team_id = turn_info.get('activePlayer')
-                self.opening_hand_count_by_seat[player_id] += 1
+                players_deciding_hand = {
+                    (p['systemSeatNumber'], p.get('mulliganCount', 0))
+                    for p in players
+                    if p.get('pendingMessageType') == 'ClientMessageType_MulliganResp'
+                }
+                for (player_id, mulligan_count) in players_deciding_hand:
+                    if self.starting_team_id is None:
+                        self.starting_team_id = turn_info.get('activePlayer')
+                    self.opening_hand_count_by_seat[player_id] += 1
 
-                if mulligan_count == len(self.drawn_hands[player_id]):
-                    self.drawn_hands[player_id].append(self.cards_in_hand[player_id].copy())
+                    if mulligan_count == len(self.drawn_hands[player_id]):
+                        self.drawn_hands[player_id].append(self.cards_in_hand[player_id].copy())
 
-            if len(self.opening_hand) == 0 and ('Phase_Beginning', 'Step_Upkeep', 1) == (turn_info.get('phase'), turn_info.get('step'), turn_info.get('turnNumber')):
-                for (owner, hand) in self.cards_in_hand.items():
-                    self.opening_hand[owner] = hand.copy()
+                if len(self.opening_hand) == 0 and ('Phase_Beginning', 'Step_Upkeep', 1) == (turn_info.get('phase'), turn_info.get('step'), turn_info.get('turnNumber')):
+                    for (owner, hand) in self.cards_in_hand.items():
+                        self.opening_hand[owner] = hand.copy()
 
-            self.__maybe_handle_game_over_stage(game_state_message)
+                self.__maybe_handle_game_over_stage(game_state_message)
+
+            except Exception as e:
+                self._log_error(
+                    message=f'Error {e} parsing GRE message from {json_obj}',
+                    error=e,
+                    stacktrace=traceback.format_exc(),
+                )
+
 
     def __handle_gre_connect_response(self, blob):
-        deck_info = blob.get('connectResp', {}).get('deckMessage', {})
-        self.current_game_maindeck = deck_info.pop('deckCards', [])
-        self.current_game_sideboard = deck_info.pop('sideboardCards', [])
-        self.current_game_additional_deck_info = deck_info
-
-    def __handle_client_to_gre_message(self, payload):
-        if payload['type'] == 'ClientMessageType_SelectNResp':
-            self.game_history_events.append(payload)
-
-        if payload['type'] == 'ClientMessageType_SubmitDeckResp':
-            self.__clear_game_data()
-            deck_info = payload['submitDeckResp']['deck']
+        try:
+            deck_info = blob.get('connectResp', {}).get('deckMessage', {})
             self.current_game_maindeck = deck_info.pop('deckCards', [])
             self.current_game_sideboard = deck_info.pop('sideboardCards', [])
             self.current_game_additional_deck_info = deck_info
 
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing GRE connect response from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
+
+    def __handle_client_to_gre_message(self, payload):
+        try:
+            if payload['type'] == 'ClientMessageType_SelectNResp':
+                self.game_history_events.append(payload)
+
+            if payload['type'] == 'ClientMessageType_SubmitDeckResp':
+                try:
+                    self.__clear_game_data()
+                    deck_info = payload['submitDeckResp']['deck']
+                    self.current_game_maindeck = deck_info.pop('deckCards', [])
+                    self.current_game_sideboard = deck_info.pop('sideboardCards', [])
+                    self.current_game_additional_deck_info = deck_info
+
+                except Exception as e:
+                    self._log_error(
+                        message=f'Error {e} parsing GRE deck submission from {json_obj}',
+                        error=e,
+                        stacktrace=traceback.format_exc(),
+                    )
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing GRE to client messages from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
+
     def __handle_client_to_gre_ui_message(self, payload):
-        if 'onChat' in payload['uiMessage']:
-            self.game_history_events.append(payload)
+        try:
+            if 'onChat' in payload['uiMessage']:
+                self.game_history_events.append(payload)
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing GRE to client UI messages from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __maybe_handle_game_over_stage(self, game_state_message):
         game_info = game_state_message.get('gameInfo', {})
@@ -660,205 +743,313 @@ class Follower:
 
     def __handle_ongoing_events(self, json_obj):
         """Handle 'Event_GetCourses' messages."""
-        event = {
-            'courses': json_obj['Courses'],
-        }
-        logger.info(f'Updated ongoing events')
-        self._api_client.submit_ongoing_events(self._add_base_api_data(event))
+        try:
+            event = {
+                'courses': json_obj['Courses'],
+            }
+            logger.info(f'Updated ongoing events')
+            self._api_client.submit_ongoing_events(self._add_base_api_data(event))
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing ongoing event from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __handle_claim_prize(self, json_obj):
         """Handle 'Event_ClaimPrize' messages."""
-        event = {
-            'event_name': json_obj['EventName'],
-        }
-        logger.info(f'Event ended: {event}')
-        self._api_client.submit_event_ended(self._add_base_api_data(event))
+        try:
+            event = {
+                'event_name': json_obj['EventName'],
+            }
+            logger.info(f'Event ended: {event}')
+            self._api_client.submit_event_ended(self._add_base_api_data(event))
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing claim prize event from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __handle_event_course(self, json_obj):
         """Handle messages linking draft id to event name."""
-        event = {
-            'event_name': json_obj['InternalEventName'],
-            'draft_id': json_obj['DraftId'],
-            'course_id': json_obj['CourseId'],
-            'card_pool': json_obj['CardPool'],
-        }
-        logger.info(f'Event course: {event}')
-        self._api_client.submit_event_course_submission(self._add_base_api_data(event))
+        try:
+            event = {
+                'event_name': json_obj['InternalEventName'],
+                'draft_id': json_obj['DraftId'],
+                'course_id': json_obj['CourseId'],
+                'card_pool': json_obj['CardPool'],
+            }
+            logger.info(f'Event course: {event}')
+            self._api_client.submit_event_course_submission(self._add_base_api_data(event))
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing partial event course from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __send_game_end(self, results):
         if not self.__has_pending_game_data():
             return
 
-        game_results = [r for r in results if r.get('scope') == 'MatchScope_Game']
-        this_game_result = game_results[-1]
-        won = self.seat_id == this_game_result.get('winningTeamId')
-        game_number = max(1, len(game_results))
-        win_type = this_game_result.get('result')
-        game_end_reason = this_game_result.get('reason')
+        try:
+            game_results = [r for r in results if r.get('scope') == 'MatchScope_Game']
+            this_game_result = game_results[-1]
+            won = self.seat_id == this_game_result.get('winningTeamId')
+            game_number = max(1, len(game_results))
+            win_type = this_game_result.get('result')
+            game_end_reason = this_game_result.get('reason')
 
-        match_result = next((r for r in results if r.get('scope') == 'MatchScope_Match'), {})
-        won_match = self.seat_id == match_result.get('winningTeamId')
-        match_result_type = match_result.get('result')
-        match_end_reason = match_result.get('reason')
+            match_result = next((r for r in results if r.get('scope') == 'MatchScope_Match'), {})
+            won_match = self.seat_id == match_result.get('winningTeamId')
+            match_result_type = match_result.get('result')
+            match_end_reason = match_result.get('reason')
 
+            logger.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
 
-        logger.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
+            opponent_id = 2 if self.seat_id == 1 else 1
+            opponent_card_ids = [c for c in self.objects_by_owner.get(opponent_id, {}).values()]
 
-        opponent_id = 2 if self.seat_id == 1 else 1
-        opponent_card_ids = [c for c in self.objects_by_owner.get(opponent_id, {}).values()]
+            if self.current_match_id != self.cur_opponent_match_id:
+                self.cur_opponent_level = None
 
-        if self.current_match_id != self.cur_opponent_match_id:
-            self.cur_opponent_level = None
+            game = {
+                'event_name': self.current_event_id,
+                'match_id': self.current_match_id,
+                'game_number': game_number,
+                'on_play': self.seat_id == self.starting_team_id,
+                'won': won,
+                'win_type': win_type,
+                'game_end_reason': game_end_reason,
+                'won_match': won_match,
+                'match_result_type': match_result_type,
+                'match_end_reason': match_end_reason,
+                'opening_hand': self.opening_hand[self.seat_id],
+                'mulligans': self.drawn_hands[self.seat_id][:-1],
+                'drawn_hands': self.drawn_hands[self.seat_id],
+                'drawn_cards': list(self.drawn_cards_by_instance_id[self.seat_id].values()),
+                'mulligan_count': self.opening_hand_count_by_seat[self.seat_id] - 1,
+                'opponent_mulligan_count': self.opening_hand_count_by_seat[opponent_id] - 1,
+                'turns': self.turn_count,
+                'duration': -1,
+                'opponent_card_ids': opponent_card_ids,
+                'rank_data': self.cur_rank_data,
+                'opponent_rank': self.cur_opponent_level,
+                'maindeck_card_ids': self.current_game_maindeck,
+                'sideboard_card_ids': self.current_game_sideboard,
+                'additional_deck_info': self.current_game_additional_deck_info,
+                'service_metadata': self.game_service_metadata,
+                'client_metadata': self.game_client_metadata,
+            }
+            logger.info(f'Completed game: {game}')
 
-        game = {
-            'event_name': self.current_event_id,
-            'match_id': self.current_match_id,
-            'game_number': game_number,
-            'on_play': self.seat_id == self.starting_team_id,
-            'won': won,
-            'win_type': win_type,
-            'game_end_reason': game_end_reason,
-            'won_match': won_match,
-            'match_result_type': match_result_type,
-            'match_end_reason': match_end_reason,
-            'opening_hand': self.opening_hand[self.seat_id],
-            'mulligans': self.drawn_hands[self.seat_id][:-1],
-            'drawn_hands': self.drawn_hands[self.seat_id],
-            'drawn_cards': list(self.drawn_cards_by_instance_id[self.seat_id].values()),
-            'mulligan_count': self.opening_hand_count_by_seat[self.seat_id] - 1,
-            'opponent_mulligan_count': self.opening_hand_count_by_seat[opponent_id] - 1,
-            'turns': self.turn_count,
-            'duration': -1,
-            'opponent_card_ids': opponent_card_ids,
-            'rank_data': self.cur_rank_data,
-            'opponent_rank': self.cur_opponent_level,
-            'maindeck_card_ids': self.current_game_maindeck,
-            'sideboard_card_ids': self.current_game_sideboard,
-            'additional_deck_info': self.current_game_additional_deck_info,
-            'service_metadata': self.game_service_metadata,
-            'client_metadata': self.game_client_metadata,
-        }
-        logger.info(f'Completed game: {game}')
+            # Add the history to the blob after logging to avoid printing excessive logs
+            logger.info(f'Adding game history ({len(self.game_history_events)} events)')
+            game['history'] = {
+                'seat_id': self.seat_id,
+                'opponent_seat_id': opponent_id,
+                'screen_name': self.screen_names[self.seat_id],
+                'opponent_screen_name': self.screen_names[opponent_id],
+                'events': self.game_history_events,
+            }
 
-        # Add the history to the blob after logging to avoid printing excessive logs
-        logger.info(f'Adding game history ({len(self.game_history_events)} events)')
-        game['history'] = {
-            'seat_id': self.seat_id,
-            'opponent_seat_id': opponent_id,
-            'screen_name': self.screen_names[self.seat_id],
-            'opponent_screen_name': self.screen_names[opponent_id],
-            'events': self.game_history_events,
-        }
+            self.pending_game_submission = copy.deepcopy(game)
 
-        self.pending_game_submission = copy.deepcopy(game)
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing game result',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __handle_login(self, json_obj):
         """Handle 'Client.Connected' messages."""
         self.__clear_game_data()
 
-        self.cur_user = json_obj['params']['payloadObject']['playerId']
-        screen_name = json_obj['params']['payloadObject']['screenName']
-        self.__update_screen_name(screen_name)
+        try:
+            self.cur_user = json_obj['params']['payloadObject']['playerId']
+            screen_name = json_obj['params']['payloadObject']['screenName']
+            self.__update_screen_name(screen_name)
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing login from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __handle_bot_draft_pack(self, json_obj):
         """Handle 'DraftStatus' messages."""
         if json_obj['DraftStatus'] == 'PickNext':
             self.__clear_game_data()
-            self.cur_draft_event = json_obj['EventName']
-            pack = {
-                'event_name': json_obj['EventName'],
-                'pack_number': int(json_obj['PackNumber']),
-                'pick_number': int(json_obj['PickNumber']),
-                'card_ids': [int(x) for x in json_obj['DraftPack']],
-            }
-            logger.info(f'Draft pack: {pack}')
-            self._api_client.submit_draft_pack(self._add_base_api_data(pack))
+
+            try:
+                self.cur_draft_event = json_obj['EventName']
+                pack = {
+                    'event_name': json_obj['EventName'],
+                    'pack_number': int(json_obj['PackNumber']),
+                    'pick_number': int(json_obj['PickNumber']),
+                    'card_ids': [int(x) for x in json_obj['DraftPack']],
+                }
+                logger.info(f'Draft pack: {pack}')
+                self._api_client.submit_draft_pack(self._add_base_api_data(pack))
+
+            except Exception as e:
+                self._log_error(
+                    message=f'Error {e} parsing draft pack from {json_obj}',
+                    error=e,
+                    stacktrace=traceback.format_exc(),
+                )
 
     def __handle_bot_draft_pick(self, json_obj):
         """Handle 'Draft.MakePick messages."""
         self.__clear_game_data()
-        self.cur_draft_event = json_obj['EventName']
-        pick = {
-            'event_name': json_obj['EventName'],
-            'pack_number': int(json_obj['PackNumber']),
-            'pick_number': int(json_obj['PickNumber']),
-            'card_id': int(json_obj['CardId']),
-        }
-        logger.info(f'Draft pick: {pick}')
-        self._api_client.submit_draft_pick(self._add_base_api_data(pick))
+
+        try:
+            self.cur_draft_event = json_obj['EventName']
+            pick = {
+                'event_name': json_obj['EventName'],
+                'pack_number': int(json_obj['PackNumber']),
+                'pick_number': int(json_obj['PickNumber']),
+                'card_id': int(json_obj['CardId']),
+            }
+            logger.info(f'Draft pick: {pick}')
+            self._api_client.submit_draft_pick(self._add_base_api_data(pick))
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing draft pick from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __handle_joined_pod(self, json_obj):
         """Handle 'Event_Join' messages."""
         self.__clear_game_data()
-        self.cur_draft_event = json_obj['EventName']
 
-        logger.info(f'Joined draft pod: {self.cur_draft_event}')
+        try:
+            self.cur_draft_event = json_obj['EventName']
+            logger.info(f'Joined draft pod: {self.cur_draft_event}')
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing join pod event from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __handle_human_draft_combined(self, json_obj):
         """Handle combined human draft pack/pick messages."""
         self.__clear_game_data()
-        self.cur_draft_event = json_obj['EventId']
-        pack = {
-            'draft_id': json_obj['DraftId'],
-            'event_name': json_obj['EventId'],
-            'pack_number': int(json_obj['PackNumber']),
-            'pick_number': int(json_obj['PickNumber']),
-            'card_ids': json_obj['CardsInPack'],
-            'method': 'LogBusiness',
-        }
-        logger.info(f'Human draft pack (combined): {pack}')
-        self._api_client.submit_human_draft_pack(self._add_base_api_data(pack))
-        pick = {
-            'draft_id': json_obj['DraftId'],
-            'event_name': json_obj['EventId'],
-            'pack_number': int(json_obj['PackNumber']),
-            'pick_number': int(json_obj['PickNumber']),
-            'card_id': int(json_obj['PickGrpId']),
-            'auto_pick': json_obj['AutoPick'],
-            'time_remaining': json_obj['TimeRemainingOnPick'],
-        }
-        logger.info(f'Human draft pick (combined): {pick}')
-        self._api_client.submit_human_draft_pick(self._add_base_api_data(pick))
+
+        try:
+            self.cur_draft_event = json_obj['EventId']
+            pack = {
+                'draft_id': json_obj['DraftId'],
+                'event_name': json_obj['EventId'],
+                'pack_number': int(json_obj['PackNumber']),
+                'pick_number': int(json_obj['PickNumber']),
+                'card_ids': json_obj['CardsInPack'],
+                'method': 'LogBusiness',
+            }
+            logger.info(f'Human draft pack (combined): {pack}')
+            self._api_client.submit_human_draft_pack(self._add_base_api_data(pack))
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing human draft pack from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
+
+        try:
+            pick = {
+                'draft_id': json_obj['DraftId'],
+                'event_name': json_obj['EventId'],
+                'pack_number': int(json_obj['PackNumber']),
+                'pick_number': int(json_obj['PickNumber']),
+                'card_id': int(json_obj['PickGrpId']),
+                'auto_pick': json_obj['AutoPick'],
+                'time_remaining': json_obj['TimeRemainingOnPick'],
+            }
+            logger.info(f'Human draft pick (combined): {pick}')
+            self._api_client.submit_human_draft_pick(self._add_base_api_data(pick))
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing human draft pick from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __handle_human_draft_pack(self, json_obj):
         """Handle 'Draft.Notify' messages."""
         self.__clear_game_data()
-        pack = {
-            'draft_id': json_obj['draftId'],
-            'event_name': self.cur_draft_event,
-            'pack_number': int(json_obj['SelfPack']),
-            'pick_number': int(json_obj['SelfPick']),
-            'card_ids': [int(x) for x in json_obj['PackCards'].split(',')],
-            'method': 'Draft.Notify',
-        }
-        logger.info(f'Human draft pack (Draft.Notify): {pack}')
-        self._api_client.submit_human_draft_pack(self._add_base_api_data(pack))
+
+        try:
+            pack = {
+                'draft_id': json_obj['draftId'],
+                'event_name': self.cur_draft_event,
+                'pack_number': int(json_obj['SelfPack']),
+                'pick_number': int(json_obj['SelfPick']),
+                'card_ids': [int(x) for x in json_obj['PackCards'].split(',')],
+                'method': 'Draft.Notify',
+            }
+            logger.info(f'Human draft pack (Draft.Notify): {pack}')
+            self._api_client.submit_human_draft_pack(self._add_base_api_data(pack))
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing human draft pack from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __handle_deck_submission(self, json_obj):
         """Handle 'Event_SetDeck' messages."""
         self.__clear_game_data()
-        decks = json_obj['Deck']
-        deck = {
-            'event_name': json_obj['EventName'],
-            'maindeck_card_ids': [d['cardId'] for d in decks['MainDeck'] for i in range(d['quantity'])],
-            'sideboard_card_ids': [d['cardId'] for d in decks['Sideboard'] for i in range(d['quantity'])],
-            'companion': decks['Companions'][0]['cardId'] if len(decks['Companions']) > 0 else 0,
-            'is_during_match': False,
-        }
-        logger.info(f'Deck submission (Event_SetDeck): {deck}')
-        self._api_client.submit_deck_submission(self._add_base_api_data(deck))
+
+        try:
+            decks = json_obj['Deck']
+            deck = {
+                'event_name': json_obj['EventName'],
+                'maindeck_card_ids': [d['cardId'] for d in decks['MainDeck'] for i in range(d['quantity'])],
+                'sideboard_card_ids': [d['cardId'] for d in decks['Sideboard'] for i in range(d['quantity'])],
+                'companion': decks['Companions'][0]['cardId'] if len(decks['Companions']) > 0 else 0,
+                'is_during_match': False,
+            }
+            logger.info(f'Deck submission (Event_SetDeck): {deck}')
+            self._api_client.submit_deck_submission(self._add_base_api_data(deck))
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing deck submission from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __handle_self_rank_info(self, json_obj):
         """Handle 'Rank_GetCombinedRankInfo' messages."""
-        self.cur_rank_data = json_obj
-        self.cur_user = json_obj.get('playerId', self.cur_user)
-        logger.info(f'Parsed rank info for {self.cur_user}: {self.cur_rank_data}')
-        data = {
-            'rank_data': self.cur_rank_data,
-            'limited_rank': None,
-            'constructed_rank': None,
-        }
-        self._api_client.submit_rank(self._add_base_api_data(data))
+        try:
+            self.cur_rank_data = json_obj
+            self.cur_user = json_obj.get('playerId', self.cur_user)
+            logger.info(f'Parsed rank info for {self.cur_user}: {self.cur_rank_data}')
+            data = {
+                'rank_data': self.cur_rank_data,
+                'limited_rank': None,
+                'constructed_rank': None,
+            }
+            self._api_client.submit_rank(self._add_base_api_data(data))
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing self rank info from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __handle_collection(self, json_obj):
         """Handle 'PlayerInventory.GetPlayerCardsV3' messages."""
@@ -874,33 +1065,49 @@ class Follower:
 
     def __handle_inventory(self, json_obj):
         """Handle 'InventoryInfo' messages."""
-        json_obj = {k: v for k, v in json_obj.items() if k in {
-            'Gems',
-            'Gold',
-            'TotalVaultProgress',
-            'wcTrackPosition',
-            'WildCardCommons',
-            'WildCardUnCommons',
-            'WildCardRares',
-            'WildCardMythics',
-            'DraftTokens',
-            'SealedTokens',
-            'Boosters',
-            'Changes',
-        }}
-        blob = {
-            'inventory': json_obj,
-        }
-        logger.info(f'Submitting inventory: {blob}')
-        self._api_client.submit_inventory(self._add_base_api_data(blob))
+        try:
+            json_obj = {k: v for k, v in json_obj.items() if k in {
+                'Gems',
+                'Gold',
+                'TotalVaultProgress',
+                'wcTrackPosition',
+                'WildCardCommons',
+                'WildCardUnCommons',
+                'WildCardRares',
+                'WildCardMythics',
+                'DraftTokens',
+                'SealedTokens',
+                'Boosters',
+                'Changes',
+            }}
+            blob = {
+                'inventory': json_obj,
+            }
+            logger.info(f'Submitting inventory: {blob}')
+            self._api_client.submit_inventory(self._add_base_api_data(blob))
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing inventory from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __handle_player_progress(self, json_obj):
         """Handle mastery pass messages."""
-        blob = {
-            'progress': json_obj,
-        }
-        logger.info(f'Submitting mastery progress')
-        self._api_client.submit_player_progress(self._add_base_api_data(blob))
+        try:
+            blob = {
+                'progress': json_obj,
+            }
+            logger.info(f'Submitting mastery progress')
+            self._api_client.submit_player_progress(self._add_base_api_data(blob))
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing mastery progress from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
     def __reset_current_user(self):
         logger.info('User logged out from MTGA')
