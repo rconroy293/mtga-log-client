@@ -16,10 +16,7 @@ import copy
 import datetime
 import json
 import getpass
-import gzip
 import itertools
-import logging
-import logging.handlers
 import os
 import os.path
 import pathlib
@@ -30,27 +27,14 @@ import time
 import traceback
 import uuid
 
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 
 import dateutil.parser
-import requests
 
-LOG_FOLDER = os.path.join(os.path.expanduser('~'), '.seventeenlands')
-if not os.path.exists(LOG_FOLDER):
-    os.makedirs(LOG_FOLDER)
-LOG_FILENAME = os.path.join(LOG_FOLDER, 'seventeenlands.log')
+import seventeenlands.api_client
+import seventeenlands.logging_utils
 
-log_formatter = logging.Formatter('%(asctime)s,%(levelname)s,%(message)s', datefmt='%Y%m%d %H%M%S')
-handlers = {
-    logging.handlers.TimedRotatingFileHandler(LOG_FILENAME, when='D', interval=1, backupCount=7, utc=True),
-    logging.StreamHandler(),
-}
-logger = logging.getLogger('17Lands')
-for handler in handlers:
-    handler.setFormatter(log_formatter)
-    logger.addHandler(handler)
-logger.setLevel(logging.INFO)
-logger.info(f'Saving logs to {LOG_FILENAME}')
+logger = seventeenlands.logging_utils.get_logger('17Lands')
 
 CLIENT_VERSION = '0.1.39.p'
 
@@ -161,29 +145,6 @@ TIME_FORMATS = (
 )
 OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
 
-API_ENDPOINT = 'https://www.17lands.com'
-ENDPOINT_USER = 'api/account'
-ENDPOINT_DECK_SUBMISSION = 'deck'
-ENDPOINT_EVENT_SUBMISSION = 'event'
-ENDPOINT_EVENT_COURSE_SUBMISSION = 'event_course'
-ENDPOINT_GAME_RESULT = 'game'
-ENDPOINT_DRAFT_PACK = 'pack'
-ENDPOINT_DRAFT_PICK = 'pick'
-ENDPOINT_HUMAN_DRAFT_PICK = 'human_draft_pick'
-ENDPOINT_HUMAN_DRAFT_PACK = 'human_draft_pack'
-ENDPOINT_COLLECTION = 'collection'
-ENDPOINT_INVENTORY = 'inventory'
-ENDPOINT_PLAYER_PROGRESS = 'player_progress'
-ENDPOINT_CLIENT_VERSION = 'api/version_validation'
-ENDPOINT_RANK = 'api/rank'
-ENDPOINT_ONGOING_EVENTS = 'ongoing_events'
-ENDPOINT_EVENT_ENDED = 'event_ended'
-
-RETRIES = 2
-IS_CODE_FOR_RETRY = lambda code: code >= 500 and code < 600
-IS_SUCCESS_CODE = lambda code: code >= 200 and code < 300
-DEFAULT_RETRY_SLEEP_TIME = 1
-
 
 def extract_time(time_str):
     """
@@ -205,6 +166,7 @@ def extract_time(time_str):
             pass
     raise ValueError(f'Unsupported time format: "{time_str}"')
 
+
 def json_value_matches(expectation, path, blob):
     """
     Check if the value nested at a given path in a JSON blob matches the expected value.
@@ -222,6 +184,7 @@ def json_value_matches(expectation, path, blob):
             return False
     return blob == expectation
 
+
 def get_rank_string(rank_class, level, percentile, place, step):
     """
     Convert the components of rank into a serializable value for recording
@@ -235,6 +198,7 @@ def get_rank_string(rank_class, level, percentile, place, step):
     :returns: Serialized rank string (e.g. "Gold-3-0.0-0-2")
     """
     return '-'.join(str(x) for x in [rank_class, level, percentile, place, step])
+
 
 class Follower:
     """Follows along a log, parses the messages, and passes along the parsed data to the API endpoint."""
@@ -274,40 +238,18 @@ class Follower:
         self.game_history_events = []
         self.pending_game_submission = None
 
+        self._api_client = seventeenlands.api_client.ApiClient(host=host)
 
-    def __retry_post(self, endpoint, blob, num_retries=RETRIES, sleep_time=DEFAULT_RETRY_SLEEP_TIME, use_gzip=False):
-        """
-        Add client version to a JSON blob and send the data to an endpoint via post
-        request, retrying on server errors.
-
-        :param endpoint:    The http endpoint to hit.
-        :param blob:        The JSON data to send in the body of the post request.
-        :param num_retries: The number of times to retry upon failure.
-        :param sleep_time:  In seconds, the time to sleep between tries.
-
-        :returns: The response object (including status_code and text fields).
-        """
-        blob['client_version'] = CLIENT_VERSION
-        blob['token'] = self.token
-        blob['utc_time'] = self.last_utc_time.isoformat()
-
-        tries_left = num_retries + 1
-        while tries_left > 0:
-            tries_left -= 1
-            if use_gzip:
-                data = gzip.compress(json.dumps(blob).encode('utf8'))
-                response = requests.post(endpoint, data=data, headers={
-                    'content-type': 'application/json',
-                    'content-encoding': 'gzip',
-                })
-            else:
-                response = requests.post(endpoint, json=blob)
-            if not IS_CODE_FOR_RETRY(response.status_code):
-                break
-            logger.warning(f'Got response code {response.status_code}; retrying {tries_left} more times')
-            time.sleep(sleep_time)
-        logger.info(f'{response.status_code} Response: {response.text}')
-        return response
+    def _add_base_api_data(self, blob):
+        return {
+            "token": self.token,
+            "client_version": CLIENT_VERSION,
+            "player_id": self.cur_user,
+            "time": self.cur_log_time.isoformat(),
+            "utc_time": self.last_utc_time.isoformat(),
+            "raw_time": self.last_raw_time,
+            **blob,
+        }
 
     def parse_log(self, filename, follow):
         """
@@ -493,7 +435,7 @@ class Follower:
 
         if self.pending_game_submission:
             logger.info(f'Submitting game with {len(self.pending_game_submission["history"]["events"])} history events')
-            response = self.__retry_post(f'{self.host}/{ENDPOINT_GAME_RESULT}', blob=self.pending_game_submission, use_gzip=True)
+            self._api_client.submit_game_result(self._add_base_api_data(self.pending_game_submission))
             self.__clear_game_data()
             self.pending_game_submission = None
 
@@ -523,10 +465,9 @@ class Follower:
         user_info = {
             'player_id': self.cur_user,
             'screen_name': self.user_screen_name,
-            'raw_time': self.last_raw_time,
         }
         logger.info(f'Updating user info: {user_info}')
-        self.__retry_post(f'{self.host}/{ENDPOINT_USER}', blob=user_info)
+        self._api_client.submit_user(self._add_base_api_data(user_info))
 
     def __handle_match_state_changed(self, blob):
         game_room_info = blob.get('matchGameRoomStateChangedEvent', {}).get('gameRoomInfo', {})
@@ -720,35 +661,29 @@ class Follower:
     def __handle_ongoing_events(self, json_obj):
         """Handle 'Event_GetCourses' messages."""
         event = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'courses': json_obj['Courses'],
         }
         logger.info(f'Updated ongoing events')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_ONGOING_EVENTS}', blob=event)
+        self._api_client.submit_ongoing_events(self._add_base_api_data(event))
 
     def __handle_claim_prize(self, json_obj):
         """Handle 'Event_ClaimPrize' messages."""
         event = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'event_name': json_obj['EventName'],
         }
         logger.info(f'Event ended: {event}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_ENDED}', blob=event)
+        self._api_client.submit_event_ended(self._add_base_api_data(event))
 
     def __handle_event_course(self, json_obj):
         """Handle messages linking draft id to event name."""
         event = {
-            'player_id': self.cur_user,
             'event_name': json_obj['InternalEventName'],
-            'time': self.cur_log_time.isoformat(),
             'draft_id': json_obj['DraftId'],
             'course_id': json_obj['CourseId'],
             'card_pool': json_obj['CardPool'],
         }
         logger.info(f'Event course: {event}')
-        self.__retry_post(f'{self.host}/{ENDPOINT_EVENT_COURSE_SUBMISSION}', blob=event)
+        self._api_client.submit_event_course_submission(self._add_base_api_data(event))
 
     def __send_game_end(self, results):
         if not self.__has_pending_game_data():
@@ -776,10 +711,8 @@ class Follower:
             self.cur_opponent_level = None
 
         game = {
-            'player_id': self.cur_user,
             'event_name': self.current_event_id,
             'match_id': self.current_match_id,
-            'time': self.cur_log_time.isoformat(),
             'game_number': game_number,
             'on_play': self.seat_id == self.starting_team_id,
             'won': won,
@@ -833,30 +766,26 @@ class Follower:
             self.__clear_game_data()
             self.cur_draft_event = json_obj['EventName']
             pack = {
-                'player_id': self.cur_user,
                 'event_name': json_obj['EventName'],
-                'time': self.cur_log_time.isoformat(),
                 'pack_number': int(json_obj['PackNumber']),
                 'pick_number': int(json_obj['PickNumber']),
                 'card_ids': [int(x) for x in json_obj['DraftPack']],
             }
             logger.info(f'Draft pack: {pack}')
-            response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PACK}', blob=pack)
+            self._api_client.submit_draft_pack(self._add_base_api_data(pack))
 
     def __handle_bot_draft_pick(self, json_obj):
         """Handle 'Draft.MakePick messages."""
         self.__clear_game_data()
         self.cur_draft_event = json_obj['EventName']
         pick = {
-            'player_id': self.cur_user,
             'event_name': json_obj['EventName'],
-            'time': self.cur_log_time.isoformat(),
             'pack_number': int(json_obj['PackNumber']),
             'pick_number': int(json_obj['PickNumber']),
             'card_id': int(json_obj['CardId']),
         }
         logger.info(f'Draft pick: {pick}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_DRAFT_PICK}', blob=pick)
+        self._api_client.submit_draft_pick(self._add_base_api_data(pick))
 
     def __handle_joined_pod(self, json_obj):
         """Handle 'Event_Join' messages."""
@@ -870,8 +799,6 @@ class Follower:
         self.__clear_game_data()
         self.cur_draft_event = json_obj['EventId']
         pack = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'draft_id': json_obj['DraftId'],
             'event_name': json_obj['EventId'],
             'pack_number': int(json_obj['PackNumber']),
@@ -880,10 +807,8 @@ class Follower:
             'method': 'LogBusiness',
         }
         logger.info(f'Human draft pack (combined): {pack}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
+        self._api_client.submit_human_draft_pack(self._add_base_api_data(pack))
         pick = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'draft_id': json_obj['DraftId'],
             'event_name': json_obj['EventId'],
             'pack_number': int(json_obj['PackNumber']),
@@ -893,14 +818,12 @@ class Follower:
             'time_remaining': json_obj['TimeRemainingOnPick'],
         }
         logger.info(f'Human draft pick (combined): {pick}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PICK}', blob=pick)
+        self._api_client.submit_human_draft_pick(self._add_base_api_data(pick))
 
     def __handle_human_draft_pack(self, json_obj):
         """Handle 'Draft.Notify' messages."""
         self.__clear_game_data()
         pack = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'draft_id': json_obj['draftId'],
             'event_name': self.cur_draft_event,
             'pack_number': int(json_obj['SelfPack']),
@@ -909,36 +832,33 @@ class Follower:
             'method': 'Draft.Notify',
         }
         logger.info(f'Human draft pack (Draft.Notify): {pack}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_HUMAN_DRAFT_PACK}', blob=pack)
+        self._api_client.submit_human_draft_pack(self._add_base_api_data(pack))
 
     def __handle_deck_submission(self, json_obj):
         """Handle 'Event_SetDeck' messages."""
         self.__clear_game_data()
         decks = json_obj['Deck']
         deck = {
-            'player_id': self.cur_user,
             'event_name': json_obj['EventName'],
-            'time': self.cur_log_time.isoformat(),
             'maindeck_card_ids': [d['cardId'] for d in decks['MainDeck'] for i in range(d['quantity'])],
             'sideboard_card_ids': [d['cardId'] for d in decks['Sideboard'] for i in range(d['quantity'])],
             'companion': decks['Companions'][0]['cardId'] if len(decks['Companions']) > 0 else 0,
             'is_during_match': False,
         }
         logger.info(f'Deck submission (Event_SetDeck): {deck}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_DECK_SUBMISSION}', blob=deck)
+        self._api_client.submit_deck_submission(self._add_base_api_data(deck))
 
     def __handle_self_rank_info(self, json_obj):
         """Handle 'Rank_GetCombinedRankInfo' messages."""
         self.cur_rank_data = json_obj
         self.cur_user = json_obj.get('playerId', self.cur_user)
         logger.info(f'Parsed rank info for {self.cur_user}: {self.cur_rank_data}')
-        response = self.__retry_post(f'{self.host}/{ENDPOINT_RANK}', blob={
-            'player_id':self.cur_user,
-            'time': self.cur_log_time.isoformat(),
+        data = {
             'rank_data': self.cur_rank_data,
             'limited_rank': None,
             'constructed_rank': None,
-        })
+        }
+        self._api_client.submit_rank(self._add_base_api_data(data))
 
     def __handle_collection(self, json_obj):
         """Handle 'PlayerInventory.GetPlayerCardsV3' messages."""
@@ -947,12 +867,10 @@ class Follower:
             return
 
         collection = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'card_counts': json_obj,
         }
         logger.info(f'Collection submission of {len(json_obj)} cards')
-        self.__retry_post(f'{self.host}/{ENDPOINT_COLLECTION}', blob=collection)
+        self._api_client.submit_collection(self._add_base_api_data(collection))
 
     def __handle_inventory(self, json_obj):
         """Handle 'InventoryInfo' messages."""
@@ -971,22 +889,18 @@ class Follower:
             'Changes',
         }}
         blob = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'inventory': json_obj,
         }
         logger.info(f'Submitting inventory: {blob}')
-        self.__retry_post(f'{self.host}/{ENDPOINT_INVENTORY}', blob=blob)
+        self._api_client.submit_inventory(self._add_base_api_data(blob))
 
     def __handle_player_progress(self, json_obj):
         """Handle mastery pass messages."""
         blob = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'progress': json_obj,
         }
         logger.info(f'Submitting mastery progress')
-        self.__retry_post(f'{self.host}/{ENDPOINT_PLAYER_PROGRESS}', blob=blob)
+        self._api_client.submit_player_progress(self._add_base_api_data(blob))
 
     def __reset_current_user(self):
         logger.info('User logged out from MTGA')
@@ -1127,19 +1041,11 @@ def show_update_message(response_data):
     show_message(title, message)
 
 def verify_version(host, prompt_if_update_required):
-    for i in range(3):
-        response = requests.get(f'{host}/{ENDPOINT_CLIENT_VERSION}', params={
-            'client': 'python',
-            'version': CLIENT_VERSION[:-2],
-        })
-
-        if not IS_CODE_FOR_RETRY(response.status_code):
-            break
-        logger.warning(f'Got response code {response.status_code}; retrying')
-        time.sleep(DEFAULT_RETRY_SLEEP_TIME)
-    else:
-        logger.warning('Could not get response from server for minimum client version. Assuming version is valid.')
-        return True
+    api_client = seventeenlands.api_client.ApiClient(host=host)
+    response = api_client.get_client_version_info(params={
+        'client': 'python',
+        'version': CLIENT_VERSION[:-2],
+    })
 
     logger.info(f'Got minimum client version response: {response.text}')
     blob = json.loads(response.text)
@@ -1166,7 +1072,11 @@ def processing_loop(args, token):
     follower = Follower(token, host=args.host)
 
     # if running in "normal" mode...
-    if args.log_file is None and args.host == API_ENDPOINT and follow:
+    if (
+        args.log_file is None
+        and args.host == seventeenlands.api_client.DEFAULT_HOST
+        and follow
+    ):
         # parse previous log once at startup to catch up on any missed events
         for filename in POSSIBLE_PREVIOUS_FILEPATHS:
             if os.path.exists(filename):
@@ -1195,8 +1105,8 @@ def main():
 
     parser.add_argument('-l', '--log_file',
         help=f'Log filename to process. If not specified, will try one of {POSSIBLE_CURRENT_FILEPATHS}')
-    parser.add_argument('--host', default=API_ENDPOINT,
-        help=f'Host to submit requests to. If not specified, will use {API_ENDPOINT}')
+    parser.add_argument('--host', default=seventeenlands.api_client.DEFAULT_HOST,
+        help=f'Host to submit requests to. If not specified, will use {seventeenlands.api_client.DEFAULT_HOST}')
     parser.add_argument('--token', default=config_token,
                         help=f'Token of the user. If not specified, will use the token at {CONFIG_FILE}')
     parser.add_argument('--once', action='store_true',
