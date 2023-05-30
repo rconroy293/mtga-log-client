@@ -465,7 +465,6 @@ class Follower:
         user_info = {
             'player_id': self.cur_user,
             'screen_name': self.user_screen_name,
-            'raw_time': self.last_raw_time,
         }
         logger.info(f'Updating user info: {user_info}')
         self._api_client.submit_user(self._add_base_api_data(user_info))
@@ -662,8 +661,6 @@ class Follower:
     def __handle_ongoing_events(self, json_obj):
         """Handle 'Event_GetCourses' messages."""
         event = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'courses': json_obj['Courses'],
         }
         logger.info(f'Updated ongoing events')
@@ -672,8 +669,6 @@ class Follower:
     def __handle_claim_prize(self, json_obj):
         """Handle 'Event_ClaimPrize' messages."""
         event = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'event_name': json_obj['EventName'],
         }
         logger.info(f'Event ended: {event}')
@@ -682,9 +677,7 @@ class Follower:
     def __handle_event_course(self, json_obj):
         """Handle messages linking draft id to event name."""
         event = {
-            'player_id': self.cur_user,
             'event_name': json_obj['InternalEventName'],
-            'time': self.cur_log_time.isoformat(),
             'draft_id': json_obj['DraftId'],
             'course_id': json_obj['CourseId'],
             'card_pool': json_obj['CardPool'],
@@ -718,10 +711,8 @@ class Follower:
             self.cur_opponent_level = None
 
         game = {
-            'player_id': self.cur_user,
             'event_name': self.current_event_id,
             'match_id': self.current_match_id,
-            'time': self.cur_log_time.isoformat(),
             'game_number': game_number,
             'on_play': self.seat_id == self.starting_team_id,
             'won': won,
@@ -775,9 +766,7 @@ class Follower:
             self.__clear_game_data()
             self.cur_draft_event = json_obj['EventName']
             pack = {
-                'player_id': self.cur_user,
                 'event_name': json_obj['EventName'],
-                'time': self.cur_log_time.isoformat(),
                 'pack_number': int(json_obj['PackNumber']),
                 'pick_number': int(json_obj['PickNumber']),
                 'card_ids': [int(x) for x in json_obj['DraftPack']],
@@ -790,9 +779,7 @@ class Follower:
         self.__clear_game_data()
         self.cur_draft_event = json_obj['EventName']
         pick = {
-            'player_id': self.cur_user,
             'event_name': json_obj['EventName'],
-            'time': self.cur_log_time.isoformat(),
             'pack_number': int(json_obj['PackNumber']),
             'pick_number': int(json_obj['PickNumber']),
             'card_id': int(json_obj['CardId']),
@@ -812,8 +799,6 @@ class Follower:
         self.__clear_game_data()
         self.cur_draft_event = json_obj['EventId']
         pack = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'draft_id': json_obj['DraftId'],
             'event_name': json_obj['EventId'],
             'pack_number': int(json_obj['PackNumber']),
@@ -824,8 +809,6 @@ class Follower:
         logger.info(f'Human draft pack (combined): {pack}')
         self._api_client.submit_human_draft_pack(self._add_base_api_data(pack))
         pick = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'draft_id': json_obj['DraftId'],
             'event_name': json_obj['EventId'],
             'pack_number': int(json_obj['PackNumber']),
@@ -841,8 +824,6 @@ class Follower:
         """Handle 'Draft.Notify' messages."""
         self.__clear_game_data()
         pack = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'draft_id': json_obj['draftId'],
             'event_name': self.cur_draft_event,
             'pack_number': int(json_obj['SelfPack']),
@@ -858,9 +839,7 @@ class Follower:
         self.__clear_game_data()
         decks = json_obj['Deck']
         deck = {
-            'player_id': self.cur_user,
             'event_name': json_obj['EventName'],
-            'time': self.cur_log_time.isoformat(),
             'maindeck_card_ids': [d['cardId'] for d in decks['MainDeck'] for i in range(d['quantity'])],
             'sideboard_card_ids': [d['cardId'] for d in decks['Sideboard'] for i in range(d['quantity'])],
             'companion': decks['Companions'][0]['cardId'] if len(decks['Companions']) > 0 else 0,
@@ -875,8 +854,6 @@ class Follower:
         self.cur_user = json_obj.get('playerId', self.cur_user)
         logger.info(f'Parsed rank info for {self.cur_user}: {self.cur_rank_data}')
         data = {
-            'player_id':self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'rank_data': self.cur_rank_data,
             'limited_rank': None,
             'constructed_rank': None,
@@ -890,8 +867,6 @@ class Follower:
             return
 
         collection = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'card_counts': json_obj,
         }
         logger.info(f'Collection submission of {len(json_obj)} cards')
@@ -914,8 +889,6 @@ class Follower:
             'Changes',
         }}
         blob = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'inventory': json_obj,
         }
         logger.info(f'Submitting inventory: {blob}')
@@ -924,8 +897,6 @@ class Follower:
     def __handle_player_progress(self, json_obj):
         """Handle mastery pass messages."""
         blob = {
-            'player_id': self.cur_user,
-            'time': self.cur_log_time.isoformat(),
             'progress': json_obj,
         }
         logger.info(f'Submitting mastery progress')
