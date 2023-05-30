@@ -49,7 +49,7 @@ def retry_until_successful(
             
         time.sleep(next_retry_delay.total_seconds())
         next_retry_delay *= 2
-        if max_retry_delay and max_retry_delay > next_retry_delay:
+        if max_retry_delay and max_retry_delay < next_retry_delay:
             next_retry_delay = max_retry_delay
 
 
