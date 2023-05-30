@@ -10,7 +10,7 @@ if not os.path.exists(_LOG_FOLDER):
 _LOG_FILENAME = os.path.join(_LOG_FOLDER, 'seventeenlands.log')
 
 _LOG_FORMATTER = logging.Formatter(
-    '%(asctime)s,%(levelname)s,%(message)s',
+    "%(asctime)s.%(msecs)03d,%(levelname)s,%(name)s,%(message)s",
     datefmt='%Y%m%d %H%M%S',
 )
 _HANDLERS = {
