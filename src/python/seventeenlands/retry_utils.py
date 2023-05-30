@@ -2,6 +2,8 @@ import datetime
 import time
 from typing import TypeVar, Callable, Optional
 
+import requests.exceptions
+
 import seventeenlands.logging_utils
 
 T = TypeVar('T')
@@ -57,7 +59,10 @@ def retry_api_call(
 ) -> T:
     def _should_retry_error(error: Exception) -> bool:
         logger.exception(f'Error: {error}')
-        return True
+        error_class = type(error)
+        if issubclass(error_class, requests.exceptions.ConnectionError):
+            return True
+        return False
     
     return retry_until_successful(
         callback=callback,
