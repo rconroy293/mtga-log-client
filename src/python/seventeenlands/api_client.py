@@ -1,6 +1,7 @@
+import datetime
 import gzip
 import json
-from typing import Dict
+from typing import Any, Dict, Optional
 
 import requests
 
@@ -12,15 +13,18 @@ logger = seventeenlands.logging_utils.get_logger('api_client')
 
 DEFAULT_HOST = 'https://www.17lands.com'
 
+_ERROR_COOLDOWN = datetime.timedelta(minutes=2)
+
 
 class ApiClient:
 
     def __init__(self, host: str):
         self.host = host
+        self._last_error_posted_at = datetime.datetime.utcnow() - _ERROR_COOLDOWN
 
-    def _retry_post(self, endpoint, blob, use_gzip=False):
+    def _retry_post(self, endpoint: str, blob: Any, use_gzip=False):
         def _send_request() -> requests.Response:
-            args = {
+            args: Dict[str, Any] = {
                 "url": f'{self.host}/{endpoint}',
             }
 
@@ -32,14 +36,14 @@ class ApiClient:
                 }
             else:
                 args["json"] = blob
-            
+
             logger.debug(f'Sending POST request: {args}')
             return requests.post(**args)
-        
+
         def _validate_response(response: requests.Response) -> bool:
             logger.debug(f'{response.status_code} Response: {response.text}')
             return response.status_code < 500 or response.status_code >= 600
-        
+
         return seventeenlands.retry_utils.retry_api_call(
             callback=_send_request,
             response_validator=_validate_response,
@@ -49,11 +53,11 @@ class ApiClient:
         def _send_request() -> requests.Response:
             logger.debug(f'Sending GET to {self.host}/{endpoint}: {params}')
             return requests.get(f'{self.host}/{endpoint}', params=params)
-        
+
         def _validate_response(response: requests.Response) -> bool:
             logger.debug(f'{response.status_code} Response: {response.text}')
             return response.status_code < 500 or response.status_code >= 600
-        
+
         return seventeenlands.retry_utils.retry_api_call(
             callback=_send_request,
             response_validator=_validate_response,
@@ -109,3 +113,12 @@ class ApiClient:
 
     def submit_user(self, blob: Dict):
         return self._retry_post(endpoint='api/account', blob=blob)
+
+    def submit_error_info(self, blob: Dict):
+        now = datetime.datetime.utcnow()
+        if self._last_error_posted_at > now - _ERROR_COOLDOWN:
+            logger.warning(f'Waiting to post another error; last message was sent too recently ({self._last_error_posted_at.isoformat()})')
+            return
+
+        self._last_error_posted_at = now
+        return self._retry_post(endpoint='api/client_errors', blob=blob, use_gzip=True)
