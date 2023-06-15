@@ -889,7 +889,7 @@ class Follower:
     def __handle_bot_draft_pack(self, json_obj):
         """Handle 'DraftStatus' messages."""
         if json_obj['DraftStatus'] == 'PickNext':
-            self.__clear_game_data(submit_pending_game=True)
+            self.__clear_game_data()
 
             try:
                 self.cur_draft_event = json_obj['EventName']
