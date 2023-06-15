@@ -268,15 +268,18 @@ class Follower:
             self.__clear_match_data()
             last_read_time = time.time()
             last_file_size = 0
+            last_line = ''
             try:
                 with open(filename, errors='replace') as f:
                     while True:
                         line = f.readline()
                         file_size = pathlib.Path(filename).stat().st_size
                         if line:
-                            self.__append_line(line)
+                            if line != last_line:
+                                self.__append_line(line)
                             last_read_time = time.time()
                             last_file_size = file_size
+                            last_line = line
                         else:
                             self.__handle_complete_log_entry()
                             last_modified_time = os.stat(filename).st_mtime
