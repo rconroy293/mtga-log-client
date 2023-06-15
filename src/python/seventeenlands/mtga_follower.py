@@ -551,7 +551,7 @@ class Follower:
             # If the regular game end message is lost, try to submit remaining game data on match end.
             results = game_room_info['finalMatchResult'].get('resultList', [])
             if results:
-                self.__queue_game_submission(results)
+                self.__enqueue_game_submission(results)
             self.__clear_match_data(submit_pending_game=False)
 
     def __handle_gre_to_client_message(self, message_blob):
@@ -695,7 +695,7 @@ class Follower:
 
         results = game_info.get('results')
         if results:
-            self.__queue_game_submission(results)
+            self.__enqueue_game_submission(results)
 
         if game_info.get('matchState') == 'MatchState_MatchComplete':
             self.__clear_match_data(submit_pending_game=False)
@@ -706,7 +706,7 @@ class Follower:
             self._api_client.submit_game_result(self._add_base_api_data(self.pending_game_submission))
             self.pending_game_submission = None
 
-    def __clear_game_data(self, submit_pending_game=False):
+    def __clear_game_data(self, submit_pending_game=True):
         if submit_pending_game:
             self.__maybe_submit_pending_game()
 
@@ -797,7 +797,7 @@ class Follower:
     def __has_pending_game_data(self):
         return len(self.drawn_cards_by_instance_id) > 0 and len(self.game_history_events) > 5
 
-    def __queue_game_submission(self, results):
+    def __enqueue_game_submission(self, results):
         if not self.__has_pending_game_data():
             return
 
