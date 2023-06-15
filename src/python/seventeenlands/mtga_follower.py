@@ -506,7 +506,7 @@ class Follower:
 
         except Exception as e:
             self._log_error(
-                message=f'Error {e} parsing screen name from {json_obj}',
+                message=f'Error {e} parsing screen name from {screen_name}',
                 error=e,
                 stacktrace=traceback.format_exc(),
             )
@@ -633,7 +633,7 @@ class Follower:
 
             except Exception as e:
                 self._log_error(
-                    message=f'Error {e} parsing GRE message from {json_obj}',
+                    message=f'Error {e} parsing GRE message from {message_blob}',
                     error=e,
                     stacktrace=traceback.format_exc(),
                 )
@@ -648,7 +648,7 @@ class Follower:
 
         except Exception as e:
             self._log_error(
-                message=f'Error {e} parsing GRE connect response from {json_obj}',
+                message=f'Error {e} parsing GRE connect response from {blob}',
                 error=e,
                 stacktrace=traceback.format_exc(),
             )
@@ -668,14 +668,14 @@ class Follower:
 
                 except Exception as e:
                     self._log_error(
-                        message=f'Error {e} parsing GRE deck submission from {json_obj}',
+                        message=f'Error {e} parsing GRE deck submission from {payload}',
                         error=e,
                         stacktrace=traceback.format_exc(),
                     )
 
         except Exception as e:
             self._log_error(
-                message=f'Error {e} parsing GRE to client messages from {json_obj}',
+                message=f'Error {e} parsing GRE to client messages from {payload}',
                 error=e,
                 stacktrace=traceback.format_exc(),
             )
@@ -687,7 +687,7 @@ class Follower:
 
         except Exception as e:
             self._log_error(
-                message=f'Error {e} parsing GRE to client UI messages from {json_obj}',
+                message=f'Error {e} parsing GRE to client UI messages from {payload}',
                 error=e,
                 stacktrace=traceback.format_exc(),
             )
