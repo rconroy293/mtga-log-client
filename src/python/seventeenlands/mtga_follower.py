@@ -215,6 +215,7 @@ class Follower:
         self.json_decoder = json.JSONDecoder()
         self.disconnected_user = None
         self.disconnected_screen_name = None
+        self.disconnected_rank = None
         self.cur_user = None
         self.cur_draft_event = None
         self.cur_rank_data = None
@@ -1114,15 +1115,18 @@ class Follower:
         if self.cur_user is not None:
             self.disconnected_user = self.cur_user
             self.disconnected_screen_name = self.user_screen_name
+            self.disconnected_rank = self.cur_rank_data
 
         self.cur_user = None
         self.user_screen_name = None
+        self.cur_rank_data = None
 
     def __handle_reconnect_result(self):
         logger.info('Reconnected - restoring prior user info')
 
         self.cur_user = self.disconnected_user
         self.user_screen_name = self.disconnected_screen_name
+        self.cur_rank_data = self.disconnected_rank
 
 
 def validate_uuid_v4(maybe_uuid):
