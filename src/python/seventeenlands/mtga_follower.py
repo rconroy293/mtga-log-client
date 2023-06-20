@@ -467,11 +467,7 @@ class Follower:
         elif 'Reconnect result : Connected' in full_log:
             self.__handle_reconnect_result()
 
-        if self.pending_game_submission:
-            logger.info(f'Submitting game with {len(self.pending_game_submission["history"]["events"])} history events')
-            self._api_client.submit_game_result(self._add_base_api_data(self.pending_game_submission))
-            self.__clear_game_data()
-            self.pending_game_submission = None
+        self.__maybe_submit_pending_game()
 
     def __try_decode(self, blob, key):
         try:
@@ -555,8 +551,8 @@ class Follower:
             # If the regular game end message is lost, try to submit remaining game data on match end.
             results = game_room_info['finalMatchResult'].get('resultList', [])
             if results:
-                self.__send_game_end(results)
-            self.__clear_match_data()
+                self.__enqueue_game_submission(results)
+            self.__clear_match_data(submit_pending_game=False)
 
     def __handle_gre_to_client_message(self, message_blob):
         """Handle messages in the 'greToClientEvent' field."""
@@ -699,15 +695,21 @@ class Follower:
 
         results = game_info.get('results')
         if results:
-            self.__send_game_end(results)
+            self.__enqueue_game_submission(results)
 
         if game_info.get('matchState') == 'MatchState_MatchComplete':
-            self.__clear_match_data()
+            self.__clear_match_data(submit_pending_game=False)
 
-    def __has_pending_game_data(self):
-        return len(self.drawn_cards_by_instance_id) > 0 and len(self.game_history_events) > 5
+    def __maybe_submit_pending_game(self):
+        if self.pending_game_submission:
+            logger.info(f'Submitting game with {len(self.pending_game_submission["history"]["events"])} history events')
+            self._api_client.submit_game_result(self._add_base_api_data(self.pending_game_submission))
+            self.pending_game_submission = None
 
-    def __clear_game_data(self):
+    def __clear_game_data(self, submit_pending_game=True):
+        if submit_pending_game:
+            self.__maybe_submit_pending_game()
+
         self.turn_count = 0
         self.objects_by_owner.clear()
         self.opening_hand_count_by_seat.clear()
@@ -722,12 +724,12 @@ class Follower:
         self.game_service_metadata = None
         self.game_client_metadata = None
 
-    def __clear_match_data(self):
+    def __clear_match_data(self, submit_pending_game=False):
         self.screen_names.clear()
         self.current_match_id = None
         self.current_event_id = None
         self.seat_id = None
-        self.__clear_game_data()
+        self.__clear_game_data(submit_pending_game=submit_pending_game)
 
     def __maybe_handle_account_info(self, line):
         match = ACCOUNT_INFO_REGEX.match(line)
@@ -792,7 +794,10 @@ class Follower:
                 stacktrace=traceback.format_exc(),
             )
 
-    def __send_game_end(self, results):
+    def __has_pending_game_data(self):
+        return len(self.drawn_cards_by_instance_id) > 0 and len(self.game_history_events) > 5
+
+    def __enqueue_game_submission(self, results):
         if not self.__has_pending_game_data():
             return
 
@@ -868,7 +873,7 @@ class Follower:
 
     def __handle_login(self, json_obj):
         """Handle 'Client.Connected' messages."""
-        self.__clear_game_data()
+        self.__clear_game_data(submit_pending_game=False)
 
         try:
             self.cur_user = json_obj['params']['payloadObject']['playerId']
