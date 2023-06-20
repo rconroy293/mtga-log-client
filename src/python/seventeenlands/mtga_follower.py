@@ -209,13 +209,18 @@ class Follower:
     def __init__(self, token, host):
         self.host = host
         self.token = token
+        self.json_decoder = json.JSONDecoder()
+        self._api_client = seventeenlands.api_client.ApiClient(host=host)
+        self._reinitialize()
+
+    def _reinitialize(self):
         self.buffer = []
         self.cur_log_time = datetime.datetime.fromtimestamp(0)
         self.last_utc_time = datetime.datetime.fromtimestamp(0)
         self.last_raw_time = ''
-        self.json_decoder = json.JSONDecoder()
         self.disconnected_user = None
         self.disconnected_screen_name = None
+        self.disconnected_rank = None
         self.cur_user = None
         self.cur_draft_event = None
         self.cur_rank_data = None
@@ -244,7 +249,7 @@ class Follower:
         self.current_debug_blob = ''
         self.recent_lines = []
 
-        self._api_client = seventeenlands.api_client.ApiClient(host=host)
+        self.__clear_match_data()
 
     def _add_base_api_data(self, blob):
         return {
@@ -266,7 +271,7 @@ class Follower:
                          all the initial lines.
         """
         while True:
-            self.__clear_match_data()
+            self._reinitialize()
             last_read_time = time.time()
             last_file_size = 0
             last_line = ''
@@ -1130,15 +1135,18 @@ class Follower:
         if self.cur_user is not None:
             self.disconnected_user = self.cur_user
             self.disconnected_screen_name = self.user_screen_name
+            self.disconnected_rank = self.cur_rank_data
 
         self.cur_user = None
         self.user_screen_name = None
+        self.cur_rank_data = None
 
     def __handle_reconnect_result(self):
         logger.info('Reconnected - restoring prior user info')
 
         self.cur_user = self.disconnected_user
         self.user_screen_name = self.disconnected_screen_name
+        self.cur_rank_data = self.disconnected_rank
 
 
 def validate_uuid_v4(maybe_uuid):
