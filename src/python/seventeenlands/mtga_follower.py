@@ -144,6 +144,7 @@ TIME_FORMATS = (
     '%d.%m.%Y %I:%M:%S %p'
 )
 OUTPUT_TIME_FORMAT = '%Y%m%d%H%M%S'
+MAX_MILLISECONDS_SINCE_EPOCH = int(1000 * datetime.datetime(3000, 1, 1).timestamp())
 
 _ERROR_LINES_RECENCY = 10
 
@@ -392,8 +393,15 @@ class Follower:
             return None
 
         try:
-            seconds_since_year_1 = int(timestamp) / 10000000
-            return datetime.datetime.fromordinal(1) + datetime.timedelta(seconds=seconds_since_year_1)
+            timestamp_value = int(timestamp)
+
+            if timestamp_value < MAX_MILLISECONDS_SINCE_EPOCH:
+                return datetime.datetime.fromtimestamp(timestamp_value * 0.001)
+
+            else:
+                seconds_since_year_1 = timestamp_value / 10000000
+                return datetime.datetime.fromordinal(1) + datetime.timedelta(seconds=seconds_since_year_1)
+
         except ValueError:
             return dateutil.parser.isoparse(timestamp)
 
