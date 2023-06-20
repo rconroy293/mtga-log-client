@@ -409,6 +409,7 @@ class Follower:
         json_obj = self.__extract_payload(json_obj)
         if type(json_obj) != dict: return
 
+        maybe_time = None
         try:
             maybe_time = self.__maybe_get_utc_timestamp(json_obj)
             if maybe_time is not None:
@@ -443,7 +444,7 @@ class Follower:
         elif 'greToClientEvent' in json_obj and 'greToClientMessages' in json_obj['greToClientEvent']:
             try:
                 for message in json_obj['greToClientEvent']['greToClientMessages']:
-                    self.__handle_gre_to_client_message(message)
+                    self.__handle_gre_to_client_message(message, maybe_time)
             except Exception as e:
                 self._log_error(
                     message=f'Error {e} parsing GRE to client messages from {json_obj}',
@@ -451,9 +452,9 @@ class Follower:
                     stacktrace=traceback.format_exc(),
                 )
         elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREMessage', ['clientToMatchServiceMessageType'], json_obj):
-            self.__handle_client_to_gre_message(json_obj.get('payload', {}))
+            self.__handle_client_to_gre_message(json_obj.get('payload', {}), maybe_time)
         elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREUIMessage', ['clientToMatchServiceMessageType'], json_obj):
-            self.__handle_client_to_gre_ui_message(json_obj.get('payload', {}))
+            self.__handle_client_to_gre_ui_message(json_obj.get('payload', {}), maybe_time)
         elif 'Rank_GetCombinedRankInfo' in full_log:
             self.__handle_self_rank_info(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj: # Doesn't exist any more
@@ -558,13 +559,19 @@ class Follower:
                 self.__send_game_end(results)
             self.__clear_match_data()
 
-    def __handle_gre_to_client_message(self, message_blob):
+    def _add_to_game_history(self, message_blob, timestamp):
+        self.game_history_events.append({
+            "_timestamp": None if timestamp is None else timestamp.isoformat(),
+            **message_blob,
+        })
+
+    def __handle_gre_to_client_message(self, message_blob, timestamp):
         """Handle messages in the 'greToClientEvent' field."""
         # Add to game history before processing the message, since we may submit the game right away.
         if message_blob['type'] in ['GREMessageType_QueuedGameStateMessage', 'GREMessageType_GameStateMessage']:
-            self.game_history_events.append(message_blob)
+            self._add_to_game_history(message_blob, timestamp)
         elif message_blob['type'] == 'GREMessageType_UIMessage' and 'onChat' in message_blob['uiMessage']:
-            self.game_history_events.append(message_blob)
+            self._add_to_game_history(message_blob, timestamp)
 
         if message_blob['type'] == 'GREMessageType_ConnectResp':
             self.__handle_gre_connect_response(message_blob)
@@ -653,10 +660,10 @@ class Follower:
                 stacktrace=traceback.format_exc(),
             )
 
-    def __handle_client_to_gre_message(self, payload):
+    def __handle_client_to_gre_message(self, payload, timestamp):
         try:
             if payload['type'] == 'ClientMessageType_SelectNResp':
-                self.game_history_events.append(payload)
+                self._add_to_game_history(payload, timestamp)
 
             if payload['type'] == 'ClientMessageType_SubmitDeckResp':
                 try:
@@ -680,10 +687,10 @@ class Follower:
                 stacktrace=traceback.format_exc(),
             )
 
-    def __handle_client_to_gre_ui_message(self, payload):
+    def __handle_client_to_gre_ui_message(self, payload, timestamp):
         try:
             if 'onChat' in payload['uiMessage']:
-                self.game_history_events.append(payload)
+                self._add_to_game_history(payload, timestamp)
 
         except Exception as e:
             self._log_error(
