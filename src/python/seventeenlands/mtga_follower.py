@@ -244,7 +244,9 @@ class Follower:
         self.user_screen_name = None
         self.screen_names = defaultdict(lambda: '')
         self.game_history_events = []
-        self.pending_game_submission = None
+        self.pending_game_submission = {}
+        self.pending_game_result = {}
+        self.pending_match_result = {}
 
         self.current_debug_blob = ''
         self.recent_lines = []
@@ -443,6 +445,8 @@ class Follower:
             self.__handle_bot_draft_pick(json_obj['PickInfo'])
         elif 'LogBusinessEvents' in full_log and 'PickGrpId' in json_obj:
             self.__handle_human_draft_combined(json_obj)
+        elif 'LogBusinessEvents' in full_log and 'WinningType' in json_obj:
+            self.__handle_log_business_game_end(json_obj)
         elif 'Draft.Notify ' in full_log and 'method' not in json_obj:
             self.__handle_human_draft_pack(json_obj)
         elif 'Event_SetDeck' in full_log and 'EventName' in json_obj:
@@ -568,8 +572,9 @@ class Follower:
             # If the regular game end message is lost, try to submit remaining game data on match end.
             results = game_room_info['finalMatchResult'].get('resultList', [])
             if results:
-                self.__enqueue_game_submission(results)
-            self.__clear_match_data(submit_pending_game=False)
+                if self.__enqueue_game_data():
+                    self.__enqueue_game_results(results)
+            self.__clear_match_data(submit_pending_game=True)
 
     def _add_to_game_history(self, message_blob, timestamp):
         self.game_history_events.append({
@@ -711,6 +716,24 @@ class Follower:
                 stacktrace=traceback.format_exc(),
             )
 
+    def __handle_log_business_game_end(self, payload):
+        try:
+            if self.__enqueue_game_data():
+                self.pending_game_result = {
+                    'game_number': payload.get('GameNumber'),
+                    'won': self.seat_id == payload.get('WinningTeamId'),
+                    'win_type': payload.get('WinningType'),
+                    'game_end_reason': payload.get('WinningReason'),
+                }
+                logger.info(f'Added pending game result via LogBusinessEvents {self.pending_game_result}')
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing game end from LogBusinessEvents: {payload}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
+
     def __maybe_handle_game_over_stage(self, game_state_message):
         game_info = game_state_message.get('gameInfo', {})
         if game_info.get('stage') != 'GameStage_GameOver':
@@ -718,16 +741,23 @@ class Follower:
 
         results = game_info.get('results')
         if results:
-            self.__enqueue_game_submission(results)
+            if self.__enqueue_game_data():
+                self.__enqueue_game_results(results)
 
         if game_info.get('matchState') == 'MatchState_MatchComplete':
-            self.__clear_match_data(submit_pending_game=False)
+            self.__clear_match_data(submit_pending_game=True)
 
     def __maybe_submit_pending_game(self):
-        if self.pending_game_submission:
-            logger.info(f'Submitting game with {len(self.pending_game_submission["history"]["events"])} history events')
-            self._api_client.submit_game_result(self._add_base_api_data(self.pending_game_submission))
-            self.pending_game_submission = None
+        if self.pending_game_submission and self.pending_game_result:
+            full_game = {
+                **self.pending_game_result,
+                **self.pending_match_result,
+                **self.pending_game_submission,
+            }
+            logger.info(f'Submitting queued game result')
+            self._api_client.submit_game_result(self._add_base_api_data(full_game))
+            self.pending_game_submission = {}
+            self.__clear_game_data()
 
     def __clear_game_data(self, submit_pending_game=True):
         if submit_pending_game:
@@ -746,6 +776,8 @@ class Follower:
         self.current_game_additional_deck_info = None
         self.game_service_metadata = None
         self.game_client_metadata = None
+        self.pending_game_result = {}
+        self.pending_match_result = {}
 
     def __clear_match_data(self, submit_pending_game=False):
         self.screen_names.clear()
@@ -820,25 +852,40 @@ class Follower:
     def __has_pending_game_data(self):
         return len(self.drawn_cards_by_instance_id) > 0 and len(self.game_history_events) > 5
 
-    def __enqueue_game_submission(self, results):
-        if not self.__has_pending_game_data():
-            return
-
+    def __enqueue_game_results(self, results):
         try:
             game_results = [r for r in results if r.get('scope') == 'MatchScope_Game']
-            this_game_result = game_results[-1]
-            won = self.seat_id == this_game_result.get('winningTeamId')
-            game_number = max(1, len(game_results))
-            win_type = this_game_result.get('result')
-            game_end_reason = this_game_result.get('reason')
+            if game_results:
+                this_game_result = game_results[-1]
+                self.pending_game_result = {
+                    'game_number': max(1, len(game_results)),
+                    'won': self.seat_id == this_game_result.get('winningTeamId'),
+                    'win_type': this_game_result.get('result'),
+                    'game_end_reason': this_game_result.get('reason'),
+                }
+                logger.info(f'Added pending game result {self.pending_game_result}')
 
             match_result = next((r for r in results if r.get('scope') == 'MatchScope_Match'), {})
-            won_match = self.seat_id == match_result.get('winningTeamId')
-            match_result_type = match_result.get('result')
-            match_end_reason = match_result.get('reason')
+            if match_result:
+                self.pending_match_result = {
+                    'won_match': self.seat_id == match_result.get('winningTeamId'),
+                    'match_result_type': match_result.get('result'),
+                    'match_end_reason': match_result.get('reason'),
+                }
+                logger.info(f'Added pending match result {self.pending_match_result}')
 
-            logger.debug(f'End of game. Cards by owner: {self.objects_by_owner}')
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing game result',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
 
+    def __enqueue_game_data(self):
+        if not self.__has_pending_game_data():
+            return False
+
+        try:
             opponent_id = 2 if self.seat_id == 1 else 1
             opponent_card_ids = [c for c in self.objects_by_owner.get(opponent_id, {}).values()]
 
@@ -848,14 +895,7 @@ class Follower:
             game = {
                 'event_name': self.current_event_id,
                 'match_id': self.current_match_id,
-                'game_number': game_number,
                 'on_play': self.seat_id == self.starting_team_id,
-                'won': won,
-                'win_type': win_type,
-                'game_end_reason': game_end_reason,
-                'won_match': won_match,
-                'match_result_type': match_result_type,
-                'match_end_reason': match_end_reason,
                 'opening_hand': self.opening_hand[self.seat_id],
                 'mulligans': self.drawn_hands[self.seat_id][:-1],
                 'drawn_hands': self.drawn_hands[self.seat_id],
@@ -886,13 +926,15 @@ class Follower:
             }
 
             self.pending_game_submission = copy.deepcopy(game)
+            return True
 
         except Exception as e:
             self._log_error(
-                message=f'Error {e} parsing game result',
+                message=f'Error {e} parsing game data',
                 error=e,
                 stacktrace=traceback.format_exc(),
             )
+            return False
 
     def __handle_login(self, json_obj):
         """Handle 'Client.Connected' messages."""
