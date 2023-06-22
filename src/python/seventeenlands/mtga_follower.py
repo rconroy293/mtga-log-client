@@ -488,8 +488,6 @@ class Follower:
         elif 'Reconnect result : Connected' in full_log:
             self.__handle_reconnect_result()
 
-        self.__maybe_submit_pending_game()
-
     def __try_decode(self, blob, key):
         try:
             json_obj, _ = self.json_decoder.raw_decode(blob[key])
@@ -569,7 +567,6 @@ class Follower:
             self.game_client_metadata = game_room_config['clientMetadata']
 
         if 'finalMatchResult' in game_room_info:
-            # If the regular game end message is lost, try to submit remaining game data on match end.
             results = game_room_info['finalMatchResult'].get('resultList', [])
             if results:
                 if self.__enqueue_game_data():
@@ -718,6 +715,9 @@ class Follower:
 
     def __handle_log_business_game_end(self, payload):
         try:
+            if self.starting_team_id is None:
+                self.starting_team_id = payload.get('StartingTeamId')
+
             if self.__enqueue_game_data():
                 self.pending_game_result = {
                     'game_number': payload.get('GameNumber'),
@@ -743,9 +743,6 @@ class Follower:
         if results:
             if self.__enqueue_game_data():
                 self.__enqueue_game_results(results)
-
-        if game_info.get('matchState') == 'MatchState_MatchComplete':
-            self.__clear_match_data(submit_pending_game=True)
 
     def __maybe_submit_pending_game(self):
         if self.pending_game_submission and self.pending_game_result:
