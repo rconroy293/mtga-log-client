@@ -74,8 +74,7 @@ namespace mtga_log_client
             "Boosters"
         };
 
-        private static long SECONDS_AT_YEAR_2000 = 63082281600L;
-        private static DateTime YEAR_2000 = new DateTime(2000, 1, 1);
+        private static long MAX_MILLISECONDS_SINCE_EPOCH = 32503705200000L;
 
         private bool first = true;
         private long farthestReadPosition = 0;
@@ -456,12 +455,15 @@ namespace mtga_log_client
                 return null;
             }
 
-            long secondsSinceYear2000;
-            if (long.TryParse(timestamp, out secondsSinceYear2000))
+            if (long.TryParse(timestamp, out long timestampLong))
             {
-                secondsSinceYear2000 /= 10000000L;
-                secondsSinceYear2000 -= SECONDS_AT_YEAR_2000;
-                return YEAR_2000.AddSeconds(secondsSinceYear2000);
+                if (timestampLong < MAX_MILLISECONDS_SINCE_EPOCH)
+                {
+                    return DateTimeOffset.FromUnixTimeSeconds(timestampLong / 1000).DateTime;
+                } else
+                {
+                    return new DateTime(timestampLong);
+                }
             }
             else
             {
