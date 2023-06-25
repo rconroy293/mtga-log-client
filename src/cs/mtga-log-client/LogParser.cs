@@ -84,6 +84,7 @@ namespace mtga_log_client
         private string lastRawTime = "";
         private string disconnectedUser = null;
         private string disconnectedScreenName = null;
+        private JObject disconnectedRank = null;
         private string currentUser = null;
         private string currentScreenName = null;
         private string currentDraftEvent = null;
@@ -126,6 +127,46 @@ namespace mtga_log_client
             this.filePath = filePath;
             this.messageFunction = messageFunction;
             this.statusFunction = statusFunction;
+
+            Reinitialize();
+        }
+
+        private void Reinitialize()
+        {
+            buffer.Clear();
+            currentLogTime = new DateTime(0);
+            lastUtcTime = new DateTime(0);
+            lastRawTime = "";
+            disconnectedUser = null;
+            disconnectedScreenName = null;
+            disconnectedRank = null;
+            currentUser = null;
+            currentScreenName = null;
+            currentDraftEvent = null;
+            currentRankData = null;
+            currentOpponentLevel = null;
+            currentOpponentMatchId = null;
+            currentMatchId = null;
+            currentEventName = null;
+            currentGameMaindeck = new List<int>();
+            currentGameSideboard = new List<int>();
+            currentGameAdditionalDeckInfo = new JObject();
+            startingTeamId = -1;
+            seatId = 0;
+            turnCount = 0;
+            pendingGameSubmission = null;
+            screenNames.Clear();
+            objectsByOwner.Clear();
+            cardsInHand.Clear();
+            drawnHands.Clear();
+            drawnCardsByInstanceId.Clear();
+            openingHand.Clear();
+            gameHistoryEvents.Clear();
+            recentLines.Clear();
+            lastBlob = "";
+            currentDebugBlob = "";
+            
+            ClearMatchData();
         }
 
         public void ResumeParsing(object sender, DoWorkEventArgs e)
@@ -171,7 +212,7 @@ namespace mtga_log_client
                         {
                             LogMessage("Restarting parsing of " + filePath, Level.Info);
                         }
-                        ClearMatchData();
+                        Reinitialize();
                         filestream.Position = 0;
                         farthestReadPosition = filestream.Length;
                     }
@@ -563,6 +604,7 @@ namespace mtga_log_client
             LogMessage("User logged out from MTGA", Level.Info);
             currentUser = null;
             currentScreenName = null;
+            currentRankData = null;
         }
 
         private void MaybeHandleAccountInfo(String line)
@@ -947,6 +989,7 @@ namespace mtga_log_client
             {
                 disconnectedUser = currentUser;
                 disconnectedScreenName = currentScreenName;
+                disconnectedRank = currentRankData;
             }
 
             ResetCurrentUser();
@@ -961,6 +1004,7 @@ namespace mtga_log_client
             LogMessage("Reconnected - restoring prior user info", Level.Info);
             currentUser = disconnectedUser;
             currentScreenName = disconnectedScreenName;
+            currentRankData = disconnectedRank;
 
             return true;
         }
