@@ -420,9 +420,9 @@ namespace mtga_log_client
             if (MaybeHandleEventCourse(fullLog, blob)) return;
             if (MaybeHandleScreenNameUpdate(fullLog, blob)) return;
             if (MaybeHandleMatchStateChanged(blob)) return;
-            if (MaybeHandleGreToClientMessages(blob)) return;
-            if (MaybeHandleClientToGreMessage(blob)) return;
-            if (MaybeHandleClientToGreUiMessage(blob)) return;
+            if (MaybeHandleGreToClientMessages(blob, maybeUtcTimestamp)) return;
+            if (MaybeHandleClientToGreMessage(blob, maybeUtcTimestamp)) return;
+            if (MaybeHandleClientToGreUiMessage(blob, maybeUtcTimestamp)) return;
             if (MaybeHandleSelfRankInfo(fullLog, blob)) return;
             if (MaybeHandleInventory(fullLog, blob)) return;
             if (MaybeHandlePlayerProgress(fullLog, blob)) return;
@@ -1461,7 +1461,13 @@ namespace mtga_log_client
             return false;
         }
 
-        private bool MaybeHandleGreToClientMessages(JObject blob)
+        private void AddToGameHistory(JObject blob, DateTime? timestamp)
+        {
+            blob.Add("_timestamp", timestamp == null ? null : GetDatetimeString((DateTime) timestamp));
+            gameHistoryEvents.Add(blob);
+        }
+
+        private bool MaybeHandleGreToClientMessages(JObject blob, DateTime? timestamp)
         {
             if (!blob.ContainsKey("greToClientEvent")) return false;
             if (!blob["greToClientEvent"].Value<JObject>().ContainsKey("greToClientMessages")) return false;
@@ -1470,7 +1476,7 @@ namespace mtga_log_client
             {
                 foreach (JToken message in blob["greToClientEvent"]["greToClientMessages"])
                 {
-                    AddGameHistoryEvents(message);
+                    AddGameHistoryEvents(message.Value<JObject>(), timestamp);
                     if (MaybeHandleGreConnectResponse(message)) continue;
                     if (MaybeHandleGreMessage_GameState(message)) continue;
                 }
@@ -1483,26 +1489,26 @@ namespace mtga_log_client
             }
         }
 
-        private void AddGameHistoryEvents(JToken message)
+        private void AddGameHistoryEvents(JObject message, DateTime? timestamp)
         {
             if (GAME_HISTORY_MESSAGE_TYPES.Contains(message["type"].Value<String>()))
             {
-                gameHistoryEvents.Add(message);
+                AddToGameHistory(message, timestamp);
             }
             else if (message["type"].Value<String>() == "GREMessageType_UIMessage")
             {
-                if (message.Value<JObject>().ContainsKey("uiMessage"))
+                if (message.ContainsKey("uiMessage"))
                 {
                     var uiMessage = message["uiMessage"].Value<JObject>();
                     if (uiMessage.ContainsKey("onChat"))
                     {
-                        gameHistoryEvents.Add(message);
+                        AddToGameHistory(message, timestamp);
                     }
                 }
             }
         }
 
-        private bool MaybeHandleClientToGreMessage(JObject blob)
+        private bool MaybeHandleClientToGreMessage(JObject blob, DateTime? timestamp)
         {
             if (!blob.ContainsKey("clientToMatchServiceMessageType")) return false;
             if (!"ClientToMatchServiceMessageType_ClientToGREMessage".Equals(blob["clientToMatchServiceMessageType"].Value<String>())) return false;
@@ -1514,7 +1520,7 @@ namespace mtga_log_client
                     var payload = blob["payload"].Value<JObject>();
                     if (payload["type"].Value<String>().Equals("ClientMessageType_SelectNResp"))
                     {
-                        gameHistoryEvents.Add(payload);
+                        AddToGameHistory(payload, timestamp);
                     }
                     if (MaybeHandleGreMessage_DeckSubmission(payload)) return true;
                 }
@@ -1528,7 +1534,7 @@ namespace mtga_log_client
             }
         }
 
-        private bool MaybeHandleClientToGreUiMessage(JObject blob)
+        private bool MaybeHandleClientToGreUiMessage(JObject blob, DateTime? timestamp)
         {
             if (!blob.ContainsKey("clientToMatchServiceMessageType")) return false;
             if (!"ClientToMatchServiceMessageType_ClientToGREUIMessage".Equals(blob["clientToMatchServiceMessageType"].Value<String>())) return false;
@@ -1543,7 +1549,7 @@ namespace mtga_log_client
                         var uiMessage = payload["uiMessage"].Value<JObject>();
                         if (uiMessage.ContainsKey("onChat"))
                         {
-                            gameHistoryEvents.Add(payload);
+                            AddToGameHistory(payload, timestamp);
                         }
                     }
                 }
