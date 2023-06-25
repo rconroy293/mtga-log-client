@@ -516,7 +516,7 @@ namespace mtga_log_client
         {
             if (pendingGameSubmission != null)
             {
-                LogMessage(String.Format("Submitting game with {0} history events", pendingGameSubmission["history"]["events"].Value<List<JToken>>.Count()), Level.Info);
+                LogMessage(String.Format("Submitting game with {0} history events", pendingGameSubmission["history"]["events"].Value<JArray>().Count()), Level.Info);
                 apiClient.PostGame(pendingGameSubmission);
                 pendingGameSubmission = null;
             }
