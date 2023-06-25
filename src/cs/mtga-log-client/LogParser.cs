@@ -1575,7 +1575,7 @@ namespace mtga_log_client
         private bool MaybeHandleSelfRankInfo(String fullLog, JObject blob)
         {
             if (!fullLog.Contains("Rank_GetCombinedRankInfo")) return false;
-            if (!blob.ContainsKey("limitedClass")) return false;
+            if (!blob.ContainsKey("limitedSeasonOrdinal")) return false;
 
             try
             {
