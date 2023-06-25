@@ -112,6 +112,7 @@ namespace mtga_log_client
         private LinkedList<string> recentLines = new LinkedList<string>();
         private string lastBlob = "";
         private string currentDebugBlob = "";
+        private string lastLine = "";
 
         private readonly ApiClient apiClient;
         private readonly string apiToken;
@@ -186,7 +187,7 @@ namespace mtga_log_client
                     {
                         while (!worker.CancellationPending)
                         {
-                            string line = line = reader.ReadLine();
+                            string line = reader.ReadLine();
                             if (line == null)
                             {
                                 if (catchingUp)
@@ -196,7 +197,11 @@ namespace mtga_log_client
                                 }
                                 break;
                             }
-                            ProcessLine(line);
+                            if (line != lastLine)
+                            {
+                                ProcessLine(line);
+                                lastLine = line;
+                            }
                         }
                     }
                 }
