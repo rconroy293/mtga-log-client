@@ -1008,6 +1008,8 @@ namespace mtga_log_client
         {
             if (!fullLog.Contains("FrontDoorConnection.Close ")) return false;
 
+            LogMessage("Detected MTGA disconnection", Level.Info);
+
             if (currentUser != null)
             {
                 disconnectedUser = currentUser;
