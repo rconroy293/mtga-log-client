@@ -384,12 +384,7 @@ namespace mtga_log_client
             if (MaybeHandleFrontDoorConnectionClose(fullLog, blob)) return;
             if (MaybeHandleReconnectResult(fullLog, blob)) return;
 
-            if (pendingGameSubmission != null)
-            {
-                apiClient.PostGame(pendingGameSubmission);
-                ClearGameData();
-                pendingGameSubmission = null;
-            }
+            MaybeSubmitPendingGame();
         }
 
         private JObject TryDecode(JObject blob, String key)
@@ -517,13 +512,23 @@ namespace mtga_log_client
             return String.Format("{0}-{1}-{2}-{3}-{4}", rankClass, level, percentile, place, step == null ? "None" : step);
         }
 
-        private bool HasPendingGameData()
+        private void MaybeSubmitPendingGame()
         {
-            return drawnCardsByInstanceId.Count > 0 && gameHistoryEvents.Count > 5;
+            if (pendingGameSubmission != null)
+            {
+                LogMessage(String.Format("Submitting game with {0} history events", pendingGameSubmission["history"]["events"].Value<JArray>().Count()), Level.Info);
+                apiClient.PostGame(pendingGameSubmission);
+                pendingGameSubmission = null;
+            }
         }
 
-        private void ClearGameData()
+        private void ClearGameData(bool submitPendingGame = true)
         {
+            if (submitPendingGame)
+            {
+                MaybeSubmitPendingGame();
+            }
+
             objectsByOwner.Clear();
             drawnHands.Clear();
             drawnCardsByInstanceId.Clear();
@@ -537,13 +542,13 @@ namespace mtga_log_client
             currentGameAdditionalDeckInfo = new JObject();
         }
 
-        private void ClearMatchData()
+        private void ClearMatchData(bool submitPendingGame = false)
         {
             screenNames.Clear();
             currentMatchId = null;
             currentEventName = null;
             seatId = 0;
-            ClearGameData();
+            ClearGameData(submitPendingGame);
         }
 
         private void ResetCurrentUser()
@@ -603,7 +608,7 @@ namespace mtga_log_client
             if (!token.Value<JObject>().TryGetValue("messageName", out token)) return false;
             if (!token.Value<String>().Equals("Client.Connected")) return false;
 
-            ClearGameData();
+            ClearGameData(submitPendingGame: false);
 
             try
             {
@@ -623,7 +628,12 @@ namespace mtga_log_client
             }
         }
 
-        private bool SendHandleGameEnd(JArray results)
+        private bool HasPendingGameData()
+        {
+            return drawnCardsByInstanceId.Count > 0 && gameHistoryEvents.Count > 5;
+        }
+
+        private bool EnqueueGameSubmission(JArray results)
         {
             if (!HasPendingGameData()) return false;
 
@@ -1319,10 +1329,10 @@ namespace mtga_log_client
             var results = gameInfo["results"].Value<JArray>();
             if (results.Count > 0)
             {
-                var success = SendHandleGameEnd(results);
+                var success = EnqueueGameSubmission(results);
                 if (gameInfo.ContainsKey("matchState") && gameInfo["matchState"].Value<String>().Equals("MatchState_MatchComplete"))
                 {
-                    ClearMatchData();
+                    ClearMatchData(submitPendingGame: false);
                 }
                 return success;
             }
@@ -1390,8 +1400,8 @@ namespace mtga_log_client
                     var results = finalMatchResult["resultList"].Value<JArray>();
                     if (results.Count > 0)
                     {
-                        var success = SendHandleGameEnd(results);
-                        ClearMatchData();
+                        var success = EnqueueGameSubmission(results);
+                        ClearMatchData(submitPendingGame: false);
                         return success;
                     }
                 }
