@@ -433,8 +433,6 @@ namespace mtga_log_client
             if (MaybeHandlePlayerProgress(fullLog, blob)) return;
             if (MaybeHandleFrontDoorConnectionClose(fullLog, blob)) return;
             if (MaybeHandleReconnectResult(fullLog, blob)) return;
-
-            MaybeSubmitPendingGame();
         }
 
         private JObject TryDecode(JObject blob, String key)
@@ -810,8 +808,8 @@ namespace mtga_log_client
                 game.Add("sideboard_card_ids", JToken.FromObject(currentGameSideboard));
                 game.Add("additional_deck_info", currentGameAdditionalDeckInfo);
 
-                LogMessage(String.Format("Posting game of {0}", game.ToString(Formatting.None)), Level.Info);
-                LogMessage(String.Format("Including game history of {0} events", gameHistoryEvents.Count()), Level.Info);
+                LogMessage(String.Format("Completed game {0}", game.ToString(Formatting.None)), Level.Info);
+                LogMessage(String.Format("Adding game history ({0} events)", gameHistoryEvents.Count()), Level.Info);
                 JObject history = new JObject
                 {
                     { "seat_id", seatId },
@@ -1402,6 +1400,11 @@ namespace mtga_log_client
 
             try
             {
+                if (startingTeamId < 0 && blob.ContainsKey("StartingTeamId"))
+                {
+                    startingTeamId = blob["StartingTeamId"].Value<int>();
+                }
+
                 if (EnqueueGameData())
                 {
                     pendingGameResult = new JObject
@@ -1440,10 +1443,6 @@ namespace mtga_log_client
                     EnqueueGameResults(results);
                 }
 
-                if (gameInfo.ContainsKey("matchState") && gameInfo["matchState"].Value<String>().Equals("MatchState_MatchComplete"))
-                {
-                    ClearMatchData(submitPendingGame: true);
-                }
                 return success;
             }
             return false;
