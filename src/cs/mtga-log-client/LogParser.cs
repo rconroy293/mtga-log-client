@@ -88,8 +88,7 @@ namespace mtga_log_client
         private string currentUser = null;
         private string currentScreenName = null;
         private string currentDraftEvent = null;
-        private string currentConstructedLevel = null;
-        private string currentLimitedLevel = null;
+        private JObject currentRankData = null;
         private string currentOpponentLevel = null;
         private string currentOpponentMatchId = null;
         private string currentMatchId = null;
@@ -716,8 +715,9 @@ namespace mtga_log_client
 
                 game.Add("mulligans", JToken.FromObject(mulligans));
                 game.Add("turns", turnCount);
-                game.Add("limited_rank", currentLimitedLevel);
-                game.Add("constructed_rank", currentConstructedLevel);
+                game.Add("rank_data", currentRankData);
+                game.Add("limited_rank", null);
+                game.Add("constructed_rank", null);
                 game.Add("opponent_rank", currentOpponentLevel);
                 game.Add("duration", -1);
                 game.Add("opponent_card_ids", JToken.FromObject(opponentCardIds));
@@ -1512,31 +1512,19 @@ namespace mtga_log_client
 
             try
             {
-                currentLimitedLevel = GetRankString(
-                    GetOrEmpty(blob, "limitedClass"),
-                    GetOrEmpty(blob, "limitedLevel"),
-                    GetOrEmpty(blob, "limitedPercentile"),
-                    GetOrEmpty(blob, "limitedLeaderboardPlace"),
-                    GetOrEmpty(blob, "limitedStep")
-                );
-                currentConstructedLevel = GetRankString(
-                    GetOrEmpty(blob, "constructedClass"),
-                    GetOrEmpty(blob, "constructedLevel"),
-                    GetOrEmpty(blob, "constructedPercentile"),
-                    GetOrEmpty(blob, "constructedLeaderboardPlace"),
-                    GetOrEmpty(blob, "constructedStep")
-                );
+                currentRankData = blob;
 
                 if (blob.ContainsKey("playerId"))
                 {
                     currentUser = blob["playerId"].Value<String>();
                 }
 
-                LogMessage(String.Format("Parsed rank info for {0} as limited {1} and constructed {2}", currentUser, currentLimitedLevel, currentConstructedLevel), Level.Info);
+                LogMessage(String.Format("Parsed rank info for {0}: {1}", currentUser, currentRankData.ToString(Formatting.None)), Level.Info);
 
                 JObject rankBlob = CreateObjectWithBaseData();
-                rankBlob.Add("limited_rank", currentLimitedLevel);
-                rankBlob.Add("constructed_rank", currentConstructedLevel);
+                rankBlob.Add("limited_rank", null);
+                rankBlob.Add("constructed_rank", null);
+                rankBlob.Add("rank_data", currentRankData);
                 apiClient.PostRank(rankBlob);
 
                 return true;
