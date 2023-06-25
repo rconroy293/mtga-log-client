@@ -475,7 +475,7 @@ class Follower:
             self.__handle_client_to_gre_message(json_obj.get('payload', {}), maybe_time)
         elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREUIMessage', ['clientToMatchServiceMessageType'], json_obj):
             self.__handle_client_to_gre_ui_message(json_obj.get('payload', {}), maybe_time)
-        elif 'Rank_GetCombinedRankInfo' in full_log:
+        elif 'Rank_GetCombinedRankInfo' in full_log and 'limitedSeasonOrdinal' in json_obj:
             self.__handle_self_rank_info(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj: # Doesn't exist any more
             self.__handle_collection(json_obj)
