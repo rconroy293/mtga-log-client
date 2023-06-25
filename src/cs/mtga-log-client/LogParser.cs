@@ -100,6 +100,8 @@ namespace mtga_log_client
         private int seatId = 0;
         private int turnCount = 0;
         private JObject pendingGameSubmission = null;
+        private JObject pendingGameResult = null;
+        private JObject pendingMatchResult = null;
         private readonly Dictionary<int, string> screenNames = new Dictionary<int, string>();
         private readonly Dictionary<int, Dictionary<int, int>> objectsByOwner = new Dictionary<int, Dictionary<int, int>>();
         private readonly Dictionary<int, List<int>> cardsInHand = new Dictionary<int, List<int>>();
@@ -155,6 +157,8 @@ namespace mtga_log_client
             seatId = 0;
             turnCount = 0;
             pendingGameSubmission = null;
+            pendingGameResult = null;
+            pendingMatchResult = null;
             screenNames.Clear();
             objectsByOwner.Clear();
             cardsInHand.Clear();
@@ -413,6 +417,7 @@ namespace mtga_log_client
             if (MaybeHandleBotDraftPack(blob)) return;
             if (MaybeHandleBotDraftPick(fullLog, blob)) return;
             if (MaybeHandleHumanDraftCombined(fullLog, blob)) return;
+            if (MaybeHandleLogBusinessGameEnd(fullLog, blob)) return;
             if (MaybeHandleHumanDraftPack(fullLog, blob)) return;
             if (MaybeHandleDeckSubmission(fullLog, blob)) return;
             if (MaybeHandleOngoingEvents(fullLog, blob)) return;
@@ -562,11 +567,17 @@ namespace mtga_log_client
 
         private void MaybeSubmitPendingGame()
         {
-            if (pendingGameSubmission != null)
+            if (pendingGameSubmission != null && pendingGameResult != null)
             {
-                LogMessage(String.Format("Submitting game with {0} history events", pendingGameSubmission["history"]["events"].Value<JArray>().Count()), Level.Info);
+                pendingGameSubmission.Merge(pendingGameResult);
+                if (pendingMatchResult != null)
+                {
+                    pendingGameSubmission.Merge(pendingMatchResult);
+                }
+                LogMessage("Submitting queued game result", Level.Info);
                 apiClient.PostGame(pendingGameSubmission);
                 pendingGameSubmission = null;
+                ClearGameData();
             }
         }
 
@@ -588,6 +599,8 @@ namespace mtga_log_client
             currentGameMaindeck = new List<int>();
             currentGameSideboard = new List<int>();
             currentGameAdditionalDeckInfo = new JObject();
+            pendingGameResult = null;
+            pendingMatchResult = null;
         }
 
         private void ClearMatchData(bool submitPendingGame = false)
@@ -682,14 +695,12 @@ namespace mtga_log_client
             return drawnCardsByInstanceId.Count > 0 && gameHistoryEvents.Count > 5;
         }
 
-        private bool EnqueueGameSubmission(JArray results)
+        private void EnqueueGameResults(JArray results)
         {
-            if (!HasPendingGameData()) return false;
-
             try
             {
                 var gameResults = new List<JObject>();
-                var matchResult = new JObject();
+                JObject matchResult = null;
                 for (int i = 0; i < results.Count; i++)
                 {
                     var result = results[i].Value<JObject>();
@@ -705,20 +716,42 @@ namespace mtga_log_client
 
                 }
 
-                if (gameResults.Count == 0)
+                if (gameResults.Count > 0)
                 {
-                    return true;
+                    var thisGameResult = gameResults.Last();
+                    pendingGameResult = new JObject
+                    {
+                        { "won", seatId.Equals(thisGameResult["winningTeamId"]?.Value<int>()) },
+                        { "game_end_reason", thisGameResult["reason"].Value<String>() },
+                        { "game_number", gameResults.Count },
+                        { "win_type", thisGameResult["result"].Value<String>() }
+                    };
+                    LogMessage(String.Format("Added pending game result {0}", pendingGameResult.ToString(Formatting.None)), Level.Info);
                 }
-                var thisGameResult = gameResults.Last();
-                var won = seatId.Equals(thisGameResult["winningTeamId"]?.Value<int>());
-                var gameNumber = gameResults.Count;
-                var winType = thisGameResult["result"].Value<String>();
-                var gameEndReason = thisGameResult["reason"].Value<String>();
 
-                var wonMatch = seatId.Equals(matchResult["winningTeamId"]?.Value<int>());
-                var matchResultType = matchResult["result"]?.Value<String>();
-                var matchEndReason = matchResult["reason"]?.Value<String>();
+                if (matchResult != null)
+                {
+                    pendingMatchResult = new JObject
+                    {
+                        { "won_match", seatId.Equals(matchResult["winningTeamId"]?.Value<int>()) },
+                        { "match_result_type", matchResult["result"]?.Value<String>() },
+                        { "match_end_reason",matchResult["reason"]?.Value<String>() }
+                    };
+                    LogMessage(String.Format("Added pending match result {0}", pendingMatchResult.ToString(Formatting.None)), Level.Info);
+                }
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing game result", e), e.StackTrace, Level.Warn);
+            }
+        }
 
+        private bool EnqueueGameData()
+        {
+            if (!HasPendingGameData()) return false;
+
+            try
+            {
                 var opponentId = seatId == 1 ? 2 : 1;
                 var opponentCardIds = new List<int>();
                 if (objectsByOwner.ContainsKey(opponentId))
@@ -742,15 +775,7 @@ namespace mtga_log_client
                 var game = CreateObjectWithBaseData();
                 game.Add("event_name", currentEventName);
                 game.Add("match_id", currentMatchId);
-                game.Add("game_number", gameNumber);
                 game.Add("on_play", seatId.Equals(startingTeamId));
-                game.Add("won", won);
-                game.Add("win_type", winType);
-                game.Add("game_end_reason", gameEndReason);
-                game.Add("won_match", wonMatch);
-                game.Add("match_result_type", matchResultType);
-                game.Add("match_end_reason", matchEndReason);
-
 
                 if (openingHand.ContainsKey(seatId) && openingHand[seatId].Count > 0)
                 {
@@ -804,7 +829,7 @@ namespace mtga_log_client
             }
             catch (Exception e)
             {
-                LogError(String.Format("Error {0} sending game result", e), e.StackTrace, Level.Warn);
+                LogError(String.Format("Error {0} sending game data", e), e.StackTrace, Level.Warn);
                 return false;
             }
         }
@@ -1370,6 +1395,35 @@ namespace mtga_log_client
             }
         }
 
+        private bool MaybeHandleLogBusinessGameEnd(String fullLog, JObject blob)
+        {
+            if (!fullLog.Contains("LogBusinessEvents")) return false;
+            if (!blob.ContainsKey("WinningType")) return false;
+
+            try
+            {
+                if (EnqueueGameData())
+                {
+                    pendingGameResult = new JObject
+                    {
+                        { "won", seatId.Equals(blob["WinningTeamId"]?.Value<int>()) },
+                        { "game_end_reason", blob["WinningReason"]?.Value<string>() },
+                        { "game_number", blob["GameNumber"]?.Value<int>() },
+                        { "win_type", blob["WinningType"]?.Value<string>() }
+                    };
+
+                    LogMessage(String.Format("Added pending game result via LogBusinessEvents {0}", pendingGameResult.ToString(Formatting.None)), Level.Info);
+                }
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing game end from LogBusinessEvents: {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+
+            return true;
+        }
+
         private bool MaybeHandleGameOverStage(JObject gameStateMessage)
         {
             if (!gameStateMessage.ContainsKey("gameInfo")) return false;
@@ -1380,10 +1434,15 @@ namespace mtga_log_client
             var results = gameInfo["results"].Value<JArray>();
             if (results.Count > 0)
             {
-                var success = EnqueueGameSubmission(results);
+                var success = EnqueueGameData();
+                if (success)
+                {
+                    EnqueueGameResults(results);
+                }
+
                 if (gameInfo.ContainsKey("matchState") && gameInfo["matchState"].Value<String>().Equals("MatchState_MatchComplete"))
                 {
-                    ClearMatchData(submitPendingGame: false);
+                    ClearMatchData(submitPendingGame: true);
                 }
                 return success;
             }
@@ -1445,16 +1504,19 @@ namespace mtga_log_client
 
             if (gameRoomInfo.ContainsKey("finalMatchResult"))
             {
-                // If the regular game end message is lost, try to submit remaining game data on match end.
                 var finalMatchResult = gameRoomInfo["finalMatchResult"].Value<JObject>();
                 if (finalMatchResult.ContainsKey("resultList")) {
                     var results = finalMatchResult["resultList"].Value<JArray>();
                     if (results.Count > 0)
                     {
-                        var success = EnqueueGameSubmission(results);
-                        ClearMatchData(submitPendingGame: false);
-                        return success;
+                        var success = EnqueueGameData();
+                        if (success)
+                        {
+                            EnqueueGameResults(results);
+                        }
                     }
+                    ClearMatchData(submitPendingGame: true);
+                    return true;
                 }
             }
 
