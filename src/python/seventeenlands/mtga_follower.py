@@ -36,7 +36,7 @@ import seventeenlands.logging_utils
 
 logger = seventeenlands.logging_utils.get_logger('17Lands')
 
-CLIENT_VERSION = '0.1.39.p'
+CLIENT_VERSION = '0.1.40.p'
 
 UPDATE_CHECK_INTERVAL = datetime.timedelta(hours=1)
 UPDATE_PROMPT_FREQUENCY = 24
