@@ -15,7 +15,7 @@ namespace mtga_log_client
 {
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.2.1.4.w";
+        public const string CLIENT_VERSION = "0.2.1.5.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
