@@ -1748,7 +1748,7 @@ namespace mtga_log_client
 
         private string GetDatetimeString(DateTime value)
         {
-            return value.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
+            return value.ToString("yyyy-MM-dd'T'HH:mm:ss.fff", CultureInfo.InvariantCulture);
         }
 
         private JObject CreateObjectWithBaseData()
