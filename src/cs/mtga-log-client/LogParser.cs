@@ -1394,6 +1394,25 @@ namespace mtga_log_client
             }
         }
 
+        private bool MaybeHandleGreMessage_EdictalMessage(JToken blob)
+        {
+            if (!"GREMessageType_EdictalMessage".Equals(blob["type"].Value<string>())) return false;
+
+            try
+            {
+                var edictMessage = blob["edictalMessage"].Value<JObject>()["edictMessage"].Value<JObject>();
+
+                if (MaybeHandleGreMessage_DeckSubmission(edictMessage)) return true;
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing edictal message from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
         private bool MaybeHandleLogBusinessGameEnd(String fullLog, JObject blob)
         {
             if (!fullLog.Contains("LogBusinessEvents")) return false;
@@ -1541,6 +1560,7 @@ namespace mtga_log_client
                     AddGameHistoryEvents(message.Value<JObject>(), timestamp);
                     if (MaybeHandleGreConnectResponse(message)) continue;
                     if (MaybeHandleGreMessage_GameState(message)) continue;
+                    if (MaybeHandleGreMessage_EdictalMessage(message)) continue;
                 }
                 return true;
             }
