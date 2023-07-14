@@ -218,12 +218,10 @@ namespace mtga_log_client
                         }
                         Reinitialize();
                         filestream.Position = 0;
-                        farthestReadPosition = filestream.Length;
                     }
                     else if (filestream.Length >= farthestReadPosition)
                     {
                         filestream.Position = farthestReadPosition;
-                        farthestReadPosition = filestream.Length;
                     }
                     first = false;
 
@@ -247,6 +245,7 @@ namespace mtga_log_client
                                 lastLine = line;
                             }
                         }
+                        farthestReadPosition = filestream.Length;
                     }
                 }
             }
