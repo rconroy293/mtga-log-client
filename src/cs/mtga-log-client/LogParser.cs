@@ -245,9 +245,8 @@ namespace mtga_log_client
                                 lastLine = line;
                             }
                         }
+                        farthestReadPosition = filestream.Length;
                     }
-
-                    farthestReadPosition = filestream.Length;
                 }
             }
             catch (FileNotFoundException e)
