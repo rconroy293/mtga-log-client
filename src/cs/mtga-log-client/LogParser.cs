@@ -15,7 +15,7 @@ namespace mtga_log_client
 {
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.2.1.5.w";
+        public const string CLIENT_VERSION = "0.2.1.6.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -114,7 +114,6 @@ namespace mtga_log_client
         private LinkedList<string> recentLines = new LinkedList<string>();
         private string lastBlob = "";
         private string currentDebugBlob = "";
-        private string lastLine = "";
 
         private readonly ApiClient apiClient;
         private readonly string apiToken;
@@ -239,11 +238,7 @@ namespace mtga_log_client
                                 }
                                 break;
                             }
-                            if (line != lastLine)
-                            {
-                                ProcessLine(line);
-                                lastLine = line;
-                            }
+                            ProcessLine(line);
                         }
                         farthestReadPosition = filestream.Length;
                     }
@@ -373,15 +368,23 @@ namespace mtga_log_client
             }
 
             currentDebugBlob = fullLog;
-            try
+            if (fullLog != lastBlob)
             {
-                HandleBlob(fullLog);
+                try
+                {
+                    HandleBlob(fullLog);
+                }
+                catch (Exception e)
+                {
+                    LogError(String.Format("Error {0} while processing {1}", e, fullLog), e.StackTrace, Level.Error);
+                }
+                lastBlob = fullLog;
             }
-            catch (Exception e)
+            else
             {
-                LogError(String.Format("Error {0} while processing {1}", e, fullLog), e.StackTrace, Level.Error);
+                LogMessage(String.Format("Skipping repeated complete log entry: {0}", fullLog), Level.Info);
             }
-            lastBlob = fullLog;
+
 
             buffer.Clear();
             // currentLogTime = null;
