@@ -248,6 +248,7 @@ class Follower:
         self.pending_game_result = {}
         self.pending_match_result = {}
 
+        self.last_blob = ''
         self.current_debug_blob = ''
         self.recent_lines = []
 
@@ -276,18 +277,15 @@ class Follower:
             self._reinitialize()
             last_read_time = time.time()
             last_file_size = 0
-            last_line = ''
             try:
                 with open(filename, errors='replace') as f:
                     while True:
                         line = f.readline()
                         file_size = pathlib.Path(filename).stat().st_size
                         if line:
-                            if line != last_line:
-                                self.__append_line(line)
+                            self.__append_line(line)
                             last_read_time = time.time()
                             last_file_size = file_size
-                            last_line = line
                         else:
                             self.__handle_complete_log_entry()
                             last_modified_time = os.stat(filename).st_mtime
@@ -375,14 +373,19 @@ class Follower:
 
         full_log = ''.join(self.buffer)
         self.current_debug_blob = full_log
-        try:
-            self.__handle_blob(full_log)
-        except Exception as e:
-            self._log_error(
-                message=f'Error {e} while processing {full_log}',
-                error=e,
-                stacktrace=traceback.format_exc(),
-            )
+        if full_log != self.last_blob:
+            try:
+                self.__handle_blob(full_log)
+            except Exception as e:
+                self._log_error(
+                    message=f'Error {e} while processing {full_log}',
+                    error=e,
+                    stacktrace=traceback.format_exc(),
+                )
+
+            self.last_blob = full_log
+        else:
+            logger.info(f'Skipping repeated complete log entry: {full_log}')
 
         self.buffer = []
         # self.cur_log_time = None
