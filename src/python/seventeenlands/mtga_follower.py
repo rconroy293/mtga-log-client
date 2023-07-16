@@ -36,7 +36,7 @@ import seventeenlands.logging_utils
 
 logger = seventeenlands.logging_utils.get_logger('17Lands')
 
-CLIENT_VERSION = '0.1.40.p'
+CLIENT_VERSION = '0.1.41.p'
 
 UPDATE_CHECK_INTERVAL = datetime.timedelta(hours=1)
 UPDATE_PROMPT_FREQUENCY = 24
@@ -593,6 +593,9 @@ class Follower:
         if message_blob['type'] == 'GREMessageType_ConnectResp':
             self.__handle_gre_connect_response(message_blob)
 
+        elif message_blob['type'] == 'GREMessageType_EdictalMessage':
+            self.__handle_gre_edictal_message(message_blob, timestamp)
+
         elif message_blob['type'] == 'GREMessageType_GameStateMessage':
             try:
                 system_seat_ids = message_blob.get('systemSeatIds', [])
@@ -715,6 +718,19 @@ class Follower:
                 error=e,
                 stacktrace=traceback.format_exc(),
             )
+
+    def __handle_gre_edictal_message(self, payload, timestamp):
+        try:
+            edictMessage = payload.get('edictalMessage', {}).get('edictMessage', {})
+            return self.__handle_client_to_gre_message(edictMessage, timestamp=timestamp)
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing edictal message from {payload}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
+
 
     def __handle_log_business_game_end(self, payload):
         try:
