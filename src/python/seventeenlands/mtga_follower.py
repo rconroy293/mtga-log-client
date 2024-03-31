@@ -36,7 +36,7 @@ import seventeenlands.logging_utils
 
 logger = seventeenlands.logging_utils.get_logger('17Lands')
 
-CLIENT_VERSION = '0.1.41.p'
+CLIENT_VERSION = '0.1.42.p'
 
 UPDATE_CHECK_INTERVAL = datetime.timedelta(hours=1)
 UPDATE_PROMPT_FREQUENCY = 24
@@ -511,7 +511,7 @@ class Follower:
 
     def __update_screen_name(self, screen_name):
         try:
-            if self.user_screen_name == screen_name or '#' not in screen_name:
+            if self.user_screen_name == screen_name:
                 return
 
             self.user_screen_name = screen_name
