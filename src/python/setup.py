@@ -17,10 +17,10 @@ setuptools.setup(
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires=">=3.6",
     entry_points={
-        'console_scripts': [
-            'seventeenlands=seventeenlands.mtga_follower:main',
+        "console_scripts": [
+            "seventeenlands=seventeenlands.mtga_follower:main",
         ],
     },
     install_requires=[
