@@ -1,0 +1,3 @@
+# .git-blame-ignore-revs
+# Run black on entire codebase
+a8940f7fbddf7fad9d7d50014d4e8d46baf30592
