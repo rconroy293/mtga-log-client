@@ -26,6 +26,7 @@ import sys
 import time
 import traceback
 import uuid
+from typing import Any, Dict
 
 from collections import defaultdict
 
@@ -36,7 +37,7 @@ import seventeenlands.logging_utils
 
 logger = seventeenlands.logging_utils.get_logger('17Lands')
 
-CLIENT_VERSION = '0.1.42.p'
+CLIENT_VERSION = '0.1.43.p'
 
 UPDATE_CHECK_INTERVAL = datetime.timedelta(hours=1)
 UPDATE_PROMPT_FREQUENCY = 24
@@ -201,6 +202,19 @@ def get_rank_string(rank_class, level, percentile, place, step):
     :returns: Serialized rank string (e.g. "Gold-3-0.0-0-2")
     """
     return '-'.join(str(x) for x in [rank_class, level, percentile, place, step])
+
+
+def contains_log_key(key: str, full_log: str) -> bool:
+    """
+    Check if the given key exists in the log string. The key is checked both with and without
+    underscores to handle different Arena log formats.
+
+    :param key:      The key to check for.
+    :param full_log: The string to check in.
+
+    :returns: Whether or not the key exists in the log string.
+    """
+    return key in full_log or key.replace('_', '') in full_log
 
 
 class Follower:
@@ -440,25 +454,25 @@ class Follower:
 
         if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj): # Doesn't exist any more
             self.__handle_login(json_obj)
-        elif 'Event_Join' in full_log and 'EventName' in json_obj:
+        elif contains_log_key(key='Event_Join', full_log=full_log) and 'EventName' in json_obj:
             self.__handle_joined_pod(json_obj)
         elif 'DraftStatus' in json_obj:
             self.__handle_bot_draft_pack(json_obj)
-        elif 'BotDraft_DraftPick' in full_log and 'PickInfo' in json_obj:
+        elif contains_log_key(key='BotDraft_DraftPick', full_log=full_log) and 'PickInfo' in json_obj:
             self.__handle_bot_draft_pick(json_obj['PickInfo'])
-        elif 'LogBusinessEvents' in full_log and 'PickGrpId' in json_obj:
+        elif contains_log_key(key='LogBusinessEvents', full_log=full_log) and 'PickGrpId' in json_obj:
             self.__handle_human_draft_combined(json_obj)
-        elif 'LogBusinessEvents' in full_log and 'WinningType' in json_obj:
+        elif contains_log_key(key='LogBusinessEvents', full_log=full_log) and 'WinningType' in json_obj:
             self.__handle_log_business_game_end(json_obj)
         elif 'Draft.Notify ' in full_log and 'method' not in json_obj:
             self.__handle_human_draft_pack(json_obj)
-        elif 'Event_SetDeck' in full_log and 'EventName' in json_obj:
+        elif contains_log_key(key='Event_SetDeck', full_log=full_log) and 'EventName' in json_obj:
             self.__handle_deck_submission(json_obj)
-        elif 'Event_GetCourses' in full_log and 'Courses' in json_obj:
+        elif contains_log_key(key='Event_GetCourses', full_log=full_log) and 'Courses' in json_obj:
             self.__handle_ongoing_events(json_obj)
-        elif 'Event_ClaimPrize' in full_log and 'EventName' in json_obj:
+        elif contains_log_key(key='Event_ClaimPrize', full_log=full_log) and 'EventName' in json_obj:
             self.__handle_claim_prize(json_obj)
-        elif 'Draft_CompleteDraft' in full_log and 'DraftId' in json_obj:
+        elif contains_log_key(key='Draft_CompleteDraft', full_log=full_log) and 'DraftId' in json_obj:
             self.__handle_event_course(json_obj)
         elif 'authenticateResponse' in json_obj:
             self.__update_screen_name(json_obj['authenticateResponse']['screenName'])
@@ -478,7 +492,7 @@ class Follower:
             self.__handle_client_to_gre_message(json_obj.get('payload', {}), maybe_time)
         elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREUIMessage', ['clientToMatchServiceMessageType'], json_obj):
             self.__handle_client_to_gre_ui_message(json_obj.get('payload', {}), maybe_time)
-        elif 'Rank_GetCombinedRankInfo' in full_log and 'limitedSeasonOrdinal' in json_obj:
+        elif contains_log_key(key='Rank_GetCombinedRankInfo', full_log=full_log) and 'limitedSeasonOrdinal' in json_obj:
             self.__handle_self_rank_info(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj: # Doesn't exist any more
             self.__handle_collection(json_obj)
@@ -996,11 +1010,14 @@ class Follower:
 
         try:
             self.cur_draft_event = json_obj['EventName']
+            card_id = json_obj.get('CardId')
+            card_ids = json_obj.get('CardIds')
             pick = {
                 'event_name': json_obj['EventName'],
                 'pack_number': int(json_obj['PackNumber']),
                 'pick_number': int(json_obj['PickNumber']),
-                'card_id': int(json_obj['CardId']),
+                'card_id': None if card_id is None else int(card_id),
+                'card_ids': None if card_ids is None else [int(x) for x in card_ids],
             }
             logger.info(f'Draft pick: {pick}')
             self._api_client.submit_draft_pick(self._add_base_api_data(pick))

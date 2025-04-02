@@ -11,7 +11,7 @@ import seventeenlands.retry_utils
 
 logger = seventeenlands.logging_utils.get_logger('api_client')
 
-DEFAULT_HOST = 'https://www.17lands.com'
+DEFAULT_HOST = 'https://api.17lands.com'
 
 _ERROR_COOLDOWN = datetime.timedelta(minutes=2)
 
@@ -41,7 +41,7 @@ class ApiClient:
             return requests.post(**args)
 
         def _validate_response(response: requests.Response) -> bool:
-            logger.debug(f'{response.status_code} Response: {response.text}')
+            logger.debug(f'{endpoint} -> {response.status_code} Response: {response.text}')
             return response.status_code < 500 or response.status_code >= 600
 
         return seventeenlands.retry_utils.retry_api_call(
