@@ -390,6 +390,11 @@ namespace mtga_log_client
             // currentLogTime = null;
         }
 
+        private bool ContainsLogKey(string key, string fullLog)
+        {
+            return fullLog.Contains(key) || fullLog.Contains(key.Replace("_", ""));
+        }
+
         private void HandleBlob(string fullLog)
         {
             var dictMatch = JSON_DICT_REGEX.Match(fullLog);
@@ -869,7 +874,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleBotDraftPick(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("BotDraft_DraftPick")) return false;
+            if (!ContainsLogKey("BotDraft_DraftPick", fullLog)) return false;
             if (!blob.ContainsKey("PickInfo")) return false;
 
             ClearGameData();
@@ -886,6 +891,25 @@ namespace mtga_log_client
                 pick.Add("pick_number", pickInfo["PickNumber"].Value<int>());
                 pick.Add("card_id", pickInfo["CardId"].Value<int>());
 
+                if (pickInfo.ContainsKey("CardId")) {
+                    pick.Add("card_id", pickInfo["CardId"].Value<int>());
+                } else {
+                    pick.Add("card_id", null);
+                }
+
+                if (pickInfo.ContainsKey("CardIds")) {
+                    var cardIds = new List<int>();
+                    foreach (JToken cardString in pickInfo["CardIds"].Value<JArray>())
+                    {
+                        cardIds.Add(int.Parse(cardString.Value<String>()));
+                    }
+                    parsedCardIds = JToken.FromObject(cardIds);
+
+                    pack.Add("card_ids", JToken.FromObject(cardIds));
+                } else {
+                    pack.Add("card_ids", null);
+                }
+
                 apiClient.PostPick(pick);
 
                 return true;
@@ -899,7 +923,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleJoinPod(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("Event_Join")) return false;
+            if (!ContainsLogKey("Event_Join", fullLog)) return false;
             if (!blob.ContainsKey("EventName")) return false;
 
             ClearGameData();
@@ -918,7 +942,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleHumanDraftCombined(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("LogBusinessEvents")) return false;
+            if (!ContainsLogKey("LogBusinessEvents", fullLog)) return false;
             if (!blob.ContainsKey("PickGrpId")) return false;
 
             ClearGameData();
@@ -1038,7 +1062,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleDeckSubmission(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("Event_SetDeck")) return false;
+            if (!ContainsLogKey("Event_SetDeck", fullLog)) return false;
             if (!blob.ContainsKey("EventName")) return false;
 
             ClearGameData();
@@ -1071,7 +1095,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleOngoingEvents(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("Event_GetCourses")) return false;
+            if (!ContainsLogKey("Event_GetCourses", fullLog)) return false;
             if (!blob.ContainsKey("Courses")) return false;
 
             try
@@ -1094,7 +1118,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleClaimPrize(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("Event_ClaimPrize")) return false;
+            if (!ContainsLogKey("Event_ClaimPrize", fullLog)) return false;
             if (!blob.ContainsKey("EventName")) return false;
 
             try
@@ -1133,7 +1157,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleEventCourse(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("Draft_CompleteDraft")) return false;
+            if (!ContainsLogKey("Draft_CompleteDraft", fullLog)) return false;
             if (!blob.ContainsKey("DraftId")) return false;
 
             try
@@ -1418,7 +1442,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleLogBusinessGameEnd(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("LogBusinessEvents")) return false;
+            if (!ContainsLogKey("LogBusinessEvents", fullLog)) return false;
             if (!blob.ContainsKey("WinningType")) return false;
 
             try
@@ -1659,7 +1683,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleSelfRankInfo(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("Rank_GetCombinedRankInfo")) return false;
+            if (!ContainsLogKey("Rank_GetCombinedRankInfo", fullLog)) return false;
             if (!blob.ContainsKey("limitedSeasonOrdinal")) return false;
 
             try
