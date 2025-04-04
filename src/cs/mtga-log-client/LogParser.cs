@@ -33,6 +33,8 @@ namespace mtga_log_client
 
         private static readonly Regex ACCOUNT_INFO_REGEX = new Regex(
             ".*Updated account\\. DisplayName:(.{1,1000}), AccountID:(.{1,1000}), Token:.*");
+        private static readonly Regex LOGIN_REGEX = new Regex(
+            ".*Logged in successfully\\. Display Name:(.{1,1000})");
         private static readonly Regex MATCH_ACCOUNT_INFO_REGEX = new Regex(
             ".*: ((\\w+) to Match|Match to (\\w+)):");
 
@@ -84,9 +86,11 @@ namespace mtga_log_client
         private string lastRawTime = "";
         private string disconnectedUser = null;
         private string disconnectedScreenName = null;
+        private string disconnectedFullScreenName = null;
         private JObject disconnectedRank = null;
         private string currentUser = null;
         private string currentScreenName = null;
+        private string fullcreenName = null;
         private string currentDraftEvent = null;
         private JObject currentRankData = null;
         private string currentOpponentLevel = null;
@@ -143,6 +147,7 @@ namespace mtga_log_client
             disconnectedRank = null;
             currentUser = null;
             currentScreenName = null;
+            fullScreenName = null;
             currentDraftEvent = null;
             currentRankData = null;
             currentOpponentLevel = null;
@@ -623,6 +628,7 @@ namespace mtga_log_client
             LogMessage("User logged out from MTGA", Level.Info);
             currentUser = null;
             currentScreenName = null;
+            fullScreenName = null;
             currentRankData = null;
         }
 
@@ -651,6 +657,17 @@ namespace mtga_log_client
                     {
                         currentUser = match.Groups[3].Value;
                     }
+                    return;
+                }
+            }
+
+            if (line.Contains("Logged in successfully. Display Name:"))
+            {
+                var match = LOGIN_REGEX.Match(line);
+                if (match.Success)
+                {
+                    fullScreenName = match.Groups[1].Value;
+                    return;
                 }
             }
         }
@@ -666,6 +683,7 @@ namespace mtga_log_client
 
             var account = CreateObjectWithBaseData();
             account.Add("screen_name", currentScreenName);
+            account.Add("full_screen_name", fullScreenName);
             apiClient.PostMTGAAccount(account);
         } 
 
@@ -1083,6 +1101,7 @@ namespace mtga_log_client
             {
                 disconnectedUser = currentUser;
                 disconnectedScreenName = currentScreenName;
+                disconnectedFullScreenName = fullScreenName;
                 disconnectedRank = currentRankData;
             }
 
@@ -1098,6 +1117,7 @@ namespace mtga_log_client
             LogMessage("Reconnected - restoring prior user info", Level.Info);
             currentUser = disconnectedUser;
             currentScreenName = disconnectedScreenName;
+            fullScreenName = disconnectedFullScreenName;
             currentRankData = disconnectedRank;
 
             return true;

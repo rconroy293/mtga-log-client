@@ -128,6 +128,7 @@ TIMESTAMP_REGEX = re.compile('^([\\d/.-]+[ T][\\d]+:[\\d]+:[\\d]+( AM| PM)?)')
 STRIPPED_TIMESTAMP_REGEX = re.compile('^(.*?)[: /]*$')
 JSON_START_REGEX = re.compile(r'[\[\{]')
 ACCOUNT_INFO_REGEX = re.compile(r'.*Updated account\. DisplayName:(.*), AccountID:(.*), Token:.*')
+LOGIN_REGEX = re.compile(r'.*Logged in successfully\. Display Name:(.*)')
 MATCH_ACCOUNT_INFO_REGEX = re.compile(r'.*: ((\w+) to Match|Match to (\w+)):')
 SLEEP_TIME = 0.5
 
@@ -234,6 +235,7 @@ class Follower:
         self.last_raw_time = ''
         self.disconnected_user = None
         self.disconnected_screen_name = None
+        self.disconnected_full_screen_name = None
         self.disconnected_rank = None
         self.cur_user = None
         self.cur_draft_event = None
@@ -256,6 +258,7 @@ class Follower:
         self.drawn_cards_by_instance_id = defaultdict(dict)
         self.cards_in_hand = defaultdict(list)
         self.user_screen_name = None
+        self.full_screen_name = None
         self.screen_names = defaultdict(lambda: '')
         self.game_history_events = []
         self.pending_game_submission = {}
@@ -506,6 +509,8 @@ class Follower:
             self.__reset_current_user()
         elif 'Reconnect result : Connected' in full_log:
             self.__handle_reconnect_result()
+        elif 'Reconnect result : Connected' in full_log:
+            self.__handle_reconnect_result()
 
     def __try_decode(self, blob, key):
         try:
@@ -534,6 +539,7 @@ class Follower:
             user_info = {
                 'player_id': self.cur_user,
                 'screen_name': self.user_screen_name,
+                'full_screen_name': self.full_screen_name,
             }
             logger.info(f'Updating user info: {user_info}')
             self._api_client.submit_user(self._add_base_api_data(user_info))
@@ -830,6 +836,11 @@ class Follower:
         match = MATCH_ACCOUNT_INFO_REGEX.match(line)
         if match:
             self.cur_user = match.group(2) or match.group(3)
+            return
+
+        match = LOGIN_REGEX.match(line)
+        if match:
+            self.full_screen_name = match.group(1)
 
     def __handle_ongoing_events(self, json_obj):
         """Handle 'Event_GetCourses' messages."""
@@ -1248,10 +1259,12 @@ class Follower:
         if self.cur_user is not None:
             self.disconnected_user = self.cur_user
             self.disconnected_screen_name = self.user_screen_name
+            self.disconnected_full_screen_name = self.full_screen_name
             self.disconnected_rank = self.cur_rank_data
 
         self.cur_user = None
         self.user_screen_name = None
+        self.full_screen_name = None
         self.cur_rank_data = None
 
     def __handle_reconnect_result(self):
@@ -1259,6 +1272,7 @@ class Follower:
 
         self.cur_user = self.disconnected_user
         self.user_screen_name = self.disconnected_screen_name
+        self.full_screen_name = self.disconnected_full_screen_name
         self.cur_rank_data = self.disconnected_rank
 
 
