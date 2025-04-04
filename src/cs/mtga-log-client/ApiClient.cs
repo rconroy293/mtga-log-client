@@ -17,25 +17,25 @@ namespace mtga_log_client
     class ApiClient
     {
         private const string API_BASE_URL = "https://api.17lands.com";
-        private const string ENDPOINT_ACCOUNT = "api/account";
-        private const string ENDPOINT_COLLECTION = "collection";
-        private const string ENDPOINT_DECK = "deck";
-        private const string ENDPOINT_EVENT = "event";
-        private const string ENDPOINT_EVENT_COURSE = "event_course";
-        private const string ENDPOINT_GAME = "game";
-        private const string ENDPOINT_INVENTORY = "inventory";
-        private const string ENDPOINT_PACK = "pack";
-        private const string ENDPOINT_PICK = "pick";
-        private const string ENDPOINT_PLAYER_PROGRESS = "player_progress";
-        private const string ENDPOINT_HUMAN_DRAFT_PICK = "human_draft_pick";
-        private const string ENDPOINT_HUMAN_DRAFT_PACK = "human_draft_pack";
-        private const string ENDPOINT_CLIENT_VERSION_VALIDATION = "api/version_validation";
-        private const string ENDPOINT_TOKEN_VERSION_VALIDATION = "api/token_validation";
-        private const string ENDPOINT_ERROR_INFO = "api/client_errors";
-        private const string ENDPOINT_RANK = "api/rank";
-        private const string ENDPOINT_ONGOING_EVENTS = "ongoing_events";
-        private const string ENDPOINT_EVENT_ENDED = "event_ended";
-        private const string ENDPOINT_TIME_FORMATS = "data/client_time_formats";
+        private const string ENDPOINT_ACCOUNT = "/api/client/add_mtga_account"; // Formerly "/api/account"
+        private const string ENDPOINT_COLLECTION = "/api/client/update_card_collection"; // Formerly "/collection"
+        private const string ENDPOINT_DECK = "/api/client/add_deck"; // Formerly "/deck"
+        private const string ENDPOINT_EVENT = "/api/client/add_event"; // Formerly "/event"
+        private const string ENDPOINT_EVENT_COURSE = "/api/client/update_event_course"; // Formerly "/event_course"
+        private const string ENDPOINT_GAME = "/api/client/add_game"; // Formerly "/game"
+        private const string ENDPOINT_INVENTORY = "/api/client/update_inventory"; // Formerly "/inventory"
+        private const string ENDPOINT_PACK = "/api/client/add_pack"; // Formerly "/pack"
+        private const string ENDPOINT_PICK = "/api/client/add_pick"; // Formerly "/pick"
+        private const string ENDPOINT_PLAYER_PROGRESS = "/api/client/update_player_progress"; // Formerly "/player_progress"
+        private const string ENDPOINT_HUMAN_DRAFT_PICK = "/api/client/add_human_draft_pack"; // Formerly "/human_draft_pack"
+        private const string ENDPOINT_HUMAN_DRAFT_PACK = "/api/client/add_human_draft_pick"; // Formerly "/human_draft_pick"
+        private const string ENDPOINT_CLIENT_VERSION_VALIDATION = "/api/client/client_version_validation"; // Formerly "/api/version_validation"
+        private const string ENDPOINT_TOKEN_VERSION_VALIDATION = "/api/client/token_validation"; // Formerly "/api/token_validation"
+        private const string ENDPOINT_ERROR_INFO = "/api/client/log_errors"; // Formerly "/api/client_errors"
+        private const string ENDPOINT_RANK = "/api/client/add_rank"; // Formerly "/api/rank"
+        private const string ENDPOINT_ONGOING_EVENTS = "/api/client/update_ongoing_events"; // Formerly "/ongoing_events"
+        private const string ENDPOINT_EVENT_ENDED = "/api/client/mark_event_ended"; // Formerly "/event_ended"
+        private const string ENDPOINT_TIME_FORMATS = "/api/client/get_client_time_formats"; // Formerly "/data/client_time_formats"
 
         private HttpClient client;
         private readonly LogMessageFunction messageFunction;
