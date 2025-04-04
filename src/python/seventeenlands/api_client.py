@@ -99,6 +99,12 @@ class ApiClient:
             blob=blob,
         )
 
+    def submit_joined_event(self, blob: Dict):
+        return self._retry_post(
+            endpoint="api/client/record_event_join",
+            blob=blob,
+        )
+
     def submit_event_ended(self, blob: Dict):
         return self._retry_post(
             endpoint="api/client/mark_event_ended",  # Formerly /event_ended

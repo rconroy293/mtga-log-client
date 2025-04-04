@@ -421,6 +421,7 @@ namespace mtga_log_client
 
             if (MaybeHandleLogin(blob)) return;
             if (MaybeHandleJoinPod(fullLog, blob)) return;
+            if (MaybeHandleJoinEventResponse(fullLog, blob)) return;
             if (MaybeHandleBotDraftPack(blob)) return;
             if (MaybeHandleBotDraftPick(fullLog, blob)) return;
             if (MaybeHandleHumanDraftCombined(fullLog, blob)) return;
@@ -726,6 +727,7 @@ namespace mtga_log_client
                     var thisGameResult = gameResults.Last();
                     pendingGameResult = new JObject
                     {
+                        { "game_result_payload", JToken.FromObject(thisGameResult) },
                         { "won", seatId.Equals(thisGameResult["winningTeamId"]?.Value<int>()) },
                         { "game_end_reason", thisGameResult["reason"].Value<String>() },
                         { "game_number", gameResults.Count },
@@ -738,6 +740,7 @@ namespace mtga_log_client
                 {
                     pendingMatchResult = new JObject
                     {
+                        { "match_result_payload", JToken.FromObject(matchResult) },
                         { "won_match", seatId.Equals(matchResult["winningTeamId"]?.Value<int>()) },
                         { "match_result_type", matchResult["result"]?.Value<String>() },
                         { "match_end_reason",matchResult["reason"]?.Value<String>() }
@@ -857,6 +860,7 @@ namespace mtga_log_client
                     cardIds.Add(int.Parse(cardString.Value<String>()));
                 }
 
+                pack.Add("payload", JToken.FromObject(blob));
                 pack.Add("event_name", currentDraftEvent);
                 pack.Add("pack_number", blob["PackNumber"].Value<int>());
                 pack.Add("pick_number", blob["PickNumber"].Value<int>());
@@ -940,6 +944,27 @@ namespace mtga_log_client
             }
         }
 
+        private bool MaybeHandleJoinEventResponse(String fullLog, JObject blob)
+        {
+            if (!ContainsLogKey("Event_Join", fullLog)) return false;
+            if (!blob.ContainsKey("Course")) return false;
+
+            ClearGameData();
+
+            try
+            {
+                JObject result = CreateObjectWithBaseData();
+                result.Add("payload", JToken.FromObject(blob));
+                apiClient.PostEventJoined(result);
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing join event response from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
         private bool MaybeHandleHumanDraftCombined(String fullLog, JObject blob)
         {
             if (!ContainsLogKey("LogBusinessEvents", fullLog)) return false;
@@ -958,6 +983,7 @@ namespace mtga_log_client
                 }
 
                 var pack = CreateObjectWithBaseData();
+                pack.Add("payload", JToken.FromObject(blob));
                 pack.Add("method", "LogBusinessEvents");
                 pack.Add("draft_id", blob["DraftId"].Value<String>());
                 pack.Add("pack_number", blob["PackNumber"].Value<int>());
@@ -973,13 +999,27 @@ namespace mtga_log_client
                 return false;
             }
 
+            int? pickId = null;
+            try
+            {
+                if (blob.ContainsKey("PickGrpId"))
+                {
+                    pickId = blob["PickGrpId"].Value<int>();
+                }
+            }
+            catch (Exception e)
+            {
+                // Pass
+            }
+
             try
             {
                 var pick = CreateObjectWithBaseData();
+                pick.Add("payload", JToken.FromObject(blob));
                 pick.Add("draft_id", blob["DraftId"].Value<String>());
                 pick.Add("pack_number", blob["PackNumber"].Value<int>());
                 pick.Add("pick_number", blob["PickNumber"].Value<int>());
-                pick.Add("card_id", blob["PickGrpId"].Value<int>());
+                pick.Add("card_id", pickId);
                 pick.Add("event_name", currentDraftEvent);
                 pick.Add("auto_pick", blob["AutoPick"].Value<bool>());
                 pick.Add("time_remaining", blob["TimeRemainingOnPick"].Value<float>());
@@ -1013,6 +1053,7 @@ namespace mtga_log_client
                 }
 
                 var pack = CreateObjectWithBaseData();
+                pick.Add("payload", JToken.FromObject(blob));
                 pack.Add("method", "Draft.Notify");
                 pack.Add("draft_id", blob["draftId"].Value<String>());
                 pack.Add("pack_number", blob["SelfPack"].Value<int>());
@@ -1074,6 +1115,7 @@ namespace mtga_log_client
                 var deckInfo = blob["Deck"].Value<JObject>();
 
                 var deck = CreateObjectWithBaseData();
+                pick.Add("payload", JToken.FromObject(blob));
                 deck.Add("maindeck_card_ids", JToken.FromObject(GetCardIdsFromDeck(deckInfo["MainDeck"].Value<JArray>())));
                 deck.Add("sideboard_card_ids", JToken.FromObject(GetCardIdsFromDeck(deckInfo["Sideboard"].Value<JArray>())));
                 foreach (int companion in GetCardIdsFromDeck(deckInfo["Companions"].Value<JArray>()))
@@ -1163,6 +1205,7 @@ namespace mtga_log_client
             try
             {
                 var eventCourse = CreateObjectWithBaseData();
+                eventCourse.Add("payload", JToken.FromObject(blob));
                 eventCourse.Add("event_name", blob["InternalEventName"].Value<String>());
                 eventCourse.Add("draft_id", blob["DraftId"].Value<String>());
                 eventCourse.Add("course_id", blob["CourseId"].Value<String>());
@@ -1456,6 +1499,7 @@ namespace mtga_log_client
                 {
                     pendingGameResult = new JObject
                     {
+                        { "game_end_payload", JToken.FromObject(blob) },
                         { "won", seatId.Equals(blob["WinningTeamId"]?.Value<int>()) },
                         { "game_end_reason", blob["WinningReason"]?.Value<string>() },
                         { "game_number", blob["GameNumber"]?.Value<int>() },

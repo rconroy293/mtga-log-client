@@ -34,6 +34,7 @@ namespace mtga_log_client
         private const string ENDPOINT_ERROR_INFO = "/api/client/log_errors"; // Formerly "/api/client_errors"
         private const string ENDPOINT_RANK = "/api/client/add_rank"; // Formerly "/api/rank"
         private const string ENDPOINT_ONGOING_EVENTS = "/api/client/update_ongoing_events"; // Formerly "/ongoing_events"
+        private const string ENDPOINT_JOIN_EVENT = "/api/client/record_event_join";
         private const string ENDPOINT_EVENT_ENDED = "/api/client/mark_event_ended"; // Formerly "/event_ended"
         private const string ENDPOINT_TIME_FORMATS = "/api/client/get_client_time_formats"; // Formerly "/data/client_time_formats"
 
@@ -321,6 +322,11 @@ namespace mtga_log_client
         public void PostOngoingEvents(JObject events)
         {
             PostJson(ENDPOINT_ONGOING_EVENTS, events, useGzip: true);
+        }
+
+        public void PostEventJoined(JObject joinedEvent)
+        {
+            PostJson(ENDPOINT_JOIN_EVENT, joinedEvent);
         }
 
         public void PostEventEnded(JObject eventEnded)

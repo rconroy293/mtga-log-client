@@ -456,6 +456,8 @@ class Follower:
             self.__handle_login(json_obj)
         elif contains_log_key(key='Event_Join', full_log=full_log) and 'EventName' in json_obj:
             self.__handle_joined_pod(json_obj)
+        elif contains_log_key(key='Event_Join', full_log=full_log) and 'Course' in json_obj:
+            self.__handle_joined_event_response(json_obj)
         elif 'DraftStatus' in json_obj:
             self.__handle_bot_draft_pack(json_obj)
         elif contains_log_key(key='BotDraft_DraftPick', full_log=full_log) and 'PickInfo' in json_obj:
@@ -753,6 +755,7 @@ class Follower:
 
             if self.__enqueue_game_data():
                 self.pending_game_result = {
+                    'game_end_payload': payload,
                     'game_number': payload.get('GameNumber'),
                     'won': self.seat_id == payload.get('WinningTeamId'),
                     'win_type': payload.get('WinningType'),
@@ -864,6 +867,7 @@ class Follower:
         """Handle messages linking draft id to event name."""
         try:
             event = {
+                'payload': json_obj,
                 'event_name': json_obj['InternalEventName'],
                 'draft_id': json_obj['DraftId'],
                 'course_id': json_obj['CourseId'],
@@ -888,6 +892,7 @@ class Follower:
             if game_results:
                 this_game_result = game_results[-1]
                 self.pending_game_result = {
+                    'game_result_payload': this_game_result,
                     'game_number': max(1, len(game_results)),
                     'won': self.seat_id == this_game_result.get('winningTeamId'),
                     'win_type': this_game_result.get('result'),
@@ -898,6 +903,7 @@ class Follower:
             match_result = next((r for r in results if r.get('scope') == 'MatchScope_Match'), {})
             if match_result:
                 self.pending_match_result = {
+                    'match_result_payload': match_result,
                     'won_match': self.seat_id == match_result.get('winningTeamId'),
                     'match_result_type': match_result.get('result'),
                     'match_end_reason': match_result.get('reason'),
@@ -989,6 +995,7 @@ class Follower:
             try:
                 self.cur_draft_event = json_obj['EventName']
                 pack = {
+                    'payload': json_obj,
                     'event_name': json_obj['EventName'],
                     'pack_number': int(json_obj['PackNumber']),
                     'pick_number': int(json_obj['PickNumber']),
@@ -1044,6 +1051,21 @@ class Follower:
                 stacktrace=traceback.format_exc(),
             )
 
+    def __handle_joined_event_response(self, json_obj):
+        """Handle 'EventJoin' response messages."""
+        self.__clear_game_data()
+
+        try:
+            self._api_client.submit_joined_event(self._add_base_api_data({"payload": json_obj}))
+            logger.info(f'Joined event successfully')
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing join event response from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
+
     def __handle_human_draft_combined(self, json_obj):
         """Handle combined human draft pack/pick messages."""
         self.__clear_game_data()
@@ -1051,6 +1073,7 @@ class Follower:
         try:
             self.cur_draft_event = json_obj['EventId']
             pack = {
+                'payload': json_obj,
                 'draft_id': json_obj['DraftId'],
                 'event_name': json_obj['EventId'],
                 'pack_number': int(json_obj['PackNumber']),
@@ -1069,12 +1092,18 @@ class Follower:
             )
 
         try:
+            pick_id = int(json_obj['PickGrpId'])
+        except Exception:
+            pick_id = None
+
+        try:
             pick = {
+                'payload': json_obj,
                 'draft_id': json_obj['DraftId'],
                 'event_name': json_obj['EventId'],
                 'pack_number': int(json_obj['PackNumber']),
                 'pick_number': int(json_obj['PickNumber']),
-                'card_id': int(json_obj['PickGrpId']),
+                'card_id': pick_id,
                 'auto_pick': json_obj['AutoPick'],
                 'time_remaining': json_obj['TimeRemainingOnPick'],
             }
@@ -1094,6 +1123,7 @@ class Follower:
 
         try:
             pack = {
+                'payload': json_obj,
                 'draft_id': json_obj['draftId'],
                 'event_name': self.cur_draft_event,
                 'pack_number': int(json_obj['SelfPack']),
@@ -1118,6 +1148,7 @@ class Follower:
         try:
             decks = json_obj['Deck']
             deck = {
+                'payload': json_obj,
                 'event_name': json_obj['EventName'],
                 'maindeck_card_ids': [d['cardId'] for d in decks['MainDeck'] for i in range(d['quantity'])],
                 'sideboard_card_ids': [d['cardId'] for d in decks['Sideboard'] for i in range(d['quantity'])],
