@@ -83,6 +83,7 @@ namespace mtga_log_client
         private List<string> buffer = new List<string>();
         private Nullable<DateTime> currentLogTime = new DateTime(0);
         private Nullable<DateTime> lastUtcTime = new DateTime(0);
+        private Nullable<DateTime> lastEventTime = new DateTime(0);
         private string lastRawTime = "";
         private string disconnectedUser = null;
         private string disconnectedScreenName = null;
@@ -141,6 +142,7 @@ namespace mtga_log_client
             buffer.Clear();
             currentLogTime = new DateTime(0);
             lastUtcTime = new DateTime(0);
+            lastEventTime = new DateTime(0);
             lastRawTime = "";
             disconnectedUser = null;
             disconnectedScreenName = null;
@@ -424,6 +426,12 @@ namespace mtga_log_client
                 lastUtcTime = maybeUtcTimestamp;
             }
 
+            DateTime? maybeEventTime = MaybeGetEventTime(blob);
+            if (maybeEventTime != null)
+            {
+                lastEventTime = maybeEventTime;
+            }
+
             if (MaybeHandleLogin(blob)) return;
             if (MaybeHandleJoinPod(fullLog, blob)) return;
             if (MaybeHandleJoinEventResponse(fullLog, blob)) return;
@@ -534,6 +542,19 @@ namespace mtga_log_client
                     return null;
                 }
             }
+        }
+
+        private DateTime? MaybeGetEventTime(JObject blob) {
+            if (blob.ContainsKey("EventTime"))
+            {
+                var timestamp = blob["EventTime"].Value<String>();
+                DateTime output;
+                if (DateTime.TryParse(timestamp, out output))
+                {
+                    return output;
+                }
+            }
+            return null;
         }
 
         private JObject ParseBlob(String blob)
@@ -1872,6 +1893,7 @@ namespace mtga_log_client
                 { "player_id", currentUser },
                 { "time", GetDatetimeString(currentLogTime.Value) },
                 { "utc_time", GetDatetimeString(lastUtcTime.Value) },
+                { "event_time", GetDatetimeString(lastEventTime.Value) },
                 { "raw_time", lastRawTime }
             };
         }

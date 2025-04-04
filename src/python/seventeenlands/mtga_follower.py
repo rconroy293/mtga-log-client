@@ -232,6 +232,7 @@ class Follower:
         self.buffer = []
         self.cur_log_time = datetime.datetime.fromtimestamp(0)
         self.last_utc_time = datetime.datetime.fromtimestamp(0)
+        self.last_event_time = datetime.datetime.fromtimestamp(0)
         self.last_raw_time = ''
         self.disconnected_user = None
         self.disconnected_screen_name = None
@@ -278,6 +279,7 @@ class Follower:
             "player_id": self.cur_user,
             "time": self.cur_log_time.isoformat(),
             "utc_time": self.last_utc_time.isoformat(),
+            "event_time": self.last_event_time.isoformat(),
             "raw_time": self.last_raw_time,
             **blob,
         }
@@ -432,6 +434,18 @@ class Follower:
         except ValueError:
             return dateutil.parser.isoparse(timestamp)
 
+
+    def __maybe_get_event_time(self, blob):
+        timestamp = blob.get('EventTime')
+        if timestamp is not None:
+            try:
+                return dateutil.parser.isoparse(timestamp)
+            except:
+                pass
+x
+        return None
+
+
     def __handle_blob(self, full_log):
         """Attempt to parse a complete log message and send the data if relevant."""
         match = JSON_START_REGEX.search(full_log)
@@ -447,11 +461,17 @@ class Follower:
         json_obj = self.__extract_payload(json_obj)
         if type(json_obj) != dict: return
 
-        maybe_time = None
         try:
             maybe_time = self.__maybe_get_utc_timestamp(json_obj)
             if maybe_time is not None:
                 self.last_utc_time = maybe_time
+        except:
+            pass
+
+        try:
+            maybe_time = self.__maybe_get_event_time(json_obj)
+            if maybe_time is not None:
+                self.last_event_time = maybe_time
         except:
             pass
 
