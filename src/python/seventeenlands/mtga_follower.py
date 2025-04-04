@@ -589,7 +589,7 @@ class Follower:
             results = game_room_info['finalMatchResult'].get('resultList', [])
             if results:
                 if self.__enqueue_game_data():
-                    self.__enqueue_game_results(results)
+                    self.__enqueue_game_results(results, match_game_room_state_changed_obj=blob)
             self.__clear_match_data(submit_pending_game=True)
 
     def _add_to_game_history(self, message_blob, timestamp):
@@ -886,13 +886,12 @@ class Follower:
     def __has_pending_game_data(self):
         return len(self.drawn_cards_by_instance_id) > 0 and len(self.game_history_events) > 5
 
-    def __enqueue_game_results(self, results):
+    def __enqueue_game_results(self, results, match_game_room_state_changed_obj=None):
         try:
             game_results = [r for r in results if r.get('scope') == 'MatchScope_Game']
             if game_results:
                 this_game_result = game_results[-1]
                 self.pending_game_result = {
-                    'game_result_payload': this_game_result,
                     'game_number': max(1, len(game_results)),
                     'won': self.seat_id == this_game_result.get('winningTeamId'),
                     'win_type': this_game_result.get('result'),
@@ -903,11 +902,12 @@ class Follower:
             match_result = next((r for r in results if r.get('scope') == 'MatchScope_Match'), {})
             if match_result:
                 self.pending_match_result = {
-                    'match_result_payload': match_result,
                     'won_match': self.seat_id == match_result.get('winningTeamId'),
                     'match_result_type': match_result.get('result'),
                     'match_end_reason': match_result.get('reason'),
                 }
+                if match_game_room_state_changed_obj:
+                    self.pending_match_result['match_result_payload'] = match_game_room_state_changed_obj
                 logger.info(f'Added pending match result {self.pending_match_result}')
 
         except Exception as e:

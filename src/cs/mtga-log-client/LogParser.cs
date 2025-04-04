@@ -701,7 +701,7 @@ namespace mtga_log_client
             return drawnCardsByInstanceId.Count > 0 && gameHistoryEvents.Count > 5;
         }
 
-        private void EnqueueGameResults(JArray results)
+        private void EnqueueGameResults(JArray results, JObject? matchGameRoomStateChangedBlob)
         {
             try
             {
@@ -727,7 +727,6 @@ namespace mtga_log_client
                     var thisGameResult = gameResults.Last();
                     pendingGameResult = new JObject
                     {
-                        { "game_result_payload", JToken.FromObject(thisGameResult) },
                         { "won", seatId.Equals(thisGameResult["winningTeamId"]?.Value<int>()) },
                         { "game_end_reason", thisGameResult["reason"].Value<String>() },
                         { "game_number", gameResults.Count },
@@ -740,11 +739,14 @@ namespace mtga_log_client
                 {
                     pendingMatchResult = new JObject
                     {
-                        { "match_result_payload", JToken.FromObject(matchResult) },
                         { "won_match", seatId.Equals(matchResult["winningTeamId"]?.Value<int>()) },
                         { "match_result_type", matchResult["result"]?.Value<String>() },
                         { "match_end_reason",matchResult["reason"]?.Value<String>() }
                     };
+                    if (matchGameRoomStateChangedBlob != null)
+                    {
+                        pendingMatchResult.Add("match_result_payload", JToken.FromObject(matchGameRoomStateChangedBlob));
+                    }
                     LogMessage(String.Format("Added pending match result {0}", pendingMatchResult.ToString(Formatting.None)), Level.Info);
                 }
             }
@@ -1531,7 +1533,7 @@ namespace mtga_log_client
                 var success = EnqueueGameData();
                 if (success)
                 {
-                    EnqueueGameResults(results);
+                    EnqueueGameResults(results, null);
                 }
 
                 return success;
@@ -1602,7 +1604,7 @@ namespace mtga_log_client
                         var success = EnqueueGameData();
                         if (success)
                         {
-                            EnqueueGameResults(results);
+                            EnqueueGameResults(results, blob);
                         }
                     }
                     ClearMatchData(submitPendingGame: true);
