@@ -442,7 +442,7 @@ class Follower:
                 return dateutil.parser.isoparse(timestamp)
             except:
                 pass
-x
+
         return None
 
 
