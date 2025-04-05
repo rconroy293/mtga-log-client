@@ -15,7 +15,7 @@ namespace mtga_log_client
 {
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.2.1.7.w";
+        public const string CLIENT_VERSION = "0.2.1.8.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -91,7 +91,7 @@ namespace mtga_log_client
         private JObject disconnectedRank = null;
         private string currentUser = null;
         private string currentScreenName = null;
-        private string fullcreenName = null;
+        private string fullScreenName = null;
         private string currentDraftEvent = null;
         private JObject currentRankData = null;
         private string currentOpponentLevel = null;
@@ -740,7 +740,7 @@ namespace mtga_log_client
             return drawnCardsByInstanceId.Count > 0 && gameHistoryEvents.Count > 5;
         }
 
-        private void EnqueueGameResults(JArray results, JObject? matchGameRoomStateChangedBlob)
+        private void EnqueueGameResults(JArray results, JObject matchGameRoomStateChangedBlob)
         {
             try
             {
@@ -934,25 +934,23 @@ namespace mtga_log_client
                 pick.Add("event_name", currentDraftEvent);
                 pick.Add("pack_number", pickInfo["PackNumber"].Value<int>());
                 pick.Add("pick_number", pickInfo["PickNumber"].Value<int>());
-                pick.Add("card_id", pickInfo["CardId"].Value<int>());
 
-                if (pickInfo.ContainsKey("CardId")) {
+                if (pickInfo.ContainsKey("CardId") && pickInfo["CardId"].Type == JTokenType.Integer) {
                     pick.Add("card_id", pickInfo["CardId"].Value<int>());
                 } else {
                     pick.Add("card_id", null);
                 }
 
-                if (pickInfo.ContainsKey("CardIds")) {
+                if (pickInfo.ContainsKey("CardIds") && pickInfo["CardIds"].Type == JTokenType.Array) {
                     var cardIds = new List<int>();
                     foreach (JToken cardString in pickInfo["CardIds"].Value<JArray>())
                     {
                         cardIds.Add(int.Parse(cardString.Value<String>()));
                     }
-                    parsedCardIds = JToken.FromObject(cardIds);
 
-                    pack.Add("card_ids", JToken.FromObject(cardIds));
+                    pick.Add("card_ids", JToken.FromObject(cardIds));
                 } else {
-                    pack.Add("card_ids", null);
+                    pick.Add("card_ids", null);
                 }
 
                 apiClient.PostPick(pick);
@@ -1094,7 +1092,7 @@ namespace mtga_log_client
                 }
 
                 var pack = CreateObjectWithBaseData();
-                pick.Add("payload", JToken.FromObject(blob));
+                pack.Add("payload", JToken.FromObject(blob));
                 pack.Add("method", "Draft.Notify");
                 pack.Add("draft_id", blob["draftId"].Value<String>());
                 pack.Add("pack_number", blob["SelfPack"].Value<int>());
@@ -1158,7 +1156,7 @@ namespace mtga_log_client
                 var deckInfo = blob["Deck"].Value<JObject>();
 
                 var deck = CreateObjectWithBaseData();
-                pick.Add("payload", JToken.FromObject(blob));
+                deck.Add("payload", JToken.FromObject(blob));
                 deck.Add("maindeck_card_ids", JToken.FromObject(GetCardIdsFromDeck(deckInfo["MainDeck"].Value<JArray>())));
                 deck.Add("sideboard_card_ids", JToken.FromObject(GetCardIdsFromDeck(deckInfo["Sideboard"].Value<JArray>())));
                 foreach (int companion in GetCardIdsFromDeck(deckInfo["Companions"].Value<JArray>()))
