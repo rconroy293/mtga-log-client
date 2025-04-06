@@ -15,7 +15,7 @@ namespace mtga_log_client
 {
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.2.1.7.w";
+        public const string CLIENT_VERSION = "0.2.1.8.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -33,6 +33,8 @@ namespace mtga_log_client
 
         private static readonly Regex ACCOUNT_INFO_REGEX = new Regex(
             ".*Updated account\\. DisplayName:(.{1,1000}), AccountID:(.{1,1000}), Token:.*");
+        private static readonly Regex LOGIN_REGEX = new Regex(
+            ".*Logged in successfully\\. Display Name:(.{1,1000})");
         private static readonly Regex MATCH_ACCOUNT_INFO_REGEX = new Regex(
             ".*: ((\\w+) to Match|Match to (\\w+)):");
 
@@ -81,12 +83,15 @@ namespace mtga_log_client
         private List<string> buffer = new List<string>();
         private Nullable<DateTime> currentLogTime = new DateTime(0);
         private Nullable<DateTime> lastUtcTime = new DateTime(0);
+        private Nullable<DateTime> lastEventTime = new DateTime(0);
         private string lastRawTime = "";
         private string disconnectedUser = null;
         private string disconnectedScreenName = null;
+        private string disconnectedFullScreenName = null;
         private JObject disconnectedRank = null;
         private string currentUser = null;
         private string currentScreenName = null;
+        private string fullScreenName = null;
         private string currentDraftEvent = null;
         private JObject currentRankData = null;
         private string currentOpponentLevel = null;
@@ -137,12 +142,14 @@ namespace mtga_log_client
             buffer.Clear();
             currentLogTime = new DateTime(0);
             lastUtcTime = new DateTime(0);
+            lastEventTime = new DateTime(0);
             lastRawTime = "";
             disconnectedUser = null;
             disconnectedScreenName = null;
             disconnectedRank = null;
             currentUser = null;
             currentScreenName = null;
+            fullScreenName = null;
             currentDraftEvent = null;
             currentRankData = null;
             currentOpponentLevel = null;
@@ -390,6 +397,11 @@ namespace mtga_log_client
             // currentLogTime = null;
         }
 
+        private bool ContainsLogKey(string key, string fullLog)
+        {
+            return fullLog.Contains(key) || fullLog.Contains(key.Replace("_", ""));
+        }
+
         private void HandleBlob(string fullLog)
         {
             var dictMatch = JSON_DICT_REGEX.Match(fullLog);
@@ -414,8 +426,15 @@ namespace mtga_log_client
                 lastUtcTime = maybeUtcTimestamp;
             }
 
+            DateTime? maybeEventTime = MaybeGetEventTime(blob);
+            if (maybeEventTime != null)
+            {
+                lastEventTime = maybeEventTime;
+            }
+
             if (MaybeHandleLogin(blob)) return;
             if (MaybeHandleJoinPod(fullLog, blob)) return;
+            if (MaybeHandleJoinEventResponse(fullLog, blob)) return;
             if (MaybeHandleBotDraftPack(blob)) return;
             if (MaybeHandleBotDraftPick(fullLog, blob)) return;
             if (MaybeHandleHumanDraftCombined(fullLog, blob)) return;
@@ -525,6 +544,19 @@ namespace mtga_log_client
             }
         }
 
+        private DateTime? MaybeGetEventTime(JObject blob) {
+            if (blob.ContainsKey("EventTime"))
+            {
+                var timestamp = blob["EventTime"].Value<String>();
+                DateTime output;
+                if (DateTime.TryParse(timestamp, out output))
+                {
+                    return output;
+                }
+            }
+            return null;
+        }
+
         private JObject ParseBlob(String blob)
         {
             JsonReaderException firstError = null;
@@ -617,6 +649,7 @@ namespace mtga_log_client
             LogMessage("User logged out from MTGA", Level.Info);
             currentUser = null;
             currentScreenName = null;
+            fullScreenName = null;
             currentRankData = null;
         }
 
@@ -645,6 +678,17 @@ namespace mtga_log_client
                     {
                         currentUser = match.Groups[3].Value;
                     }
+                    return;
+                }
+            }
+
+            if (line.Contains("Logged in successfully. Display Name:"))
+            {
+                var match = LOGIN_REGEX.Match(line);
+                if (match.Success)
+                {
+                    fullScreenName = match.Groups[1].Value;
+                    return;
                 }
             }
         }
@@ -660,6 +704,7 @@ namespace mtga_log_client
 
             var account = CreateObjectWithBaseData();
             account.Add("screen_name", currentScreenName);
+            account.Add("full_screen_name", fullScreenName);
             apiClient.PostMTGAAccount(account);
         } 
 
@@ -695,7 +740,7 @@ namespace mtga_log_client
             return drawnCardsByInstanceId.Count > 0 && gameHistoryEvents.Count > 5;
         }
 
-        private void EnqueueGameResults(JArray results)
+        private void EnqueueGameResults(JArray results, JObject matchGameRoomStateChangedBlob)
         {
             try
             {
@@ -737,6 +782,10 @@ namespace mtga_log_client
                         { "match_result_type", matchResult["result"]?.Value<String>() },
                         { "match_end_reason",matchResult["reason"]?.Value<String>() }
                     };
+                    if (matchGameRoomStateChangedBlob != null)
+                    {
+                        pendingMatchResult.Add("match_result_payload", JToken.FromObject(matchGameRoomStateChangedBlob));
+                    }
                     LogMessage(String.Format("Added pending match result {0}", pendingMatchResult.ToString(Formatting.None)), Level.Info);
                 }
             }
@@ -852,6 +901,7 @@ namespace mtga_log_client
                     cardIds.Add(int.Parse(cardString.Value<String>()));
                 }
 
+                pack.Add("payload", JToken.FromObject(blob));
                 pack.Add("event_name", currentDraftEvent);
                 pack.Add("pack_number", blob["PackNumber"].Value<int>());
                 pack.Add("pick_number", blob["PickNumber"].Value<int>());
@@ -869,7 +919,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleBotDraftPick(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("BotDraft_DraftPick")) return false;
+            if (!ContainsLogKey("BotDraft_DraftPick", fullLog)) return false;
             if (!blob.ContainsKey("PickInfo")) return false;
 
             ClearGameData();
@@ -884,7 +934,24 @@ namespace mtga_log_client
                 pick.Add("event_name", currentDraftEvent);
                 pick.Add("pack_number", pickInfo["PackNumber"].Value<int>());
                 pick.Add("pick_number", pickInfo["PickNumber"].Value<int>());
-                pick.Add("card_id", pickInfo["CardId"].Value<int>());
+
+                if (pickInfo.ContainsKey("CardId") && pickInfo["CardId"].Type == JTokenType.Integer) {
+                    pick.Add("card_id", pickInfo["CardId"].Value<int>());
+                } else {
+                    pick.Add("card_id", null);
+                }
+
+                if (pickInfo.ContainsKey("CardIds") && pickInfo["CardIds"].Type == JTokenType.Array) {
+                    var cardIds = new List<int>();
+                    foreach (JToken cardString in pickInfo["CardIds"].Value<JArray>())
+                    {
+                        cardIds.Add(int.Parse(cardString.Value<String>()));
+                    }
+
+                    pick.Add("card_ids", JToken.FromObject(cardIds));
+                } else {
+                    pick.Add("card_ids", null);
+                }
 
                 apiClient.PostPick(pick);
 
@@ -899,7 +966,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleJoinPod(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("Event_Join")) return false;
+            if (!ContainsLogKey("Event_Join", fullLog)) return false;
             if (!blob.ContainsKey("EventName")) return false;
 
             ClearGameData();
@@ -916,9 +983,30 @@ namespace mtga_log_client
             }
         }
 
+        private bool MaybeHandleJoinEventResponse(String fullLog, JObject blob)
+        {
+            if (!ContainsLogKey("Event_Join", fullLog)) return false;
+            if (!blob.ContainsKey("Course")) return false;
+
+            ClearGameData();
+
+            try
+            {
+                JObject result = CreateObjectWithBaseData();
+                result.Add("payload", JToken.FromObject(blob));
+                apiClient.PostEventJoined(result);
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing join event response from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
         private bool MaybeHandleHumanDraftCombined(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("LogBusinessEvents")) return false;
+            if (!ContainsLogKey("LogBusinessEvents", fullLog)) return false;
             if (!blob.ContainsKey("PickGrpId")) return false;
 
             ClearGameData();
@@ -934,6 +1022,7 @@ namespace mtga_log_client
                 }
 
                 var pack = CreateObjectWithBaseData();
+                pack.Add("payload", JToken.FromObject(blob));
                 pack.Add("method", "LogBusinessEvents");
                 pack.Add("draft_id", blob["DraftId"].Value<String>());
                 pack.Add("pack_number", blob["PackNumber"].Value<int>());
@@ -949,13 +1038,27 @@ namespace mtga_log_client
                 return false;
             }
 
+            int? pickId = null;
+            try
+            {
+                if (blob.ContainsKey("PickGrpId"))
+                {
+                    pickId = blob["PickGrpId"].Value<int>();
+                }
+            }
+            catch (Exception e)
+            {
+                // Pass
+            }
+
             try
             {
                 var pick = CreateObjectWithBaseData();
+                pick.Add("payload", JToken.FromObject(blob));
                 pick.Add("draft_id", blob["DraftId"].Value<String>());
                 pick.Add("pack_number", blob["PackNumber"].Value<int>());
                 pick.Add("pick_number", blob["PickNumber"].Value<int>());
-                pick.Add("card_id", blob["PickGrpId"].Value<int>());
+                pick.Add("card_id", pickId);
                 pick.Add("event_name", currentDraftEvent);
                 pick.Add("auto_pick", blob["AutoPick"].Value<bool>());
                 pick.Add("time_remaining", blob["TimeRemainingOnPick"].Value<float>());
@@ -989,6 +1092,7 @@ namespace mtga_log_client
                 }
 
                 var pack = CreateObjectWithBaseData();
+                pack.Add("payload", JToken.FromObject(blob));
                 pack.Add("method", "Draft.Notify");
                 pack.Add("draft_id", blob["draftId"].Value<String>());
                 pack.Add("pack_number", blob["SelfPack"].Value<int>());
@@ -1016,6 +1120,7 @@ namespace mtga_log_client
             {
                 disconnectedUser = currentUser;
                 disconnectedScreenName = currentScreenName;
+                disconnectedFullScreenName = fullScreenName;
                 disconnectedRank = currentRankData;
             }
 
@@ -1031,6 +1136,7 @@ namespace mtga_log_client
             LogMessage("Reconnected - restoring prior user info", Level.Info);
             currentUser = disconnectedUser;
             currentScreenName = disconnectedScreenName;
+            fullScreenName = disconnectedFullScreenName;
             currentRankData = disconnectedRank;
 
             return true;
@@ -1038,7 +1144,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleDeckSubmission(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("Event_SetDeck")) return false;
+            if (!ContainsLogKey("Event_SetDeck", fullLog)) return false;
             if (!blob.ContainsKey("EventName")) return false;
 
             ClearGameData();
@@ -1050,6 +1156,7 @@ namespace mtga_log_client
                 var deckInfo = blob["Deck"].Value<JObject>();
 
                 var deck = CreateObjectWithBaseData();
+                deck.Add("payload", JToken.FromObject(blob));
                 deck.Add("maindeck_card_ids", JToken.FromObject(GetCardIdsFromDeck(deckInfo["MainDeck"].Value<JArray>())));
                 deck.Add("sideboard_card_ids", JToken.FromObject(GetCardIdsFromDeck(deckInfo["Sideboard"].Value<JArray>())));
                 foreach (int companion in GetCardIdsFromDeck(deckInfo["Companions"].Value<JArray>()))
@@ -1071,7 +1178,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleOngoingEvents(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("Event_GetCourses")) return false;
+            if (!ContainsLogKey("Event_GetCourses", fullLog)) return false;
             if (!blob.ContainsKey("Courses")) return false;
 
             try
@@ -1094,7 +1201,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleClaimPrize(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("Event_ClaimPrize")) return false;
+            if (!ContainsLogKey("Event_ClaimPrize", fullLog)) return false;
             if (!blob.ContainsKey("EventName")) return false;
 
             try
@@ -1133,12 +1240,13 @@ namespace mtga_log_client
 
         private bool MaybeHandleEventCourse(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("Draft_CompleteDraft")) return false;
+            if (!ContainsLogKey("Draft_CompleteDraft", fullLog)) return false;
             if (!blob.ContainsKey("DraftId")) return false;
 
             try
             {
                 var eventCourse = CreateObjectWithBaseData();
+                eventCourse.Add("payload", JToken.FromObject(blob));
                 eventCourse.Add("event_name", blob["InternalEventName"].Value<String>());
                 eventCourse.Add("draft_id", blob["DraftId"].Value<String>());
                 eventCourse.Add("course_id", blob["CourseId"].Value<String>());
@@ -1418,7 +1526,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleLogBusinessGameEnd(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("LogBusinessEvents")) return false;
+            if (!ContainsLogKey("LogBusinessEvents", fullLog)) return false;
             if (!blob.ContainsKey("WinningType")) return false;
 
             try
@@ -1432,6 +1540,7 @@ namespace mtga_log_client
                 {
                     pendingGameResult = new JObject
                     {
+                        { "game_end_payload", JToken.FromObject(blob) },
                         { "won", seatId.Equals(blob["WinningTeamId"]?.Value<int>()) },
                         { "game_end_reason", blob["WinningReason"]?.Value<string>() },
                         { "game_number", blob["GameNumber"]?.Value<int>() },
@@ -1463,7 +1572,7 @@ namespace mtga_log_client
                 var success = EnqueueGameData();
                 if (success)
                 {
-                    EnqueueGameResults(results);
+                    EnqueueGameResults(results, null);
                 }
 
                 return success;
@@ -1534,7 +1643,7 @@ namespace mtga_log_client
                         var success = EnqueueGameData();
                         if (success)
                         {
-                            EnqueueGameResults(results);
+                            EnqueueGameResults(results, blob);
                         }
                     }
                     ClearMatchData(submitPendingGame: true);
@@ -1659,7 +1768,7 @@ namespace mtga_log_client
 
         private bool MaybeHandleSelfRankInfo(String fullLog, JObject blob)
         {
-            if (!fullLog.Contains("Rank_GetCombinedRankInfo")) return false;
+            if (!ContainsLogKey("Rank_GetCombinedRankInfo", fullLog)) return false;
             if (!blob.ContainsKey("limitedSeasonOrdinal")) return false;
 
             try
@@ -1782,6 +1891,7 @@ namespace mtga_log_client
                 { "player_id", currentUser },
                 { "time", GetDatetimeString(currentLogTime.Value) },
                 { "utc_time", GetDatetimeString(lastUtcTime.Value) },
+                { "event_time", GetDatetimeString(lastEventTime.Value) },
                 { "raw_time", lastRawTime }
             };
         }

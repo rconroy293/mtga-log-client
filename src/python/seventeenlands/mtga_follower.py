@@ -26,6 +26,7 @@ import sys
 import time
 import traceback
 import uuid
+from typing import Any, Dict
 
 from collections import defaultdict
 
@@ -36,7 +37,7 @@ import seventeenlands.logging_utils
 
 logger = seventeenlands.logging_utils.get_logger('17Lands')
 
-CLIENT_VERSION = '0.1.42.p'
+CLIENT_VERSION = '0.1.43.p'
 
 UPDATE_CHECK_INTERVAL = datetime.timedelta(hours=1)
 UPDATE_PROMPT_FREQUENCY = 24
@@ -127,6 +128,7 @@ TIMESTAMP_REGEX = re.compile('^([\\d/.-]+[ T][\\d]+:[\\d]+:[\\d]+( AM| PM)?)')
 STRIPPED_TIMESTAMP_REGEX = re.compile('^(.*?)[: /]*$')
 JSON_START_REGEX = re.compile(r'[\[\{]')
 ACCOUNT_INFO_REGEX = re.compile(r'.*Updated account\. DisplayName:(.*), AccountID:(.*), Token:.*')
+LOGIN_REGEX = re.compile(r'.*Logged in successfully\. Display Name:(.*)')
 MATCH_ACCOUNT_INFO_REGEX = re.compile(r'.*: ((\w+) to Match|Match to (\w+)):')
 SLEEP_TIME = 0.5
 
@@ -203,6 +205,19 @@ def get_rank_string(rank_class, level, percentile, place, step):
     return '-'.join(str(x) for x in [rank_class, level, percentile, place, step])
 
 
+def contains_log_key(key: str, full_log: str) -> bool:
+    """
+    Check if the given key exists in the log string. The key is checked both with and without
+    underscores to handle different Arena log formats.
+
+    :param key:      The key to check for.
+    :param full_log: The string to check in.
+
+    :returns: Whether or not the key exists in the log string.
+    """
+    return key in full_log or key.replace('_', '') in full_log
+
+
 class Follower:
     """Follows along a log, parses the messages, and passes along the parsed data to the API endpoint."""
 
@@ -217,9 +232,11 @@ class Follower:
         self.buffer = []
         self.cur_log_time = datetime.datetime.fromtimestamp(0)
         self.last_utc_time = datetime.datetime.fromtimestamp(0)
+        self.last_event_time = datetime.datetime.fromtimestamp(0)
         self.last_raw_time = ''
         self.disconnected_user = None
         self.disconnected_screen_name = None
+        self.disconnected_full_screen_name = None
         self.disconnected_rank = None
         self.cur_user = None
         self.cur_draft_event = None
@@ -242,6 +259,7 @@ class Follower:
         self.drawn_cards_by_instance_id = defaultdict(dict)
         self.cards_in_hand = defaultdict(list)
         self.user_screen_name = None
+        self.full_screen_name = None
         self.screen_names = defaultdict(lambda: '')
         self.game_history_events = []
         self.pending_game_submission = {}
@@ -261,6 +279,7 @@ class Follower:
             "player_id": self.cur_user,
             "time": self.cur_log_time.isoformat(),
             "utc_time": self.last_utc_time.isoformat(),
+            "event_time": self.last_event_time.isoformat(),
             "raw_time": self.last_raw_time,
             **blob,
         }
@@ -415,6 +434,18 @@ class Follower:
         except ValueError:
             return dateutil.parser.isoparse(timestamp)
 
+
+    def __maybe_get_event_time(self, blob):
+        timestamp = blob.get('EventTime')
+        if timestamp is not None:
+            try:
+                return dateutil.parser.isoparse(timestamp)
+            except:
+                pass
+
+        return None
+
+
     def __handle_blob(self, full_log):
         """Attempt to parse a complete log message and send the data if relevant."""
         match = JSON_START_REGEX.search(full_log)
@@ -430,7 +461,6 @@ class Follower:
         json_obj = self.__extract_payload(json_obj)
         if type(json_obj) != dict: return
 
-        maybe_time = None
         try:
             maybe_time = self.__maybe_get_utc_timestamp(json_obj)
             if maybe_time is not None:
@@ -438,27 +468,36 @@ class Follower:
         except:
             pass
 
+        try:
+            maybe_time = self.__maybe_get_event_time(json_obj)
+            if maybe_time is not None:
+                self.last_event_time = maybe_time
+        except:
+            pass
+
         if json_value_matches('Client.Connected', ['params', 'messageName'], json_obj): # Doesn't exist any more
             self.__handle_login(json_obj)
-        elif 'Event_Join' in full_log and 'EventName' in json_obj:
+        elif contains_log_key(key='Event_Join', full_log=full_log) and 'EventName' in json_obj:
             self.__handle_joined_pod(json_obj)
+        elif contains_log_key(key='Event_Join', full_log=full_log) and 'Course' in json_obj:
+            self.__handle_joined_event_response(json_obj)
         elif 'DraftStatus' in json_obj:
             self.__handle_bot_draft_pack(json_obj)
-        elif 'BotDraft_DraftPick' in full_log and 'PickInfo' in json_obj:
+        elif contains_log_key(key='BotDraft_DraftPick', full_log=full_log) and 'PickInfo' in json_obj:
             self.__handle_bot_draft_pick(json_obj['PickInfo'])
-        elif 'LogBusinessEvents' in full_log and 'PickGrpId' in json_obj:
+        elif contains_log_key(key='LogBusinessEvents', full_log=full_log) and 'PickGrpId' in json_obj:
             self.__handle_human_draft_combined(json_obj)
-        elif 'LogBusinessEvents' in full_log and 'WinningType' in json_obj:
+        elif contains_log_key(key='LogBusinessEvents', full_log=full_log) and 'WinningType' in json_obj:
             self.__handle_log_business_game_end(json_obj)
         elif 'Draft.Notify ' in full_log and 'method' not in json_obj:
             self.__handle_human_draft_pack(json_obj)
-        elif 'Event_SetDeck' in full_log and 'EventName' in json_obj:
+        elif contains_log_key(key='Event_SetDeck', full_log=full_log) and 'EventName' in json_obj:
             self.__handle_deck_submission(json_obj)
-        elif 'Event_GetCourses' in full_log and 'Courses' in json_obj:
+        elif contains_log_key(key='Event_GetCourses', full_log=full_log) and 'Courses' in json_obj:
             self.__handle_ongoing_events(json_obj)
-        elif 'Event_ClaimPrize' in full_log and 'EventName' in json_obj:
+        elif contains_log_key(key='Event_ClaimPrize', full_log=full_log) and 'EventName' in json_obj:
             self.__handle_claim_prize(json_obj)
-        elif 'Draft_CompleteDraft' in full_log and 'DraftId' in json_obj:
+        elif contains_log_key(key='Draft_CompleteDraft', full_log=full_log) and 'DraftId' in json_obj:
             self.__handle_event_course(json_obj)
         elif 'authenticateResponse' in json_obj:
             self.__update_screen_name(json_obj['authenticateResponse']['screenName'])
@@ -478,7 +517,7 @@ class Follower:
             self.__handle_client_to_gre_message(json_obj.get('payload', {}), maybe_time)
         elif json_value_matches('ClientToMatchServiceMessageType_ClientToGREUIMessage', ['clientToMatchServiceMessageType'], json_obj):
             self.__handle_client_to_gre_ui_message(json_obj.get('payload', {}), maybe_time)
-        elif 'Rank_GetCombinedRankInfo' in full_log and 'limitedSeasonOrdinal' in json_obj:
+        elif contains_log_key(key='Rank_GetCombinedRankInfo', full_log=full_log) and 'limitedSeasonOrdinal' in json_obj:
             self.__handle_self_rank_info(json_obj)
         elif ' PlayerInventory.GetPlayerCardsV3 ' in full_log and 'method' not in json_obj: # Doesn't exist any more
             self.__handle_collection(json_obj)
@@ -488,6 +527,8 @@ class Follower:
             self.__handle_player_progress(json_obj)
         elif 'FrontDoorConnection.Close ' in full_log:
             self.__reset_current_user()
+        elif 'Reconnect result : Connected' in full_log:
+            self.__handle_reconnect_result()
         elif 'Reconnect result : Connected' in full_log:
             self.__handle_reconnect_result()
 
@@ -518,6 +559,7 @@ class Follower:
             user_info = {
                 'player_id': self.cur_user,
                 'screen_name': self.user_screen_name,
+                'full_screen_name': self.full_screen_name,
             }
             logger.info(f'Updating user info: {user_info}')
             self._api_client.submit_user(self._add_base_api_data(user_info))
@@ -573,7 +615,7 @@ class Follower:
             results = game_room_info['finalMatchResult'].get('resultList', [])
             if results:
                 if self.__enqueue_game_data():
-                    self.__enqueue_game_results(results)
+                    self.__enqueue_game_results(results, match_game_room_state_changed_obj=blob)
             self.__clear_match_data(submit_pending_game=True)
 
     def _add_to_game_history(self, message_blob, timestamp):
@@ -739,6 +781,7 @@ class Follower:
 
             if self.__enqueue_game_data():
                 self.pending_game_result = {
+                    'game_end_payload': payload,
                     'game_number': payload.get('GameNumber'),
                     'won': self.seat_id == payload.get('WinningTeamId'),
                     'win_type': payload.get('WinningType'),
@@ -813,6 +856,11 @@ class Follower:
         match = MATCH_ACCOUNT_INFO_REGEX.match(line)
         if match:
             self.cur_user = match.group(2) or match.group(3)
+            return
+
+        match = LOGIN_REGEX.match(line)
+        if match:
+            self.full_screen_name = match.group(1)
 
     def __handle_ongoing_events(self, json_obj):
         """Handle 'Event_GetCourses' messages."""
@@ -850,6 +898,7 @@ class Follower:
         """Handle messages linking draft id to event name."""
         try:
             event = {
+                'payload': json_obj,
                 'event_name': json_obj['InternalEventName'],
                 'draft_id': json_obj['DraftId'],
                 'course_id': json_obj['CourseId'],
@@ -868,7 +917,7 @@ class Follower:
     def __has_pending_game_data(self):
         return len(self.drawn_cards_by_instance_id) > 0 and len(self.game_history_events) > 5
 
-    def __enqueue_game_results(self, results):
+    def __enqueue_game_results(self, results, match_game_room_state_changed_obj=None):
         try:
             game_results = [r for r in results if r.get('scope') == 'MatchScope_Game']
             if game_results:
@@ -888,6 +937,8 @@ class Follower:
                     'match_result_type': match_result.get('result'),
                     'match_end_reason': match_result.get('reason'),
                 }
+                if match_game_room_state_changed_obj:
+                    self.pending_match_result['match_result_payload'] = match_game_room_state_changed_obj
                 logger.info(f'Added pending match result {self.pending_match_result}')
 
         except Exception as e:
@@ -975,6 +1026,7 @@ class Follower:
             try:
                 self.cur_draft_event = json_obj['EventName']
                 pack = {
+                    'payload': json_obj,
                     'event_name': json_obj['EventName'],
                     'pack_number': int(json_obj['PackNumber']),
                     'pick_number': int(json_obj['PickNumber']),
@@ -996,11 +1048,14 @@ class Follower:
 
         try:
             self.cur_draft_event = json_obj['EventName']
+            card_id = json_obj.get('CardId')
+            card_ids = json_obj.get('CardIds')
             pick = {
                 'event_name': json_obj['EventName'],
                 'pack_number': int(json_obj['PackNumber']),
                 'pick_number': int(json_obj['PickNumber']),
-                'card_id': int(json_obj['CardId']),
+                'card_id': None if card_id is None else int(card_id),
+                'card_ids': None if card_ids is None else [int(x) for x in card_ids],
             }
             logger.info(f'Draft pick: {pick}')
             self._api_client.submit_draft_pick(self._add_base_api_data(pick))
@@ -1027,6 +1082,21 @@ class Follower:
                 stacktrace=traceback.format_exc(),
             )
 
+    def __handle_joined_event_response(self, json_obj):
+        """Handle 'EventJoin' response messages."""
+        self.__clear_game_data()
+
+        try:
+            self._api_client.submit_joined_event(self._add_base_api_data({"payload": json_obj}))
+            logger.info(f'Joined event successfully')
+
+        except Exception as e:
+            self._log_error(
+                message=f'Error {e} parsing join event response from {json_obj}',
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
+
     def __handle_human_draft_combined(self, json_obj):
         """Handle combined human draft pack/pick messages."""
         self.__clear_game_data()
@@ -1034,6 +1104,7 @@ class Follower:
         try:
             self.cur_draft_event = json_obj['EventId']
             pack = {
+                'payload': json_obj,
                 'draft_id': json_obj['DraftId'],
                 'event_name': json_obj['EventId'],
                 'pack_number': int(json_obj['PackNumber']),
@@ -1052,12 +1123,18 @@ class Follower:
             )
 
         try:
+            pick_id = int(json_obj['PickGrpId'])
+        except Exception:
+            pick_id = None
+
+        try:
             pick = {
+                'payload': json_obj,
                 'draft_id': json_obj['DraftId'],
                 'event_name': json_obj['EventId'],
                 'pack_number': int(json_obj['PackNumber']),
                 'pick_number': int(json_obj['PickNumber']),
-                'card_id': int(json_obj['PickGrpId']),
+                'card_id': pick_id,
                 'auto_pick': json_obj['AutoPick'],
                 'time_remaining': json_obj['TimeRemainingOnPick'],
             }
@@ -1077,6 +1154,7 @@ class Follower:
 
         try:
             pack = {
+                'payload': json_obj,
                 'draft_id': json_obj['draftId'],
                 'event_name': self.cur_draft_event,
                 'pack_number': int(json_obj['SelfPack']),
@@ -1101,6 +1179,7 @@ class Follower:
         try:
             decks = json_obj['Deck']
             deck = {
+                'payload': json_obj,
                 'event_name': json_obj['EventName'],
                 'maindeck_card_ids': [d['cardId'] for d in decks['MainDeck'] for i in range(d['quantity'])],
                 'sideboard_card_ids': [d['cardId'] for d in decks['Sideboard'] for i in range(d['quantity'])],
@@ -1200,10 +1279,12 @@ class Follower:
         if self.cur_user is not None:
             self.disconnected_user = self.cur_user
             self.disconnected_screen_name = self.user_screen_name
+            self.disconnected_full_screen_name = self.full_screen_name
             self.disconnected_rank = self.cur_rank_data
 
         self.cur_user = None
         self.user_screen_name = None
+        self.full_screen_name = None
         self.cur_rank_data = None
 
     def __handle_reconnect_result(self):
@@ -1211,6 +1292,7 @@ class Follower:
 
         self.cur_user = self.disconnected_user
         self.user_screen_name = self.disconnected_screen_name
+        self.full_screen_name = self.disconnected_full_screen_name
         self.cur_rank_data = self.disconnected_rank
 
 
