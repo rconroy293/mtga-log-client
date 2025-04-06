@@ -15,7 +15,7 @@ namespace mtga_log_client
 {
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.2.1.8.w";
+        public const string CLIENT_VERSION = "0.2.1.9.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -83,7 +83,7 @@ namespace mtga_log_client
         private List<string> buffer = new List<string>();
         private Nullable<DateTime> currentLogTime = new DateTime(0);
         private Nullable<DateTime> lastUtcTime = new DateTime(0);
-        private Nullable<DateTime> lastEventTime = new DateTime(0);
+        private string lastEventTime = null;
         private string lastRawTime = "";
         private string disconnectedUser = null;
         private string disconnectedScreenName = null;
@@ -142,7 +142,7 @@ namespace mtga_log_client
             buffer.Clear();
             currentLogTime = new DateTime(0);
             lastUtcTime = new DateTime(0);
-            lastEventTime = new DateTime(0);
+            lastEventTime = null;
             lastRawTime = "";
             disconnectedUser = null;
             disconnectedScreenName = null;
@@ -426,7 +426,7 @@ namespace mtga_log_client
                 lastUtcTime = maybeUtcTimestamp;
             }
 
-            DateTime? maybeEventTime = MaybeGetEventTime(blob);
+            string maybeEventTime = MaybeGetEventTime(blob);
             if (maybeEventTime != null)
             {
                 lastEventTime = maybeEventTime;
@@ -544,15 +544,10 @@ namespace mtga_log_client
             }
         }
 
-        private DateTime? MaybeGetEventTime(JObject blob) {
+        private string MaybeGetEventTime(JObject blob) {
             if (blob.ContainsKey("EventTime"))
             {
-                var timestamp = blob["EventTime"].Value<String>();
-                DateTime output;
-                if (DateTime.TryParse(timestamp, out output))
-                {
-                    return output;
-                }
+                return blob["EventTime"].ToString(Formatting.None).Trim('"');
             }
             return null;
         }
@@ -1891,7 +1886,7 @@ namespace mtga_log_client
                 { "player_id", currentUser },
                 { "time", GetDatetimeString(currentLogTime.Value) },
                 { "utc_time", GetDatetimeString(lastUtcTime.Value) },
-                { "event_time", GetDatetimeString(lastEventTime.Value) },
+                { "event_time", lastEventTime },
                 { "raw_time", lastRawTime }
             };
         }
