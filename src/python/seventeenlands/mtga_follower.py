@@ -232,7 +232,7 @@ class Follower:
         self.buffer = []
         self.cur_log_time = datetime.datetime.fromtimestamp(0)
         self.last_utc_time = datetime.datetime.fromtimestamp(0)
-        self.last_event_time = datetime.datetime.fromtimestamp(0)
+        self.last_event_time = None
         self.last_raw_time = ''
         self.disconnected_user = None
         self.disconnected_screen_name = None
@@ -279,7 +279,7 @@ class Follower:
             "player_id": self.cur_user,
             "time": self.cur_log_time.isoformat(),
             "utc_time": self.last_utc_time.isoformat(),
-            "event_time": self.last_event_time.isoformat(),
+            "event_time": self.last_event_time,
             "raw_time": self.last_raw_time,
             **blob,
         }
@@ -436,14 +436,7 @@ class Follower:
 
 
     def __maybe_get_event_time(self, blob):
-        timestamp = blob.get('EventTime')
-        if timestamp is not None:
-            try:
-                return dateutil.parser.isoparse(timestamp)
-            except:
-                pass
-
-        return None
+        return blob.get('EventTime')
 
 
     def __handle_blob(self, full_log):
