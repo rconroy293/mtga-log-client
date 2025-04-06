@@ -83,7 +83,7 @@ namespace mtga_log_client
         private List<string> buffer = new List<string>();
         private Nullable<DateTime> currentLogTime = new DateTime(0);
         private Nullable<DateTime> lastUtcTime = new DateTime(0);
-        private Nullable<string> lastEventTime = null;
+        private string lastEventTime = null;
         private string lastRawTime = "";
         private string disconnectedUser = null;
         private string disconnectedScreenName = null;
@@ -426,7 +426,7 @@ namespace mtga_log_client
                 lastUtcTime = maybeUtcTimestamp;
             }
 
-            string? maybeEventTime = MaybeGetEventTime(blob);
+            string maybeEventTime = MaybeGetEventTime(blob);
             if (maybeEventTime != null)
             {
                 lastEventTime = maybeEventTime;
@@ -544,10 +544,10 @@ namespace mtga_log_client
             }
         }
 
-        private string? MaybeGetEventTime(JObject blob) {
+        private string MaybeGetEventTime(JObject blob) {
             if (blob.ContainsKey("EventTime"))
             {
-                return blob["EventTime"].Value<String>();
+                return blob["EventTime"].ToString(Formatting.None).Trim('"');
             }
             return null;
         }
