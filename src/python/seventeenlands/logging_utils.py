@@ -12,7 +12,7 @@ _LOG_FORMATTER = logging.Formatter(
     "%(asctime)s.%(msecs)03d,%(levelname)s,%(name)s,%(message)s",
     datefmt="%Y%m%d %H%M%S",
 )
-_HANDLERS = {
+_HANDLERS: set[logging.Handler] = {
     logging.handlers.TimedRotatingFileHandler(
         _LOG_FILENAME,
         when="D",
