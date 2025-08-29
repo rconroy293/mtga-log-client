@@ -1,7 +1,6 @@
 import logging
 import logging.handlers
 import os
-from typing import Dict
 
 _LOG_FOLDER = os.path.join(os.path.expanduser("~"), ".seventeenlands")
 if not os.path.exists(_LOG_FOLDER):
@@ -23,7 +22,7 @@ _HANDLERS: set[logging.Handler] = {
     logging.StreamHandler(),
 }
 
-_loggers: Dict[str, logging.Logger] = {}
+_loggers: dict[str, logging.Logger] = {}
 
 
 def get_logger(name: str) -> logging.Logger:

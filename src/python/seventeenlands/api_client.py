@@ -1,7 +1,7 @@
 import datetime
 import gzip
 import json
-from typing import Any, Dict
+from typing import Any
 
 import requests
 
@@ -22,7 +22,7 @@ class ApiClient:
 
     def _retry_post(self, endpoint: str, blob: Any, use_gzip=False):
         def _send_request() -> requests.Response:
-            args: Dict[str, Any] = {
+            args: dict[str, Any] = {
                 "url": f"{self.host}/{endpoint}",
             }
 
@@ -63,110 +63,110 @@ class ApiClient:
             response_validator=_validate_response,
         )
 
-    def get_client_version_info(self, params: Dict):
+    def get_client_version_info(self, params: dict):
         return self._retry_get(
             endpoint="api/client/client_version_validation",  # Formerly /api/version_validation
             params=params,
         )
 
-    def submit_collection(self, blob: Dict):
+    def submit_collection(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/update_card_collection",  # Formerly /collection
             blob=blob,
         )
 
-    def submit_deck_submission(self, blob: Dict):
+    def submit_deck_submission(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/add_deck",  # Formerly /deck
             blob=blob,
         )
 
-    def submit_draft_pack(self, blob: Dict):
+    def submit_draft_pack(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/add_pack",  # Formerly /pack
             blob=blob,
         )
 
-    def submit_draft_pick(self, blob: Dict):
+    def submit_draft_pick(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/add_pick",  # Formerly /pick
             blob=blob,
         )
 
-    def submit_event_course_submission(self, blob: Dict):
+    def submit_event_course_submission(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/update_event_course",  # Formerly /event_course
             blob=blob,
         )
 
-    def submit_joined_event(self, blob: Dict):
+    def submit_joined_event(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/record_event_join",
             blob=blob,
         )
 
-    def submit_event_ended(self, blob: Dict):
+    def submit_event_ended(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/mark_event_ended",  # Formerly /event_ended
             blob=blob,
         )
 
-    def submit_event_submission(self, blob: Dict):
+    def submit_event_submission(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/add_event",  # Formerly /event
             blob=blob,
         )
 
-    def submit_game_result(self, blob: Dict):
+    def submit_game_result(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/add_game",  # Formerly /game
             blob=blob,
             use_gzip=True,
         )
 
-    def submit_human_draft_pack(self, blob: Dict):
+    def submit_human_draft_pack(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/add_human_draft_pack",  # Formerly /human_draft_pack
             blob=blob,
         )
 
-    def submit_human_draft_pick(self, blob: Dict):
+    def submit_human_draft_pick(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/add_human_draft_pick",  # Formerly /human_draft_pick
             blob=blob,
         )
 
-    def submit_inventory(self, blob: Dict):
+    def submit_inventory(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/update_inventory",  # Formerly /inventory
             blob=blob,
         )
 
-    def submit_ongoing_events(self, blob: Dict):
+    def submit_ongoing_events(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/update_ongoing_events",  # Formerly /ongoing_events
             blob=blob,
         )
 
-    def submit_player_progress(self, blob: Dict):
+    def submit_player_progress(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/update_player_progress",  # Formerly /player_progress
             blob=blob,
         )
 
-    def submit_rank(self, blob: Dict):
+    def submit_rank(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/add_rank",  # Formerly /api/rank
             blob=blob,
         )
 
-    def submit_user(self, blob: Dict):
+    def submit_user(self, blob: dict):
         return self._retry_post(
             endpoint="api/client/add_mtga_account",  # Formerly /api/account
             blob=blob,
         )
 
-    def submit_error_info(self, blob: Dict):
+    def submit_error_info(self, blob: dict):
         now = datetime.datetime.utcnow()
         if self._last_error_posted_at > now - _ERROR_COOLDOWN:
             logger.warning(
