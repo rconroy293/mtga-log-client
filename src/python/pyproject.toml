@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "seventeenlands"
+authors = [
+    {name = "Robert Conroy", email = "support@17lands.com"},
+]
+description = "Utility to upload MTG Arena data to 17Lands.com"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Games/Entertainment",
+]
+keywords = ["mtg", "arena", "magic", "17lands", "data"]
+dependencies = [
+    "requests >= 2.25.0",
+    "python-dateutil >= 2.8.0",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/rconroy293/mtga-log-client"
+Repository = "https://github.com/rconroy293/mtga-log-client"
+Issues = "https://github.com/rconroy293/mtga-log-client/issues"
+Documentation = "https://github.com/rconroy293/mtga-log-client#readme"
+
+[project.scripts]
+seventeenlands = "seventeenlands.mtga_follower:main"
+
+[tool.hatch.version]
+path = "seventeenlands/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["seventeenlands"]
