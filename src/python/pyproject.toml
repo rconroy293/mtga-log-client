@@ -29,6 +29,11 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+dev = [
+    "ruff==0.12.11",
+]
+
 [project.urls]
 Homepage = "https://github.com/rconroy293/mtga-log-client"
 Repository = "https://github.com/rconroy293/mtga-log-client"
@@ -43,3 +48,13 @@ path = "seventeenlands/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["seventeenlands"]
+
+[tool.ruff]
+extend-exclude = [
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "N", "UP"]

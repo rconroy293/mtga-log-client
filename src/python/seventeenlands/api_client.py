@@ -1,23 +1,21 @@
 import datetime
 import gzip
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import requests
 
 import seventeenlands.logging_utils
 import seventeenlands.retry_utils
 
+logger = seventeenlands.logging_utils.get_logger("api_client")
 
-logger = seventeenlands.logging_utils.get_logger('api_client')
-
-DEFAULT_HOST = 'https://api.17lands.com'
+DEFAULT_HOST = "https://api.17lands.com"
 
 _ERROR_COOLDOWN = datetime.timedelta(minutes=2)
 
 
 class ApiClient:
-
     def __init__(self, host: str):
         self.host = host
         self._last_error_posted_at = datetime.datetime.utcnow() - _ERROR_COOLDOWN
@@ -25,11 +23,11 @@ class ApiClient:
     def _retry_post(self, endpoint: str, blob: Any, use_gzip=False):
         def _send_request() -> requests.Response:
             args: Dict[str, Any] = {
-                "url": f'{self.host}/{endpoint}',
+                "url": f"{self.host}/{endpoint}",
             }
 
             if use_gzip:
-                args["data"] = gzip.compress(json.dumps(blob).encode('utf8'))
+                args["data"] = gzip.compress(json.dumps(blob).encode("utf8"))
                 args["headers"] = {
                     "content-type": "application/json",
                     "content-encoding": "gzip",
@@ -37,11 +35,13 @@ class ApiClient:
             else:
                 args["json"] = blob
 
-            logger.debug(f'Sending POST request: {args}')
+            logger.debug(f"Sending POST request: {args}")
             return requests.post(**args)
 
         def _validate_response(response: requests.Response) -> bool:
-            logger.debug(f'{endpoint} -> {response.status_code} Response: {response.text}')
+            logger.debug(
+                f"{endpoint} -> {response.status_code} Response: {response.text}"
+            )
             return response.status_code < 500 or response.status_code >= 600
 
         return seventeenlands.retry_utils.retry_api_call(
@@ -51,11 +51,11 @@ class ApiClient:
 
     def _retry_get(self, endpoint, params):
         def _send_request() -> requests.Response:
-            logger.debug(f'Sending GET to {self.host}/{endpoint}: {params}')
-            return requests.get(f'{self.host}/{endpoint}', params=params)
+            logger.debug(f"Sending GET to {self.host}/{endpoint}: {params}")
+            return requests.get(f"{self.host}/{endpoint}", params=params)
 
         def _validate_response(response: requests.Response) -> bool:
-            logger.debug(f'{response.status_code} Response: {response.text}')
+            logger.debug(f"{response.status_code} Response: {response.text}")
             return response.status_code < 500 or response.status_code >= 600
 
         return seventeenlands.retry_utils.retry_api_call(
@@ -169,7 +169,9 @@ class ApiClient:
     def submit_error_info(self, blob: Dict):
         now = datetime.datetime.utcnow()
         if self._last_error_posted_at > now - _ERROR_COOLDOWN:
-            logger.warning(f'Waiting to post another error; last message was sent too recently ({self._last_error_posted_at.isoformat()})')
+            logger.warning(
+                f"Waiting to post another error; last message was sent too recently ({self._last_error_posted_at.isoformat()})"
+            )
             return
 
         self._last_error_posted_at = now
