@@ -60,8 +60,8 @@ files = ["seventeenlands"]
 
 [tool.uv]
 dev-dependencies = [
-    "ruff==0.12.11",
-    "mypy==1.16.0",
-    "types-requests",
-    "types-python-dateutil",
+    "ruff~=0.12.11",
+    "mypy~=1.16.0",
+    "types-requests~=2.32.0",
+    "types-python-dateutil~=2.9.0",
 ]
