@@ -772,9 +772,9 @@ class Follower:
                         for instance_id in hand_card_ids:
                             card_id = player_objects.get(instance_id)
                             if instance_id is not None and card_id is not None:
-                                self.drawn_cards_by_instance_id[owner][
-                                    instance_id
-                                ] = card_id
+                                self.drawn_cards_by_instance_id[owner][instance_id] = (
+                                    card_id
+                                )
 
                 players_deciding_hand = {
                     (p["systemSeatNumber"], p.get("mulliganCount", 0))
