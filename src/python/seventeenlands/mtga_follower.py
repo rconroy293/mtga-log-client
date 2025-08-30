@@ -204,7 +204,13 @@ def json_value_matches(expectation: Any, path: list[str], blob: dict[str, Any]) 
     return blob == expectation
 
 
-def get_rank_string(rank_class: str, level: int, percentile: Optional[float], place: Optional[int], step: Optional[int]) -> str:
+def get_rank_string(
+    rank_class: str,
+    level: int,
+    percentile: Optional[float],
+    place: Optional[int],
+    step: Optional[int],
+) -> str:
     """
     Convert the components of rank into a serializable value for recording
 
@@ -270,7 +276,9 @@ class Follower:
         self.opening_hand_count_by_seat: defaultdict[Any, int] = defaultdict(int)
         self.opening_hand: defaultdict[Any, list[Any]] = defaultdict(list)
         self.drawn_hands: defaultdict[Any, list[Any]] = defaultdict(list)
-        self.drawn_cards_by_instance_id: defaultdict[Any, dict[Any, Any]] = defaultdict(dict)
+        self.drawn_cards_by_instance_id: defaultdict[Any, dict[Any, Any]] = defaultdict(
+            dict
+        )
         self.cards_in_hand: defaultdict[Any, list[Any]] = defaultdict(list)
         self.user_screen_name: Optional[str] = None
         self.full_screen_name: Optional[str] = None
@@ -434,7 +442,9 @@ class Follower:
         self.buffer = []
         # self.cur_log_time = None
 
-    def __maybe_get_utc_timestamp(self, blob: dict[str, Any]) -> Optional[datetime.datetime]:
+    def __maybe_get_utc_timestamp(
+        self, blob: dict[str, Any]
+    ) -> Optional[datetime.datetime]:
         timestamp = None
         if "timestamp" in blob:
             timestamp = blob["timestamp"]
@@ -697,7 +707,9 @@ class Follower:
                     )
             self.__clear_match_data(submit_pending_game=True)
 
-    def _add_to_game_history(self, message_blob: dict[str, Any], timestamp: Optional[datetime.datetime]) -> None:
+    def _add_to_game_history(
+        self, message_blob: dict[str, Any], timestamp: Optional[datetime.datetime]
+    ) -> None:
         self.game_history_events.append(
             {
                 "_timestamp": None if timestamp is None else timestamp.isoformat(),
@@ -705,7 +717,9 @@ class Follower:
             }
         )
 
-    def __handle_gre_to_client_message(self, message_blob: dict[str, Any], timestamp: Optional[datetime.datetime]) -> None:
+    def __handle_gre_to_client_message(
+        self, message_blob: dict[str, Any], timestamp: Optional[datetime.datetime]
+    ) -> None:
         """Handle messages in the 'greToClientEvent' field."""
         # Add to game history before processing the message, since we may submit the game right away.
         if message_blob["type"] in [
@@ -830,7 +844,9 @@ class Follower:
                 stacktrace=traceback.format_exc(),
             )
 
-    def __handle_client_to_gre_message(self, payload: dict[str, Any], timestamp: Optional[datetime.datetime]) -> None:
+    def __handle_client_to_gre_message(
+        self, payload: dict[str, Any], timestamp: Optional[datetime.datetime]
+    ) -> None:
         try:
             if payload["type"] == "ClientMessageType_SelectNResp":
                 self._add_to_game_history(payload, timestamp)
@@ -857,7 +873,9 @@ class Follower:
                 stacktrace=traceback.format_exc(),
             )
 
-    def __handle_client_to_gre_ui_message(self, payload: dict[str, Any], timestamp: Optional[datetime.datetime]) -> None:
+    def __handle_client_to_gre_ui_message(
+        self, payload: dict[str, Any], timestamp: Optional[datetime.datetime]
+    ) -> None:
         try:
             if "onChat" in payload["uiMessage"]:
                 self._add_to_game_history(payload, timestamp)
@@ -869,7 +887,9 @@ class Follower:
                 stacktrace=traceback.format_exc(),
             )
 
-    def __handle_gre_edictal_message(self, payload: dict[str, Any], timestamp: Optional[datetime.datetime]) -> None:
+    def __handle_gre_edictal_message(
+        self, payload: dict[str, Any], timestamp: Optional[datetime.datetime]
+    ) -> None:
         try:
             edict_message = payload.get("edictalMessage", {}).get("edictMessage", {})
             return self.__handle_client_to_gre_message(
@@ -907,7 +927,9 @@ class Follower:
                 stacktrace=traceback.format_exc(),
             )
 
-    def __maybe_handle_game_over_stage(self, game_state_message: dict[str, Any]) -> None:
+    def __maybe_handle_game_over_stage(
+        self, game_state_message: dict[str, Any]
+    ) -> None:
         game_info = game_state_message.get("gameInfo", {})
         if game_info.get("stage") != "GameStage_GameOver":
             return
@@ -1033,7 +1055,11 @@ class Follower:
             and len(self.game_history_events) > 5
         )
 
-    def __enqueue_game_results(self, results: list[dict[str, Any]], match_game_room_state_changed_obj: Optional[dict[str, Any]] = None) -> None:
+    def __enqueue_game_results(
+        self,
+        results: list[dict[str, Any]],
+        match_game_room_state_changed_obj: Optional[dict[str, Any]] = None,
+    ) -> None:
         try:
             game_results = [r for r in results if r.get("scope") == "MatchScope_Game"]
             if game_results:

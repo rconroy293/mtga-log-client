@@ -20,7 +20,9 @@ class ApiClient:
         self.host = host
         self._last_error_posted_at = datetime.datetime.utcnow() - _ERROR_COOLDOWN
 
-    def _retry_post(self, endpoint: str, blob: Any, use_gzip: bool = False) -> requests.Response:
+    def _retry_post(
+        self, endpoint: str, blob: Any, use_gzip: bool = False
+    ) -> requests.Response:
         def _send_request() -> requests.Response:
             args: dict[str, Any] = {
                 "url": f"{self.host}/{endpoint}",
