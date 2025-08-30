@@ -16,11 +16,11 @@ _ERROR_COOLDOWN = datetime.timedelta(minutes=2)
 
 
 class ApiClient:
-    def __init__(self, host: str):
+    def __init__(self, host: str) -> None:
         self.host = host
         self._last_error_posted_at = datetime.datetime.utcnow() - _ERROR_COOLDOWN
 
-    def _retry_post(self, endpoint: str, blob: Any, use_gzip=False):
+    def _retry_post(self, endpoint: str, blob: Any, use_gzip: bool = False) -> requests.Response:
         def _send_request() -> requests.Response:
             args: dict[str, Any] = {
                 "url": f"{self.host}/{endpoint}",
@@ -49,7 +49,7 @@ class ApiClient:
             response_validator=_validate_response,
         )
 
-    def _retry_get(self, endpoint, params):
+    def _retry_get(self, endpoint: str, params: dict[str, Any]) -> requests.Response:
         def _send_request() -> requests.Response:
             logger.debug(f"Sending GET to {self.host}/{endpoint}: {params}")
             return requests.get(f"{self.host}/{endpoint}", params=params)
@@ -63,116 +63,116 @@ class ApiClient:
             response_validator=_validate_response,
         )
 
-    def get_client_version_info(self, params: dict):
+    def get_client_version_info(self, params: dict[str, Any]) -> requests.Response:
         return self._retry_get(
             endpoint="api/client/client_version_validation",  # Formerly /api/version_validation
             params=params,
         )
 
-    def submit_collection(self, blob: dict):
+    def submit_collection(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/update_card_collection",  # Formerly /collection
             blob=blob,
         )
 
-    def submit_deck_submission(self, blob: dict):
+    def submit_deck_submission(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_deck",  # Formerly /deck
             blob=blob,
         )
 
-    def submit_draft_pack(self, blob: dict):
+    def submit_draft_pack(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_pack",  # Formerly /pack
             blob=blob,
         )
 
-    def submit_draft_pick(self, blob: dict):
+    def submit_draft_pick(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_pick",  # Formerly /pick
             blob=blob,
         )
 
-    def submit_event_course_submission(self, blob: dict):
+    def submit_event_course_submission(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/update_event_course",  # Formerly /event_course
             blob=blob,
         )
 
-    def submit_joined_event(self, blob: dict):
+    def submit_joined_event(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/record_event_join",
             blob=blob,
         )
 
-    def submit_event_ended(self, blob: dict):
+    def submit_event_ended(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/mark_event_ended",  # Formerly /event_ended
             blob=blob,
         )
 
-    def submit_event_submission(self, blob: dict):
+    def submit_event_submission(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_event",  # Formerly /event
             blob=blob,
         )
 
-    def submit_game_result(self, blob: dict):
+    def submit_game_result(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_game",  # Formerly /game
             blob=blob,
             use_gzip=True,
         )
 
-    def submit_human_draft_pack(self, blob: dict):
+    def submit_human_draft_pack(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_human_draft_pack",  # Formerly /human_draft_pack
             blob=blob,
         )
 
-    def submit_human_draft_pick(self, blob: dict):
+    def submit_human_draft_pick(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_human_draft_pick",  # Formerly /human_draft_pick
             blob=blob,
         )
 
-    def submit_inventory(self, blob: dict):
+    def submit_inventory(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/update_inventory",  # Formerly /inventory
             blob=blob,
         )
 
-    def submit_ongoing_events(self, blob: dict):
+    def submit_ongoing_events(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/update_ongoing_events",  # Formerly /ongoing_events
             blob=blob,
         )
 
-    def submit_player_progress(self, blob: dict):
+    def submit_player_progress(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/update_player_progress",  # Formerly /player_progress
             blob=blob,
         )
 
-    def submit_rank(self, blob: dict):
+    def submit_rank(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_rank",  # Formerly /api/rank
             blob=blob,
         )
 
-    def submit_user(self, blob: dict):
+    def submit_user(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_mtga_account",  # Formerly /api/account
             blob=blob,
         )
 
-    def submit_error_info(self, blob: dict):
+    def submit_error_info(self, blob: dict[str, Any]) -> requests.Response | None:
         now = datetime.datetime.utcnow()
         if self._last_error_posted_at > now - _ERROR_COOLDOWN:
             logger.warning(
                 f"Waiting to post another error; last message was sent too recently ({self._last_error_posted_at.isoformat()})"
             )
-            return
+            return None
 
         self._last_error_posted_at = now
         return self._retry_post(
