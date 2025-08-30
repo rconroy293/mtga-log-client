@@ -1,7 +1,7 @@
 import datetime
 import gzip
 import json
-from typing import Any
+from typing import Any, Optional
 
 import requests
 
@@ -166,7 +166,7 @@ class ApiClient:
             blob=blob,
         )
 
-    def submit_error_info(self, blob: dict[str, Any]) -> requests.Response | None:
+    def submit_error_info(self, blob: dict[str, Any]) -> Optional[requests.Response]:
         now = datetime.datetime.utcnow()
         if self._last_error_posted_at > now - _ERROR_COOLDOWN:
             logger.warning(
