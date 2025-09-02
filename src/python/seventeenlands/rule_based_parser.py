@@ -13,6 +13,7 @@ from typing import Any, Optional
 from typing_extensions import assert_never
 
 import seventeenlands.logging_utils
+from seventeenlands import __version__
 from seventeenlands.model import (
     Action,
     CallAPI,
@@ -39,13 +40,16 @@ class RuleBasedParser:
     A generic parser that applies rules from a RuleSet to log lines.
     """
 
-    def __init__(self, rule_set: RuleSet) -> None:
+    def __init__(self, rule_set: RuleSet, client_token: str) -> None:
         self.rule_set = rule_set
-        self.state: dict[str, Any] = {}
+        self.state: dict[str, Any] = {
+            "client_version": f"{__version__}.p",
+            "token": client_token,
+        }
         self.group_keys: dict[str, set[str]] = defaultdict(set)
         self.json_decoder = json.JSONDecoder()
 
-        # self.check_prerequisites()
+        self.check_prerequisites()
 
     def process_message(self, message: str) -> None:
         """
