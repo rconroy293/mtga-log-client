@@ -477,16 +477,22 @@ class Follower:
     def __handle_blob(self, full_log: str) -> None:
         """Attempt to parse a complete log message and send the data if relevant."""
         match = JSON_START_REGEX.search(full_log)
+        print(
+            f"Blob {'DOES' if match else 'DOES NOT'} match - starting with: {full_log[:100]}"
+        )
+        input("Enter to continue")
         if not match:
             return
 
         try:
             json_obj, end = self.json_decoder.raw_decode(full_log, match.start())
         except json.JSONDecodeError as e:
+            print("Error parsing JSON")
             logger.debug(
                 f"Ran into error {e} when parsing at {self.cur_log_time}. Data was: {full_log}"
             )
             return
+        print("JSON parsed successfully")
 
         json_obj = self.__extract_payload(json_obj)
         if not isinstance(json_obj, dict):
@@ -790,9 +796,9 @@ class Follower:
                         for instance_id in hand_card_ids:
                             card_id = player_objects.get(instance_id)
                             if instance_id is not None and card_id is not None:
-                                self.drawn_cards_by_instance_id[owner][instance_id] = (
-                                    card_id
-                                )
+                                self.drawn_cards_by_instance_id[owner][
+                                    instance_id
+                                ] = card_id
 
                 players_deciding_hand = {
                     (p["systemSeatNumber"], p.get("mulliganCount", 0))
