@@ -1,4 +1,8 @@
 from seventeenlands.model import (
+    CallAPI,
+    ClearGroupState,
+    Condition,
+    ConditionOperator,
     ExtractJSONValue,
     ExtractedValueReference,
     ExtractRegexGroup,
@@ -9,9 +13,16 @@ from seventeenlands.model import (
     TypeConversion,
 )
 
+_CLEAR_GAME_DATA = ClearGroupState(
+    state_group="game",
+)
+
 DEFAULT_RULE_SET = RuleSet(
     version="0.0.1",
-    state_prerequisites=[],
+    state_prerequisites=[
+        "token",
+        "client_version",
+    ],
     message_delimiters=[
         MessageDelimiter(
             regex=r"^\[(UnityCrossThreadLogger|Client GRE)\](\d[\d:/ .-]+(AM|PM)?)",
@@ -106,19 +117,65 @@ DEFAULT_RULE_SET = RuleSet(
             ],
         ),
         LogParsing(
-            log_message="Extracted cur_draft_event from request: {cur_draft_event}",
+            log_message="Extracted cur_draft_event from request: {event_name}",
             match_regex='Event_Join.*"request":.*\\\\"EventName\\\\"',
             match_method="search",
             extractions={
-                "blob": ExtractJSONValue(path=[]),
-                "cur_draft_event": ExtractJSONValue(
-                    path=["request", None, "EventName"]
-                ),
+                "event_name": ExtractJSONValue(path=["request", None, "EventName"]),
             },
             actions=[
                 StoreState(
-                    reference=ExtractedValueReference(key="event_time"),
-                    state_key="last_event_time",
+                    reference=ExtractedValueReference(key="event_name"),
+                    state_key="cur_draft_event",
+                ),
+            ],
+        ),
+        LogParsing(
+            log_message="Handled bot draft pick via DraftStatus message",
+            # match_regex='BotDraftDraftStatus.*"CurrentModule": ?"BotDraft".*\\\\"DraftStatus\\\\"',
+            match_regex='"CurrentModule": ?"BotDraft".*\\\\"DraftStatus\\\\"',
+            match_method="search",
+            extractions={
+                "blob": ExtractJSONValue(path=[]),
+                "draft_status": ExtractJSONValue(
+                    path=["Payload", None, "DraftStatus"],
+                ),
+                "event_name": ExtractJSONValue(
+                    path=["Payload", None, "EventName"],
+                ),
+                "pack_number": ExtractJSONValue(
+                    path=["Payload", None, "PackNumber"],
+                ),
+                "pick_number": ExtractJSONValue(
+                    path=["Payload", None, "PickNumber"],
+                ),
+                "card_ids": ExtractJSONValue(
+                    path=["Payload", None, "DraftPack"],
+                ),
+            },
+            conditions=[
+                Condition(
+                    left=ExtractedValueReference(key="draft_status"),
+                    operator=ConditionOperator.EQUALS,
+                    right="PickNext",
+                )
+            ],
+            actions=[
+                _CLEAR_GAME_DATA,
+                StoreState(
+                    reference=ExtractedValueReference(key="event_name"),
+                    state_key="cur_draft_event",
+                ),
+                CallAPI(
+                    path="api/client/add_pack",
+                    method="POST",
+                    body_params={
+                        "payload": ExtractedValueReference(key="blob"),
+                        "event_name": ExtractedValueReference(key="event_name"),
+                        "pack_number": ExtractedValueReference(key="pack_number"),
+                        "pick_number": ExtractedValueReference(key="pick_number"),
+                        "card_ids": ExtractedValueReference(key="card_ids"),
+                    },
                 ),
             ],
         ),

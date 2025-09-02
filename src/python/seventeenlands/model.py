@@ -1,6 +1,6 @@
-from enum import Enum
 import json
 import re
+from enum import Enum
 from functools import cached_property
 from typing import Annotated, Any, Literal, Optional, Union
 
@@ -159,11 +159,11 @@ class CallAPI(FrozenIgnoreExtras):
     path: str
     method: Literal["GET", "POST"]
     query_params: dict[str, ValueReference] = Field(
-        ...,
+        default={},
         description="Query parameters to be filled by state or extracted values.",
     )
     body_params: dict[str, ValueReference] = Field(
-        ...,
+        default={},
         description="Body parameters to be filled by state or extracted values.",
     )
 
@@ -174,19 +174,23 @@ Action = Annotated[
 ]
 
 
-class MessageDelimiter(FrozenIgnoreExtras):
-    regex: str = Field(
-        ...,
-        description="Regular expression that marks the start of a new message",
-    )
-    timestamp_group: Optional[int] = Field(
-        ...,
-        description="Regular expression group containing the message timestamp, if any.",
-    )
+class ConditionOperator(str, Enum):
+    EQUALS = "eq"
 
-    @cached_property
-    def compiled_regex(self) -> re.Pattern[str]:
-        return re.compile(self.regex)
+
+class Condition(FrozenIgnoreExtras):
+    operator: ConditionOperator = Field(
+        ...,
+        description="The operator to use for the condition.",
+    )
+    left: ValueReference = Field(
+        ...,
+        description="The left-hand side of the condition.",
+    )
+    right: Any = Field(
+        ...,
+        description="The right-hand side of the condition. If a `ValueReference` is used, it will be resolved at runtime. All other values will be used directly.",
+    )
 
 
 class LogParsing(FrozenIgnoreExtras):
@@ -219,6 +223,10 @@ class LogParsing(FrozenIgnoreExtras):
         default={},
         description="Type conversions to apply to each extraction before use in actions.",
     )
+    conditions: list[Condition] = Field(
+        default=[],
+        description="Conditions to check against transformed values that must be met for this rule to apply.",
+    )
     actions: list[Action] = Field(
         ...,
         description="An ordered list of actions to take when a log line matches the regex.",
@@ -235,6 +243,21 @@ class LogParsing(FrozenIgnoreExtras):
             return self._compiled_regex.search(message)
         else:
             assert_never(self.match_method)
+
+
+class MessageDelimiter(FrozenIgnoreExtras):
+    regex: str = Field(
+        ...,
+        description="Regular expression that marks the start of a new message",
+    )
+    timestamp_group: Optional[int] = Field(
+        ...,
+        description="Regular expression group containing the message timestamp, if any.",
+    )
+
+    @cached_property
+    def compiled_regex(self) -> re.Pattern[str]:
+        return re.compile(self.regex)
 
 
 class RuleSet(FrozenIgnoreExtras):

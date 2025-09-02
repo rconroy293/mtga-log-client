@@ -524,7 +524,7 @@ class Follower:
         elif (
             contains_log_key(key="Event_Join", full_log=full_log)
             and "Course" in json_obj
-        ):
+        ):  # Unused
             self.__handle_joined_event_response(json_obj)
         elif "DraftStatus" in json_obj:
             self.__handle_bot_draft_pack(json_obj)

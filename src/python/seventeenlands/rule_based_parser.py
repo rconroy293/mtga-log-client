@@ -18,6 +18,8 @@ from seventeenlands.model import (
     CallAPI,
     ClearGroupState,
     ClearState,
+    Condition,
+    ConditionOperator,
     ExtractedValueReference,
     LogParsing,
     RuleSet,
@@ -43,16 +45,18 @@ class RuleBasedParser:
         self.group_keys: dict[str, set[str]] = defaultdict(set)
         self.json_decoder = json.JSONDecoder()
 
+        # self.check_prerequisites()
+
     def process_message(self, message: str) -> None:
         """
         Process a single log line through the rule set.
         """
-        if not self.check_prerequisites():
-            return
-
         for rule in self.rule_set.rules:
             if match := rule.match(message):
                 extractions = self._extract_values(message, match, rule)
+                if not self._conditions_are_met(rule.conditions, extractions):
+                    continue
+
                 self._perform_actions(rule.actions, extractions)
 
                 if rule.log_message:
@@ -94,6 +98,25 @@ class RuleBasedParser:
                 continue
 
         return extractions
+
+    def _conditions_are_met(
+        self, conditions: list[Condition], extractions: dict[str, Any]
+    ) -> bool:
+        for condition in conditions:
+            left_value = self._resolve_value_reference(condition.left, extractions)
+            right_value = (
+                self._resolve_value_reference(condition.right, extractions)
+                if isinstance(
+                    condition.right, (StateValueReference, ExtractedValueReference)
+                )
+                else condition.right
+            )
+
+            if condition.operator == ConditionOperator.EQUALS:
+                if left_value != right_value:
+                    return False
+
+        return True
 
     def _parse_json_from_message(self, message: str) -> Optional[dict[str, Any]]:
         """
@@ -193,12 +216,10 @@ class RuleBasedParser:
                 group_state[key] = self.state[key]
         return group_state
 
-    def check_prerequisites(self) -> bool:
+    def check_prerequisites(self) -> None:
         """
-        Check if all state prerequisites are met.
+        Check if all state prerequisites are met. Raise an error if not.
         """
         for prerequisite in self.rule_set.state_prerequisites:
             if prerequisite not in self.state:
-                logger.warning(f"Missing prerequisite state: {prerequisite}")
-                return False
-        return True
+                raise RuntimeError(f"Missing prerequisite state: {prerequisite}")
