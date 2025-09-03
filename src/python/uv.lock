@@ -351,6 +351,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-dateutil" },
     { name = "requests" },
+    { name = "typing-extensions" },
 ]
 
 [package.dev-dependencies]
@@ -366,6 +367,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.11,<2.12" },
     { name = "python-dateutil", specifier = ">=2.8.0" },
     { name = "requests", specifier = ">=2.25.0" },
+    { name = "typing-extensions", specifier = ">=4.15.0" },
 ]
 
 [package.metadata.requires-dev]

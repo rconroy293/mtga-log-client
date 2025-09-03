@@ -21,21 +21,28 @@ class ApiClient:
         self._last_error_posted_at = datetime.datetime.utcnow() - _ERROR_COOLDOWN
 
     def _retry_post(
-        self, endpoint: str, blob: Any, use_gzip: bool = False
+        self,
+        endpoint: str,
+        body: Any,
+        query_params: Optional[dict[str, Any]] = None,
+        use_gzip: bool = False,
     ) -> requests.Response:
         def _send_request() -> requests.Response:
             args: dict[str, Any] = {
                 "url": f"{self.host}/{endpoint}",
             }
 
+            if query_params:
+                args["params"] = query_params
+
             if use_gzip:
-                args["data"] = gzip.compress(json.dumps(blob).encode("utf8"))
+                args["data"] = gzip.compress(json.dumps(body).encode("utf8"))
                 args["headers"] = {
                     "content-type": "application/json",
                     "content-encoding": "gzip",
                 }
             else:
-                args["json"] = blob
+                args["json"] = body
 
             logger.debug(f"Sending POST request: {args}")
             return requests.post(**args)
@@ -65,6 +72,23 @@ class ApiClient:
             response_validator=_validate_response,
         )
 
+    def post(
+        self,
+        endpoint: str,
+        body: dict[str, Any],
+        query_params: Optional[dict[str, Any]] = None,
+        use_gzip: bool = False,
+    ) -> requests.Response:
+        return self._retry_post(
+            endpoint=endpoint,
+            body=body,
+            query_params=query_params,
+            use_gzip=use_gzip,
+        )
+
+    def get(self, endpoint: str, params: dict[str, Any]) -> requests.Response:
+        return self._retry_get(endpoint=endpoint, params=params)
+
     def get_client_version_info(self, params: dict[str, Any]) -> requests.Response:
         return self._retry_get(
             endpoint="api/client/client_version_validation",  # Formerly /api/version_validation
@@ -74,98 +98,98 @@ class ApiClient:
     def submit_collection(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/update_card_collection",  # Formerly /collection
-            blob=blob,
+            body=blob,
         )
 
     def submit_deck_submission(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_deck",  # Formerly /deck
-            blob=blob,
+            body=blob,
         )
 
     def submit_draft_pack(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_pack",  # Formerly /pack
-            blob=blob,
+            body=blob,
         )
 
     def submit_draft_pick(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_pick",  # Formerly /pick
-            blob=blob,
+            body=blob,
         )
 
     def submit_event_course_submission(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/update_event_course",  # Formerly /event_course
-            blob=blob,
+            body=blob,
         )
 
     def submit_joined_event(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/record_event_join",
-            blob=blob,
+            body=blob,
         )
 
     def submit_event_ended(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/mark_event_ended",  # Formerly /event_ended
-            blob=blob,
+            body=blob,
         )
 
     def submit_event_submission(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_event",  # Formerly /event
-            blob=blob,
+            body=blob,
         )
 
     def submit_game_result(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_game",  # Formerly /game
-            blob=blob,
+            body=blob,
             use_gzip=True,
         )
 
     def submit_human_draft_pack(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_human_draft_pack",  # Formerly /human_draft_pack
-            blob=blob,
+            body=blob,
         )
 
     def submit_human_draft_pick(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_human_draft_pick",  # Formerly /human_draft_pick
-            blob=blob,
+            body=blob,
         )
 
     def submit_inventory(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/update_inventory",  # Formerly /inventory
-            blob=blob,
+            body=blob,
         )
 
     def submit_ongoing_events(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/update_ongoing_events",  # Formerly /ongoing_events
-            blob=blob,
+            body=blob,
         )
 
     def submit_player_progress(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/update_player_progress",  # Formerly /player_progress
-            blob=blob,
+            body=blob,
         )
 
     def submit_rank(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_rank",  # Formerly /api/rank
-            blob=blob,
+            body=blob,
         )
 
     def submit_user(self, blob: dict[str, Any]) -> requests.Response:
         return self._retry_post(
             endpoint="api/client/add_mtga_account",  # Formerly /api/account
-            blob=blob,
+            body=blob,
         )
 
     def submit_error_info(self, blob: dict[str, Any]) -> Optional[requests.Response]:
@@ -179,6 +203,6 @@ class ApiClient:
         self._last_error_posted_at = now
         return self._retry_post(
             endpoint="api/client/log_errors",  # Formerly /api/client_errors
-            blob=blob,
+            body=blob,
             use_gzip=True,
         )

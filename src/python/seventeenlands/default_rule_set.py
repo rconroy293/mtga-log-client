@@ -3,8 +3,8 @@ from seventeenlands.model import (
     ClearGroupState,
     Condition,
     ConditionOperator,
-    ExtractJSONValue,
     ExtractedValueReference,
+    ExtractJSONValue,
     ExtractRegexGroup,
     LogParsing,
     MessageDelimiter,
@@ -20,8 +20,8 @@ _CLEAR_GAME_DATA = ClearGroupState(
 DEFAULT_RULE_SET = RuleSet(
     version="0.0.1",
     state_prerequisites=[
-        "token",
-        "client_version",
+        "_token",
+        "_client_version",
     ],
     message_delimiters=[
         MessageDelimiter(
@@ -132,7 +132,6 @@ DEFAULT_RULE_SET = RuleSet(
         ),
         LogParsing(
             log_message="Handled bot draft pick via DraftStatus message",
-            # match_regex='BotDraftDraftStatus.*"CurrentModule": ?"BotDraft".*\\\\"DraftStatus\\\\"',
             match_regex='"CurrentModule": ?"BotDraft".*\\\\"DraftStatus\\\\"',
             match_method="search",
             extractions={

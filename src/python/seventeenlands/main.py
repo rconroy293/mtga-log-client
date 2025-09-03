@@ -4,12 +4,12 @@ Main entry point for rule-based MTGA log parsing.
 
 import argparse
 import datetime
-import json
 import os
 import pathlib
 import time
 
 import seventeenlands.logging_utils
+from seventeenlands.api_client import DEFAULT_HOST
 from seventeenlands.default_rule_set import DEFAULT_RULE_SET
 from seventeenlands.log_message_assembler import LogMessageAssembler
 from seventeenlands.model import RuleSet
@@ -23,14 +23,19 @@ FILE_UPDATED_FORCE_REFRESH_SECONDS = datetime.timedelta(seconds=60)
 
 
 def parse_log_file(
-    rule_set: RuleSet, filename: str, client_token: str, follow: bool = False, verbose: bool = False
+    rule_set: RuleSet,
+    filename: str,
+    client_token: str,
+    api_host: str,
+    follow: bool = False,
+    verbose: bool = False,
 ) -> None:
     """
     Parse a log file using the specified rule set.
     """
     while True:
         assembler = LogMessageAssembler(rule_set.message_delimiters)
-        parser = RuleBasedParser(rule_set, client_token=client_token)
+        parser = RuleBasedParser(rule_set, client_token=client_token, api_host=api_host)
 
         last_read_time = time.time()
         last_file_size = 0
@@ -119,6 +124,11 @@ def main() -> None:
         required=True,
         help="Client token for API authentication",
     )
+    parser.add_argument(
+        "--host",
+        default=DEFAULT_HOST,
+        help=f"API host URL (default: {DEFAULT_HOST})",
+    )
 
     args = parser.parse_args()
 
@@ -129,6 +139,7 @@ def main() -> None:
         rule_set=DEFAULT_RULE_SET,
         filename=args.log_file,
         client_token=args.token,
+        api_host=args.host,
         follow=follow,
         verbose=args.verbose,
     )

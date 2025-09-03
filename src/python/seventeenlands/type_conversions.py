@@ -3,7 +3,6 @@ from typing import Any
 
 import dateutil
 
-
 MAX_MILLISECONDS_SINCE_EPOCH = int(1000 * datetime(3000, 1, 1).timestamp())
 
 

@@ -14,6 +14,8 @@ from typing_extensions import assert_never
 
 import seventeenlands.logging_utils
 from seventeenlands import __version__
+from seventeenlands.api_client import ApiClient
+from seventeenlands.log_message_assembler import AssembledMessage
 from seventeenlands.model import (
     Action,
     CallAPI,
@@ -33,6 +35,15 @@ logger = seventeenlands.logging_utils.get_logger("17Lands")
 
 
 JSON_START_PATTERN = re.compile(r"[\[\{]")
+BASE_API_REFERENCES = {
+    "client_version": StateValueReference(key="_client_version"),
+    "token": StateValueReference(key="_token"),
+    "player_id": StateValueReference(key="player_id"),
+    "time": StateValueReference(key="time"),
+    "utc_time": StateValueReference(key="utc_time"),
+    "event_time": StateValueReference(key="event_time"),
+    "raw_time": StateValueReference(key="raw_time"),
+}
 
 
 class RuleBasedParser:
@@ -40,24 +51,29 @@ class RuleBasedParser:
     A generic parser that applies rules from a RuleSet to log lines.
     """
 
-    def __init__(self, rule_set: RuleSet, client_token: str) -> None:
+    def __init__(self, rule_set: RuleSet, client_token: str, api_host: str) -> None:
         self.rule_set = rule_set
         self.state: dict[str, Any] = {
-            "client_version": f"{__version__}.p",
-            "token": client_token,
+            "_client_version": f"{__version__}.p",
+            "_token": client_token,
         }
         self.group_keys: dict[str, set[str]] = defaultdict(set)
         self.json_decoder = json.JSONDecoder()
+        self.api_client = ApiClient(api_host)
 
         self.check_prerequisites()
 
-    def process_message(self, message: str) -> None:
+    def process_message(self, message: AssembledMessage) -> None:
         """
         Process a single log line through the rule set.
         """
+        # TODO: Fix time processing
+        self.state["raw_time"] = message.time_str
+        self.state["time"] = message.time_str
+
         for rule in self.rule_set.rules:
-            if match := rule.match(message):
-                extractions = self._extract_values(message, match, rule)
+            if match := rule.match(message.message):
+                extractions = self._extract_values(message.message, match, rule)
                 if not self._conditions_are_met(rule.conditions, extractions):
                     continue
 
@@ -150,9 +166,7 @@ class RuleBasedParser:
                     self._clear_group_state(action)
 
                 elif isinstance(action, CallAPI):
-                    # TODO: Implement API calling logic
-                    logger.info(f"API call action: {action}")
-                    pass
+                    self._call_api(action, extractions)
 
                 else:
                     assert_never(action)
@@ -188,6 +202,59 @@ class RuleBasedParser:
             self.state.pop(key, None)
 
         self.group_keys[action.state_group].clear()
+
+    def _call_api(self, action: CallAPI, extractions: dict[str, Any]) -> None:
+        """
+        Make an API call based on the action configuration.
+        """
+        try:
+            query_params = {}
+            for param_name, param_ref in action.query_params.items():
+                value = self._resolve_value_reference(param_ref, extractions)
+                if value is not None:
+                    query_params[param_name] = value
+
+            body_params = {}
+            for param_name, param_ref in {
+                **BASE_API_REFERENCES,
+                **action.body_params,
+            }.items():
+                value = self._resolve_value_reference(param_ref, extractions)
+                if value is not None:
+                    body_params[param_name] = value
+
+            if action.method == "GET":
+                if body_params:
+                    logger.warning(
+                        f"Cannot make GET request to {action.path} with body parameters; ignoring body."
+                    )
+
+                response = self.api_client.get(
+                    endpoint=action.path,
+                    params=query_params,
+                )
+
+            elif action.method == "POST":
+                response = self.api_client.post(
+                    endpoint=action.path,
+                    body=body_params,
+                    query_params=query_params,
+                )
+
+            else:
+                assert_never(action.method)
+
+            logger.info(
+                f"API call to {action.path} completed with status {response.status_code}"
+            )
+
+            if response.status_code >= 400:
+                logger.warning(
+                    f"API call failed: {response.status_code} - {response.text[:500]}"
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to make API call to {action.path}: {e}")
 
     def _resolve_value_reference(
         self, reference: ValueReference, extractions: dict[str, Any]

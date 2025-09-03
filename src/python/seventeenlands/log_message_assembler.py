@@ -10,7 +10,12 @@ from collections.abc import Iterator
 from typing import Optional
 from venv import logger
 
-from seventeenlands.model import MessageDelimiter
+from seventeenlands.model import FrozenIgnoreExtras, MessageDelimiter
+
+
+class AssembledMessage(FrozenIgnoreExtras):
+    message: str
+    time_str: Optional[str] = None
 
 
 class LogMessageAssembler:
@@ -25,23 +30,24 @@ class LogMessageAssembler:
     def __init__(self, delimiters: list[MessageDelimiter]):
         self.delimiters = delimiters
         self.buffer: list[str] = []
-        # TODO: Convert this to a datetime
-        self.last_timestamp: Optional[str] = None
+        self.last_time_str: Optional[str] = None
 
-    def process_line(self, line: str) -> Iterator[str]:
+    def process_line(self, line: str) -> Iterator[AssembledMessage]:
         """
         Process a single line and yield any complete messages.
         """
         if delimiter_match := self._check_delimiters(line):
             if self.buffer:
-                complete_message = "".join(self.buffer)
-                yield complete_message
+                yield AssembledMessage(
+                    message="".join(self.buffer),
+                    time_str=self.last_time_str,
+                )
                 self.buffer.clear()
 
             delimiter, match = delimiter_match
             if delimiter.timestamp_group is not None:
                 try:
-                    self.last_timestamp = match.group(delimiter.timestamp_group)
+                    self.last_time_str = match.group(delimiter.timestamp_group)
                 except IndexError:
                     logger.warning("Failed to extract timestamp")
                     pass
@@ -51,13 +57,15 @@ class LogMessageAssembler:
         else:
             self.buffer.append(line)
 
-    def get_remainder(self) -> Iterator[str]:
+    def get_remainder(self) -> Iterator[AssembledMessage]:
         """
         Yield any remaining buffered content as a final message.
         """
         if self.buffer:
-            complete_message = "".join(self.buffer)
-            yield complete_message
+            yield AssembledMessage(
+                message="".join(self.buffer),
+                time_str=self.last_time_str,
+            )
             self.buffer.clear()
 
     def _check_delimiters(
@@ -75,4 +83,4 @@ class LogMessageAssembler:
         """
         Get the last extracted timestamp.
         """
-        return self.last_timestamp
+        return self.last_time_str
