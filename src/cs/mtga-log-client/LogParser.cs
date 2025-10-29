@@ -440,6 +440,7 @@ namespace mtga_log_client
             if (MaybeHandleHumanDraftCombined(fullLog, blob)) return;
             if (MaybeHandleLogBusinessGameEnd(fullLog, blob)) return;
             if (MaybeHandleHumanDraftPack(fullLog, blob)) return;
+            if (MaybeHandlePlayerDraftPick(fullLog, blob)) return;
             if (MaybeHandleDeckSubmission(fullLog, blob)) return;
             if (MaybeHandleOngoingEvents(fullLog, blob)) return;
             if (MaybeHandleClaimPrize(fullLog, blob)) return;
@@ -1101,6 +1102,34 @@ namespace mtga_log_client
             catch (Exception e)
             {
                 LogError(String.Format("Error {0} parsing human draft pack from {1}", e, blob), e.StackTrace, Level.Warn);
+                return false;
+            }
+        }
+
+        private bool MaybeHandlePlayerDraftPick(String fullLog, JObject blob)
+        {
+            if (!ContainsLogKey("EventPlayerDraftMakePick", fullLog)) return false;
+            if (!blob.ContainsKey("GrpIds")) return false;
+
+            ClearGameData();
+
+            try
+            {
+                var pick = CreateObjectWithBaseData();
+                pick.Add("payload", JToken.FromObject(blob));
+                pick.Add("draft_id", blob["DraftId"].Value<String>());
+                pick.Add("event_name", currentDraftEvent);
+                pick.Add("pack_number", blob["Pack"].Value<int>());
+                pick.Add("pick_number", blob["Pick"].Value<int>());
+                pick.Add("card_ids", JArrayToIntList(blob["GrpIds"].Value<JArray>()));
+
+                LogMessage(String.Format("Human draft pick (EventPlayerDraftMakePick): {0}", pick.ToString(Formatting.None)), Level.Info);
+                apiClient.PostHumanDraftPick(pick);
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogError(String.Format("Error {0} parsing human draft pick from {1}", e, blob), e.StackTrace, Level.Warn);
                 return false;
             }
         }
