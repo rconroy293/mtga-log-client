@@ -15,7 +15,7 @@ namespace mtga_log_client
 {
     class LogParser
     {
-        public const string CLIENT_VERSION = "0.2.1.10.w";
+        public const string CLIENT_VERSION = "0.2.1.11.w";
         public const string CLIENT_TYPE = "windows";
 
         private const int SLEEP_TIME = 750;
@@ -1121,7 +1121,7 @@ namespace mtga_log_client
                 pick.Add("event_name", currentDraftEvent);
                 pick.Add("pack_number", blob["Pack"].Value<int>());
                 pick.Add("pick_number", blob["Pick"].Value<int>());
-                pick.Add("card_ids", JArrayToIntList(blob["GrpIds"].Value<JArray>()));
+                pick.Add("card_ids", blob["GrpIds"]);
 
                 LogMessage(String.Format("Human draft pick (EventPlayerDraftMakePick): {0}", pick.ToString(Formatting.None)), Level.Info);
                 apiClient.PostHumanDraftPick(pick);
