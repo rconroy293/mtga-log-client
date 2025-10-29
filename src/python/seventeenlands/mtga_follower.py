@@ -540,6 +540,11 @@ class Follower:
         elif "Draft.Notify " in full_log and "method" not in json_obj:
             self.__handle_human_draft_pack(json_obj)
         elif (
+            contains_log_key(key="EventPlayerDraftMakePick", full_log=full_log)
+            and "GrpIds" in json_obj
+        ):
+            self.__handle_player_draft_pick(json_obj)
+        elif (
             contains_log_key(key="Event_SetDeck", full_log=full_log)
             and "EventName" in json_obj
         ):
@@ -1321,6 +1326,29 @@ class Follower:
         except Exception as e:
             self._log_error(
                 message=f"Error {e} parsing human draft pack from {json_obj}",
+                error=e,
+                stacktrace=traceback.format_exc(),
+            )
+
+    def __handle_player_draft_pick(self, json_obj: dict[str, Any]) -> None:
+        """Handle 'EventPlayerDraftMakePick' messages."""
+        self.__clear_game_data()
+
+        try:
+            pick = {
+                "payload": json_obj,
+                "draft_id": json_obj["DraftId"],
+                "event_name": self.cur_draft_event,
+                "pack_number": int(json_obj["Pack"]),
+                "pick_number": int(json_obj["Pick"]),
+                "card_ids": json_obj["GrpIds"],
+            }
+            logger.info(f"Human draft pick (EventPlayerDraftMakePick): {pick}")
+            self._api_client.submit_human_draft_pick(self._add_base_api_data(pick))
+
+        except Exception as e:
+            self._log_error(
+                message=f"Error {e} parsing human draft pick from {json_obj}",
                 error=e,
                 stacktrace=traceback.format_exc(),
             )
