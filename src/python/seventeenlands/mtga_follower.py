@@ -1711,8 +1711,6 @@ def processing_loop(args: argparse.Namespace, token: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="MTGA log follower")
 
-    config_token = get_config()
-
     parser.add_argument(
         "-l",
         "--log_file",
@@ -1725,7 +1723,6 @@ def main() -> None:
     )
     parser.add_argument(
         "--token",
-        default=config_token,
         help=f"Token of the user. If not specified, will use the token at {CONFIG_FILE}",
     )
     parser.add_argument(
@@ -1744,7 +1741,7 @@ def main() -> None:
         check_count += 1
         time.sleep(UPDATE_CHECK_INTERVAL.total_seconds())
 
-    token = args.token
+    token = get_config() if args.token is None else args.token
     logger.info(f"Using token {token[:4]}...{token[-4:]}")
 
     processing_loop(args, token)
