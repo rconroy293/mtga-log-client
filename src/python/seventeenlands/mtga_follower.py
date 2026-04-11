@@ -1504,6 +1504,12 @@ def validate_uuid_v4(maybe_uuid: Optional[str]) -> Optional[str]:
         return None
 
 
+class _GuiUnsupported(Exception):
+    """
+    GUI workflows are unsupported in the current environment
+    """
+
+
 def get_client_token_mac() -> str:
     message = TOKEN_ENTRY_MESSAGE
     while True:
@@ -1528,11 +1534,19 @@ def get_client_token_mac() -> str:
 
 
 def get_client_token_tkinter() -> str:
-    import tkinter
+    try:
+        import tkinter
+    except ModuleNotFoundError as error:
+        raise _GuiUnsupported(str(error)) from error
+
     import tkinter.messagebox
     import tkinter.simpledialog
 
-    window = tkinter.Tk()
+    try:
+        window = tkinter.Tk()
+    except tkinter.TclError as error:
+        raise _GuiUnsupported("tkinter module installed but GUI is unsupported") from error
+
     window.wm_withdraw()
 
     message = TOKEN_ENTRY_MESSAGE
@@ -1584,7 +1598,8 @@ def get_config() -> str:
     if token is None or validate_uuid_v4(token) is None:
         try:
             token = get_client_token_visual()
-        except ModuleNotFoundError:
+        except _GuiUnsupported as exception:
+            logger.debug("GUI unsupported", exc_info=exception)
             token = get_client_token_cli()
 
         if "client" not in config:
@@ -1608,10 +1623,18 @@ def show_dialog_mac(title: str, message: str) -> None:
 
 
 def show_dialog_tkinter(title: str, message: str) -> None:
-    import tkinter
+    try:
+        import tkinter
+    except ModuleNotFoundError as error:
+        raise _GuiUnsupported(str(error)) from error
+
     import tkinter.messagebox
 
-    window = tkinter.Tk()
+    try:
+        window = tkinter.Tk()
+    except tkinter.TclError as error:
+        raise _GuiUnsupported(str(error)) from error
+
     window.wm_withdraw()
     tkinter.messagebox.showerror(title, message)
 
@@ -1622,7 +1645,7 @@ def show_message(title: str, message: str) -> None:
             return show_dialog_mac(title, message)
         else:
             return show_dialog_tkinter(title, message)
-    except ModuleNotFoundError:
+    except _GuiUnsupported:
         logger.exception("Could not suitably show message")
         logger.warning(message)
 
@@ -1711,8 +1734,6 @@ def processing_loop(args: argparse.Namespace, token: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="MTGA log follower")
 
-    config_token = get_config()
-
     parser.add_argument(
         "-l",
         "--log_file",
@@ -1725,7 +1746,6 @@ def main() -> None:
     )
     parser.add_argument(
         "--token",
-        default=config_token,
         help=f"Token of the user. If not specified, will use the token at {CONFIG_FILE}",
     )
     parser.add_argument(
@@ -1744,7 +1764,7 @@ def main() -> None:
         check_count += 1
         time.sleep(UPDATE_CHECK_INTERVAL.total_seconds())
 
-    token = args.token
+    token = get_config() if args.token is None else args.token
     logger.info(f"Using token {token[:4]}...{token[-4:]}")
 
     processing_loop(args, token)
