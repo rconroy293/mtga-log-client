@@ -346,6 +346,51 @@ namespace mtga_log_client
             {
                 buffer.Add(line);
             }
+
+            if (BufferHasParseableJson())
+            {
+                HandleCompleteLogEntry();
+            }
+        }
+
+        private bool BufferHasParseableJson()
+        {
+            if (buffer.Count == 0)
+            {
+                return false;
+            }
+
+            String fullLog;
+            try
+            {
+                fullLog = String.Join("", buffer);
+            }
+            catch (OutOfMemoryException)
+            {
+                return false;
+            }
+
+            var dictMatch = JSON_DICT_REGEX.Match(fullLog);
+            if (!dictMatch.Success)
+            {
+                return false;
+            }
+
+            var listMatch = JSON_LIST_REGEX.Match(fullLog);
+            if (listMatch.Success && listMatch.Value.Length > dictMatch.Value.Length && listMatch.Index < dictMatch.Index)
+            {
+                return false;
+            }
+
+            try
+            {
+                ParseBlob(dictMatch.Value);
+                return true;
+            }
+            catch (JsonReaderException)
+            {
+                return false;
+            }
         }
 
         private void HandleCompleteLogEntry()
