@@ -415,6 +415,28 @@ class Follower:
         else:
             self.buffer.append(line)
 
+        # Some events (including one-line Draft.Notify payloads) are complete on this line.
+        # Parse them immediately instead of waiting for the next log-start boundary.
+        self.__maybe_handle_complete_log_entry_if_parseable()
+
+    def __maybe_handle_complete_log_entry_if_parseable(self) -> None:
+        if len(self.buffer) == 0:
+            return
+        if self.cur_log_time is None:
+            return
+
+        full_log = "".join(self.buffer)
+        match = JSON_START_REGEX.search(full_log)
+        if not match:
+            return
+
+        try:
+            self.json_decoder.raw_decode(full_log, match.start())
+        except json.JSONDecodeError:
+            return
+
+        self.__handle_complete_log_entry()
+
     def __handle_complete_log_entry(self) -> None:
         """Mark the current log message complete. Should be called when waiting for more log messages."""
         if len(self.buffer) == 0:
